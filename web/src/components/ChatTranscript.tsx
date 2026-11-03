@@ -1117,6 +1117,65 @@ function FileChip({ name, url }: { name: string; url: string }) {
   );
 }
 
+/**
+ * A shared `.md` — the chip, and the document rendered under it on tap.
+ *
+ * The serve route forces `.md` to DOWNLOAD (every non-media type is served as
+ * an attachment, so nothing active can run on muxpad's origin), which made a
+ * write-up an agent handed over a file in Downloads rather than something to
+ * read. The bytes are fetched as text and go through the same react-markdown
+ * pipeline as the transcript — no raw HTML, so the download rule still holds.
+ */
+function MarkdownFileChip({ name, url }: { name: string; url: string }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!open || text !== null) return;
+    let live = true;
+    fetch(url)
+      .then((r) => (r.ok ? r.text() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((t) => live && setText(t))
+      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)));
+    return () => {
+      live = false;
+    };
+  }, [open, text, url]);
+  return (
+    <div className="chat-mdfile">
+      <button
+        type="button"
+        className="chat-filechip"
+        aria-expanded={open}
+        title={name}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className="chat-filechip-ext" aria-hidden="true">
+          MD
+        </span>
+        <span className="chat-filechip-name">{name}</span>
+        <span className="chat-mdfile-caret" aria-hidden="true">
+          {open ? '▾' : '▸'}
+        </span>
+      </button>
+      {open ? (
+        <div className="chat-mdfile-doc">
+          {error ? (
+            <span className="chat-mdfile-status">Couldn't load it: {error}</span>
+          ) : text === null ? (
+            <span className="chat-mdfile-status">Loading…</span>
+          ) : (
+            <Markdown text={text} />
+          )}
+          <a className="chat-mdfile-raw" href={url} rel="noreferrer noopener" download={name}>
+            Download
+          </a>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 /** Render message parts: prose via `renderText`, consecutive image/video parts
  *  grouped into one gallery, other files as chips. */
 function renderMessageParts(
@@ -1160,7 +1219,9 @@ function renderMessageParts(
       seen++;
     } else {
       flush();
-      if (part.kind === 'file')
+      if (part.kind === 'file' && /\.md$/i.test(part.name))
+        out.push(<MarkdownFileChip key={`f-${i}`} name={part.name} url={part.url} />);
+      else if (part.kind === 'file')
         out.push(<FileChip key={`f-${i}`} name={part.name} url={part.url} />);
       else out.push(renderText(part.text, `t-${i}`));
     }
