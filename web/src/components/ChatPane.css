@@ -2322,6 +2322,34 @@
   white-space: nowrap;
   font-size: 0.8125rem;
 }
+/* A shared .md: the chip is a button, and the document opens under it. */
+button.chat-filechip {
+  font: inherit;
+  cursor: pointer;
+}
+.chat-mdfile-caret {
+  flex: none;
+  opacity: 0.6;
+  font-size: 0.75rem;
+}
+.chat-mdfile-doc {
+  margin: 2px 0 8px;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--chat-fg) 12%, transparent);
+  border-radius: 10px;
+  max-height: 70vh;
+  overflow: auto;
+}
+.chat-mdfile-status {
+  opacity: 0.6;
+  font-size: 0.8125rem;
+}
+.chat-mdfile-raw {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: var(--chat-accent);
+}
 
 /* Lightbox: reuse the modal backdrop/scrim but center a bare full-size image. */
 .chat-img-backdrop {
