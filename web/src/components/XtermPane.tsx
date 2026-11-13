@@ -481,7 +481,7 @@ export function XtermPane({
     // cache on this return value — otherwise a frame dropped here (WS not yet
     // open) still poisons the cache, and the dedup then suppresses every
     // future retry of that size, leaving the PTY stuck.
-    const safeSend = (frame: Uint8Array): boolean => {
+    const safeSend = (frame: Uint8Array<ArrayBuffer>): boolean => {
       const ws = wsRef.current;
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(frame);
