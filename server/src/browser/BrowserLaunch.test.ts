@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { browserLaunchSpec, chromeArgv } from './BrowserLaunch.js';
+import { browserLaunchSpec, chromeArgv, linuxNeedsNoSandbox } from './BrowserLaunch.js';
 
 /**
  * How a muxpad-owned browser is launched.
@@ -121,5 +121,36 @@ describe('nothing it launches may reach the local network on its own', () => {
     // one thing that must never widen is the port that drives the browser.
     expect(args).toContain('--remote-debugging-address=127.0.0.1');
     expect(args.some((a) => /--remote-debugging-address=(0\.0\.0\.0|::)/.test(a))).toBe(false);
+  });
+});
+
+describe('the linux sandbox', () => {
+  const sysctl =
+    (values: Record<string, string>) =>
+    (path: string): string | null =>
+      values[path] ?? null;
+  const RESTRICTED = { '/proc/sys/kernel/apparmor_restrict_unprivileged_userns': '1' };
+
+  it('keeps the sandbox by default', () => {
+    expect(chromeArgv(OPTS)).not.toContain('--no-sandbox');
+    expect(chromeArgv({ ...OPTS, noSandbox: true })).toContain('--no-sandbox');
+  });
+
+  it('drops it only on a linux where user namespaces are blocked and no setuid helper exists', () => {
+    // Stock Ubuntu 24.04: Chrome aborts with "No usable sandbox!" otherwise.
+    const ubuntu = {
+      platform: 'linux' as const,
+      readSysctl: sysctl(RESTRICTED),
+      isSetuidRoot: () => false,
+    };
+    expect(linuxNeedsNoSandbox('/pw/chrome-linux64/chrome', ubuntu)).toBe(true);
+    expect(
+      linuxNeedsNoSandbox('/pw/chrome-linux64/chrome', {
+        ...ubuntu,
+        isSetuidRoot: (p) => p === '/pw/chrome-linux64/chrome-sandbox',
+      }),
+    ).toBe(false);
+    expect(linuxNeedsNoSandbox('/c', { ...ubuntu, readSysctl: sysctl({}) })).toBe(false);
+    expect(linuxNeedsNoSandbox('/c', { ...ubuntu, platform: 'darwin' })).toBe(false);
   });
 });

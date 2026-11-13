@@ -1,3 +1,5 @@
+import { readFileSync, statSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import {
   BROWSER_PORT_RANGE,
   browserAppName,
@@ -51,6 +53,11 @@ export interface BrowserLaunchOptions {
   chromePath: string;
   /** Viewport of the single window the owner opens. */
   windowSize?: { width: number; height: number };
+  /**
+   * Launch without Chrome's sandbox. Defaults to {@link linuxNeedsNoSandbox},
+   * so it is only ever on where the sandbox cannot start at all.
+   */
+  noSandbox?: boolean;
 }
 
 export interface BrowserLaunchSpec {
@@ -69,6 +76,54 @@ export interface BrowserLaunchSpec {
 }
 
 const DEFAULT_WINDOW = { width: 1280, height: 900 };
+
+export interface SandboxProbeDeps {
+  platform?: NodeJS.Platform;
+  /** Reads a /proc/sys file; null when it does not exist. */
+  readSysctl?: (path: string) => string | null;
+  /** True when the file is owned by root with the setuid bit set. */
+  isSetuidRoot?: (path: string) => boolean;
+}
+
+const defaultReadSysctl = (path: string): string | null => {
+  try {
+    return readFileSync(path, 'utf8').trim();
+  } catch {
+    return null;
+  }
+};
+
+const defaultIsSetuidRoot = (path: string): boolean => {
+  try {
+    const st = statSync(path);
+    return st.uid === 0 && (st.mode & 0o4000) !== 0;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Whether Chrome's sandbox has nothing to start with on this machine.
+ *
+ * Chrome on Linux sandboxes renderers with unprivileged user namespaces, or
+ * failing that with a setuid-root `chrome-sandbox` helper. Ubuntu 23.10+
+ * restricts the first through AppArmor, and Playwright's download ships the
+ * helper unprivileged — so on a stock Ubuntu box Chrome aborts at startup with
+ * "No usable sandbox!" and the host crash-loops. Only in that case do we drop
+ * the sandbox, which is what Playwright itself does by default. macOS and a
+ * Linux with working namespaces keep it.
+ */
+export function linuxNeedsNoSandbox(chromePath: string, deps: SandboxProbeDeps = {}): boolean {
+  if ((deps.platform ?? process.platform) !== 'linux') return false;
+  const read = deps.readSysctl ?? defaultReadSysctl;
+  const setuid = deps.isSetuidRoot ?? defaultIsSetuidRoot;
+  const usernsBlocked =
+    read('/proc/sys/kernel/apparmor_restrict_unprivileged_userns') === '1' ||
+    read('/proc/sys/kernel/unprivileged_userns_clone') === '0';
+  if (!usernsBlocked) return false;
+  const dir = dirname(chromePath);
+  return !['chrome-sandbox', 'chrome_sandbox'].some((name) => setuid(join(dir, name)));
+}
 
 /**
  * Chrome's argv for a muxpad-owned browser.
@@ -137,6 +192,9 @@ export function chromeArgv(opts: BrowserLaunchOptions): string[] {
     `--window-size=${win.width},${win.height}`,
     '--no-first-run',
     '--no-default-browser-check',
+
+    // Only where the sandbox cannot start at all — see linuxNeedsNoSandbox.
+    ...(opts.noSandbox ? ['--no-sandbox'] : []),
   ];
 }
 
@@ -149,6 +207,9 @@ export function browserLaunchSpec(opts: BrowserLaunchOptions): BrowserLaunchSpec
     url: browserAppUrl(opts.port),
     profileDir: browserProfileDir(opts.dataDir, profile),
     command: opts.chromePath,
-    args: chromeArgv(opts),
+    args: chromeArgv({
+      ...opts,
+      noSandbox: opts.noSandbox ?? linuxNeedsNoSandbox(opts.chromePath),
+    }),
   };
 }

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { CHROME_BIN_ENV, findChrome, newestPlaywrightChromium } from './findChrome.js';
+import {
+  CHROME_BIN_ENV,
+  findChrome,
+  newestPlaywrightChromium,
+  playwrightCacheDir,
+} from './findChrome.js';
 
 /**
  * Finding a browser WITHOUT raising a macOS permission dialog.
@@ -47,6 +52,7 @@ function deps(
     deps: {
       env: opts.env ?? {},
       home: '/home',
+      platform: 'darwin' as const,
       list: (dir: string) => {
         listed.push(dir);
         return opts.tree?.[dir] ?? [];
@@ -138,15 +144,20 @@ describe('what it picks', () => {
     );
   });
 
-  it('handles linux, where there is no bundle at all', () => {
+  it('handles linux, where there is no bundle and the cache is ~/.cache', () => {
+    // The old test put a linux layout under ~/Library/Caches, which is where
+    // muxpad looked on every platform — so it passed while Linux found nothing.
+    const LX = '/home/.cache/ms-playwright';
     const { deps: d } = deps({
       tree: {
-        [PW]: ['chromium-1246'],
-        [`${PW}/chromium-1246`]: ['chrome-linux'],
-        [`${PW}/chromium-1246/chrome-linux`]: ['chrome', 'headless_shell'],
+        [LX]: ['chromium-1246'],
+        [`${LX}/chromium-1246`]: ['chrome-linux64'],
+        [`${LX}/chromium-1246/chrome-linux64`]: ['chrome', 'chrome_sandbox'],
       },
     });
-    expect(findChrome(d)?.path).toBe(`${PW}/chromium-1246/chrome-linux/chrome`);
+    expect(findChrome({ ...d, platform: 'linux' })?.path).toBe(
+      `${LX}/chromium-1246/chrome-linux64/chrome`,
+    );
   });
 
   it('is null when there is no managed build and no override', () => {
@@ -183,6 +194,7 @@ describe('the shell is preferred over the browser', () => {
   // physical screen, from a browser with no window.
   const cache = (entries: Record<string, string[]>) => ({
     home: '/home',
+    platform: 'darwin' as const,
     env: {},
     list: (dir: string) => entries[dir] ?? [],
   });
@@ -246,5 +258,20 @@ describe('the shell is preferred over the browser', () => {
       list: () => ['chromium_headless_shell-1248'],
     });
     expect(found?.source).toBe('MUXPAD_CHROME_BIN');
+  });
+});
+
+describe('where the playwright cache lives', () => {
+  it('follows the platform, like Playwright itself', () => {
+    expect(playwrightCacheDir({}, '/h', 'darwin')).toBe('/h/Library/Caches/ms-playwright');
+    expect(playwrightCacheDir({}, '/h', 'linux')).toBe('/h/.cache/ms-playwright');
+    expect(playwrightCacheDir({ XDG_CACHE_HOME: '/x' }, '/h', 'linux')).toBe('/x/ms-playwright');
+  });
+
+  it('honours PLAYWRIGHT_BROWSERS_PATH, except the in-node_modules 0', () => {
+    expect(playwrightCacheDir({ PLAYWRIGHT_BROWSERS_PATH: '/pw' }, '/h', 'linux')).toBe('/pw');
+    expect(playwrightCacheDir({ PLAYWRIGHT_BROWSERS_PATH: '0' }, '/h', 'linux')).toBe(
+      '/h/.cache/ms-playwright',
+    );
   });
 });
