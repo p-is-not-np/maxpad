@@ -1,26 +1,46 @@
 import { lstatSync, readFileSync } from 'node:fs';
+
+/**
+ * Where the protected broker tree lives, per platform. Must equal ROOTS in
+ * broker/broker-paths.mjs (slack-broker.test.ts holds them together). A
+ * platform with no root has no discovery: the env var is the only route.
+ */
+export const BROKER_ROOTS: Partial<Record<NodeJS.Platform, string>> = {
+  darwin: '/Library/muxpad-broker',
+  linux: '/opt/muxpad-broker',
+};
+
+/**
+ * The installer publishes only routing metadata; never open its private
+ * state/config. Both the tree root and the file must be root-owned (`owner`
+ * is a parameter only for tests), not group/world writable and not symlinks,
+ * and the file must have a single link. Anything else reads as "not installed".
+ */
+export function readRoutingMetadata(root: string, owner = 0): string | null {
+  try {
+    for (const path of [root, `${root}/setup-public.json`]) {
+      const st = lstatSync(path);
+      if (
+        st.isSymbolicLink() ||
+        st.uid !== owner ||
+        st.mode & 0o022 ||
+        (st.isFile() && st.nlink !== 1)
+      )
+        throw Error('Untrusted routing metadata');
+    }
+    const p = JSON.parse(readFileSync(`${root}/setup-public.json`, 'utf8'));
+    if (p.version === 1 && typeof p.brokerURL === 'string') return p.brokerURL;
+  } catch {
+    /* No routing metadata: Settings will show installation instructions. */
+  }
+  return null;
+}
+
 /** The muxpad process holds no broker credential or approval key. */
 export function slackBrokerURL(): string | null {
   let value = process.env.MUXPAD_SLACK_BROKER_URL;
-  if (!value && process.platform === 'darwin') {
-    // The installer publishes only routing metadata; never open its private state/config.
-    try {
-      for (const path of ['/Library/muxpad-broker', '/Library/muxpad-broker/setup-public.json']) {
-        const st = lstatSync(path);
-        if (
-          st.isSymbolicLink() ||
-          st.uid !== 0 ||
-          st.mode & 0o022 ||
-          (st.isFile() && st.nlink !== 1)
-        )
-          throw Error('Untrusted routing metadata');
-      }
-      const p = JSON.parse(readFileSync('/Library/muxpad-broker/setup-public.json', 'utf8'));
-      if (p.version === 1 && typeof p.brokerURL === 'string') value = p.brokerURL;
-    } catch {
-      /* No routing metadata: Settings will show installation instructions. */
-    }
-  }
+  const root = BROKER_ROOTS[process.platform];
+  if (!value && root) value = readRoutingMetadata(root) ?? undefined;
   if (!value) return null;
   const url = new URL(value);
   if (

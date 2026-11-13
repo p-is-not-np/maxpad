@@ -2,12 +2,14 @@ import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { createServer, request } from 'node:http';
+import { join } from 'node:path';
 import { test } from 'node:test';
 import { Broker } from './core.mjs';
 import { handler } from './http.mjs';
 import { HumanSessions, SESSION_COOKIE, validateHumanConfig } from './human-session.mjs';
 import { PEER_HEADER, parseNodePolicy, verifiedPeer } from './node-policy.mjs';
 import { NodeSessions } from './node-session.mjs';
+import { shortTempRoot } from './test-tmp.mjs';
 const origin = 'https://secure.example.ts.net';
 function fixture() {
   let now = 1000;
@@ -110,7 +112,7 @@ const approve = (f, r, session) =>
     session,
   });
 async function serve(f, run, tcp = false) {
-  const dir = mkdtempSync('/private/tmp/mux-node-test-');
+  const dir = mkdtempSync(join(shortTempRoot(), 'mux-node-test-'));
   const socketPath = `${dir}/http.sock`;
   const server = createServer(
     handler(f.broker, origin, { config: f.config, sessions: f.sessions }),

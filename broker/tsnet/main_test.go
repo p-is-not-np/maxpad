@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -25,7 +26,7 @@ func TestDNSValidation(t *testing.T) {
 	}
 }
 func TestFixedUnixProxy(t *testing.T) {
-	dir, err := os.MkdirTemp("/private/tmp", "mux-ts-")
+	dir, err := os.MkdirTemp(shortTempRoot(), "mux-ts-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,11 +117,19 @@ func TestIdentityDirectoryRejectsACLBeforeEnrollment(t *testing.T) {
 	if user == "" {
 		t.Skip("no OS username for ACL fixture")
 	}
-	rule := "user:" + user + ":allow:read,search"
-	if out, err := exec.Command("/bin/chmod", "+a", rule, dir).CombinedOutput(); err != nil {
+	add, remove := []string{"/bin/chmod", "+a", "user:" + user + ":allow:read,search", dir}, []string{"/bin/chmod", "-N", dir}
+	if runtime.GOOS == "linux" {
+		// The acl tools are an install prerequisite, not a build one;
+		// TestExtendedGrantsLinux covers the inspection without them.
+		if _, err := os.Stat("/usr/bin/setfacl"); err != nil {
+			t.Skip("setfacl not installed (acl package)")
+		}
+		add, remove = []string{"/usr/bin/setfacl", "-m", "u:" + user + ":rx", dir}, []string{"/usr/bin/setfacl", "-b", dir}
+	}
+	if out, err := exec.Command(add[0], add[1:]...).CombinedOutput(); err != nil {
 		t.Fatalf("ACL fixture: %v %s", err, out)
 	}
-	defer exec.Command("/bin/chmod", "-N", dir).Run()
+	defer exec.Command(remove[0], remove[1:]...).Run()
 	if err := privateDirectory(dir); err == nil || !strings.Contains(err.Error(), "ACL") {
 		t.Fatalf("did not reject ACL: %v", err)
 	}

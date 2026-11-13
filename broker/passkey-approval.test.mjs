@@ -396,10 +396,10 @@ test('enrollment fingerprint rejects algorithm mismatch and malformed verified k
   assert.throws(() => publicKeyFingerprint(Buffer.from(encodeCBOR(c))), /ES256/);
   assert.throws(() => publicKeyFingerprint(Buffer.from([1])));
 });
-test('actual protected Unix admin flow confirms exact candidate and can verify lost-response completion without state-file overwrite', async () => {
+const { protectedTempDir, protectedTempSkip } = await import('./test-tmp.mjs');
+test('actual protected Unix admin flow confirms exact candidate and can verify lost-response completion without state-file overwrite', { skip: protectedTempSkip }, async () => {
   const { createServer, request } = await import('node:http');
-  const { mkdtempSync, chmodSync, rmSync, realpathSync } = await import('node:fs');
-  const { tmpdir } = await import('node:os');
+  const { rmSync } = await import('node:fs');
   const { join } = await import('node:path');
   const { listenPasskeyAdmin } = await import('./passkey-admin-socket.mjs');
   const { passkeyAdminHandler } = await import('./passkey-http.mjs');
@@ -408,8 +408,7 @@ test('actual protected Unix admin flow confirms exact candidate and can verify l
   const o = await f.broker.passkeys.registrationOptions({ secret: f.secret });
   const { candidate } = await f.broker.passkeys.registrationVerify({ response: f.registration(o) });
   const { expires, ...body } = candidate;
-  const dir = mkdtempSync(join(realpathSync(tmpdir()), 'pki-'));
-  chmodSync(dir, 0o700);
+  const dir = protectedTempDir('pki-');
   const socketPath = join(dir, 'a');
   const server = createServer(passkeyAdminHandler(f.broker));
   const call = (path, value) =>

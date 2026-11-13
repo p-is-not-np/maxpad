@@ -1,10 +1,17 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir, userInfo } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { assertProtectedPath } from './protected-path.mjs';
+
+// The Linux ACL fixtures need setfacl (the `acl` package). Without it they
+// are SKIPPED with that reason, never passed: the broker itself refuses to
+// run without getfacl, so the skip weakens nothing.
+const linuxACLSkip =
+  process.platform !== 'linux' ||
+  (!existsSync('/usr/bin/setfacl') && 'setfacl not installed (apt install acl)');
 
 test(
   'macOS ACL grants are rejected even on an owner-only file',
@@ -30,7 +37,7 @@ test(
 // touching the mode bits the loop already checks.
 test(
   'POSIX ACL grants are rejected even on an owner-only file',
-  { skip: process.platform !== 'linux' },
+  { skip: linuxACLSkip },
   () => {
     const dir = mkdtempSync(join(tmpdir(), 'broker-acl-'));
     const file = join(dir, 'protected');
@@ -46,7 +53,7 @@ test(
 
 test(
   'a DEFAULT ACL on an ancestor is rejected too',
-  { skip: process.platform !== 'linux' },
+  { skip: linuxACLSkip },
   () => {
     // It grants on files created later rather than on this one, so nothing is
     // leaking yet — but a protected tree that hands out entries by default is

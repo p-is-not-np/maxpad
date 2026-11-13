@@ -15,7 +15,6 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"syscall"
 	"time"
@@ -23,7 +22,7 @@ import (
 	"tailscale.com/tsnet"
 )
 
-const base = "/Library/muxpad-broker"
+// base is per platform: paths_darwin.go and paths_linux.go.
 const socketPath = base + "/state/broker.sock"
 
 func validDNS(name string) bool {
@@ -63,13 +62,11 @@ func privateDirectory(path string) error {
 		if current == path && (info.Mode().Perm() != 0700 || int(st.Uid) != os.Getuid()) {
 			return errors.New("state directory is not private to broker UID")
 		}
-		command := exec.Command("/bin/ls", "-lde", current)
-		command.Env = []string{"PATH=/usr/bin:/bin:/usr/sbin:/sbin", "LC_ALL=C"}
-		acl, err := command.Output()
+		granted, err := extendedGrants(current)
 		if err != nil {
 			return err
 		}
-		if regexp.MustCompile(`(?m)^\s*\d+:`).Match(acl) {
+		if granted {
 			return errors.New("ACL on private state or ancestor")
 		}
 		if current == "/" {

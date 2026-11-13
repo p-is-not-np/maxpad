@@ -1,21 +1,16 @@
 import assert from 'node:assert/strict';
 import {
-  chmodSync,
   lstatSync,
-  mkdtempSync,
-  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { createServer } from 'node:http';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { test } from 'node:test';
 import { listenPasskeyAdmin } from './passkey-admin-socket.mjs';
-test('admin listener refuses live, regular, symlink and wrong-mode paths without replacement', async () => {
-  const dir = mkdtempSync(join(realpathSync(tmpdir()), 'pka-'));
-  chmodSync(dir, 0o700);
+import { protectedTempDir, protectedTempSkip } from './test-tmp.mjs';
+test('admin listener refuses live, regular, symlink and wrong-mode paths without replacement', { skip: protectedTempSkip }, async () => {
+  const dir = protectedTempDir('pka-');
   const path = dir + '/a';
   const server = createServer();
   try {

@@ -129,7 +129,7 @@ func TestWhoIsHonorsCancelledContext(t *testing.T) {
 	}
 }
 func TestProxyUsesOriginalPeerAndOverwritesHeaders(t *testing.T) {
-	dir, e := os.MkdirTemp("/private/tmp", "mux-auth-")
+	dir, e := os.MkdirTemp(shortTempRoot(), "mux-auth-")
 	if e != nil {
 		t.Fatal(e)
 	}
