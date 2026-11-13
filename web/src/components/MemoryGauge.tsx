@@ -17,7 +17,8 @@ async function fetchMemory(top = 0): Promise<HostMemory> {
  * THE HOST'S MEMORY, ON THE CHROME.
  *
  * Two hairline bars — RAM in use above, swap in use below — that sit in the
- * dim chrome colour until memory is actually tight, then turn amber, then red.
+ * dim chrome colour until available RAM is actually tight, then turn amber,
+ * then red. Swap alone never colours it (see shared/src/host-memory.ts).
  * The point is to be seen BEFORE the OOM killer picks the server, which on
  * this machine it has, twice. Hover for the numbers; tap (phones have no
  * hover) for the numbers and the processes holding the most.

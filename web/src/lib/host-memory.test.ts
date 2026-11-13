@@ -28,6 +28,18 @@ describe('readMemory', () => {
     expect(r.swapUsed).toBeCloseTo(0.96, 2);
   });
 
+  it('stays neutral on a full swap when most of RAM is free', () => {
+    const r = readMemory({
+      platform: 'linux',
+      ramTotalBytes: 31 * GB,
+      ramAvailableBytes: 20 * GB,
+      swapTotalBytes: 8 * GB,
+      swapUsedBytes: 7.68 * GB,
+      top: [],
+    });
+    expect(r.pressure).toBe('ok');
+  });
+
   it('says "none" rather than 0 of 0 on a host without swap', () => {
     const r = readMemory({
       platform: 'darwin',
