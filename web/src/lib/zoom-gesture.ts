@@ -6,9 +6,9 @@
  * A `View` is three numbers: `s`, the zoom RELATIVE TO THE FITTED SIZE (1 =
  * the whole picture fits the box, 2.5 = double-tap), and `x`/`y`, the offset
  * of the picture's centre from the box's centre in CSS px. Every point here is
- * in the same frame: px from the box centre. The component turns a View into
- * one `transform` on an image laid out at its NATURAL size, so zooming in
- * reveals real pixels rather than upscaling a fitted bitmap.
+ * in the same frame: px from the box centre. `imageTransform` gives the
+ * placement in natural-size terms; the component lays the picture out at its
+ * on-screen size and scales relative to that while it moves.
  *
  * ─── WHY THE RUBBER BAND HAS AN INVERSE ─────────────────────────────────────
  * Past an edge the picture moves less than the finger. When a gesture is

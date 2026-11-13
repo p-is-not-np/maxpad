@@ -311,13 +311,26 @@ describe('the lightbox owns every touch', () => {
     expect(rule('.chat-img-zoomer')).toMatch(/touch-action:\s*none/);
   });
 
-  it('the picture is placed by a transform from its top-left, at natural size', () => {
+  it('on a phone the lightbox covers the screen, so safe areas are cleared once', () => {
+    // Pane-scoped, it began under the app's top bar (which already clears the
+    // notch) and the stage cleared it again: a 1179×2556 screenshot fitted to
+    // 284×616 on a 390×844 iPhone, measured with 62/34 px insets.
+    const phone = css.slice(css.indexOf('@media (max-width: 720px) {\n  .chat-img-backdrop'));
+    const r = phone.slice(0, phone.indexOf('}'));
+    expect(r).toMatch(/position:\s*fixed/);
+    expect(r).toMatch(/inset:\s*0/);
+  });
+
+  it('the picture is placed by a transform from its top-left', () => {
     const r = rule('.chat-img-zoom');
     expect(r).toMatch(/transform-origin:\s*0 0/);
     expect(r).toMatch(/max-width:\s*none/);
     // A permanent layer is rasterized once and scaled — blurry when zoomed.
     expect(r).not.toMatch(/will-change/);
     expect(rule('.chat-img-zoom.-moving')).toMatch(/will-change:\s*transform/);
+    // The shared fade-in fills `both`, which Chrome keeps as a live opacity
+    // animation — a composited layer for as long as the lightbox is open.
+    expect(r).toMatch(/animation:\s*none/);
   });
 });
 

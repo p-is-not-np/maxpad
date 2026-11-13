@@ -2576,10 +2576,11 @@ button.chat-filechip {
   animation: chat-fade 140ms ease both;
 }
 /* The zoom surface: fills the frame, so a pinch or a tap anywhere around the
-   picture belongs to it. The picture inside is laid out at its NATURAL size
-   from the top-left corner and placed by one transform (origin 0 0) — scaled
-   DOWN to fit, so zooming in shows the file's real pixels instead of
-   upscaling a fitted bitmap. It overflows the frame when zoomed, on purpose:
+   picture belongs to it. The picture inside is laid out at the size it is
+   shown (re-laid out each time it comes to rest) from the top-left corner,
+   and placed by one transform (origin 0 0) that also carries the zoom while a
+   gesture is moving. The browser draws it from the full-resolution file at
+   whatever size it is laid out, so zooming in stays sharp. It overflows the frame when zoomed, on purpose:
    a zoomed photo fills the screen, as in Photos; the backdrop clips it. */
 .chat-img-zoomer {
   position: absolute;
@@ -2589,13 +2590,18 @@ button.chat-filechip {
 }
 .chat-img-zoom {
   position: absolute;
+  /* NOT the shared fade-in. Its fill mode is `both`, which keeps a finished
+     opacity animation in effect for good — and Chrome (measured) composites
+     the picture as an "active opacity animation" layer for as long as the
+     lightbox stays open. The backdrop already fades in around it. */
+  animation: none;
   top: 0;
   left: 0;
   max-width: none;
   max-height: none;
   transform-origin: 0 0;
-  /* The shadow is drawn at natural size and scaled with it; on a 4000px photo
-     that is a lot of blur to repaint for nothing. */
+  /* No shadow: a 60px blur repainted around a picture that moves every frame
+     is a lot of work for nothing. */
   box-shadow: none;
   cursor: zoom-in;
   user-select: none;
@@ -2617,6 +2623,22 @@ button.chat-filechip {
 }
 .chat-img-zoom.-zoomed.-moving {
   cursor: grabbing;
+}
+/* ON A PHONE THE LIGHTBOX IS THE SCREEN. Scoped to the chat pane (as on a
+   desktop, where the sidebar stays visible) it started BELOW the app's top
+   bar — which already clears the notch — and the stage then cleared the notch
+   a second time. Measured at 390×844 with iPhone insets (62 top, 34 bottom):
+   the frame began at y=182, and a 1179×2556 screenshot fitted to 284×616, 73%
+   of the screen's width, under a 45% scrim with the chat showing through.
+   Fixed to the viewport, the stage's safe-area padding is counted once, and
+   the same screenshot fits to 342×741 on black, as in Photos. The pull-down
+   fade still reveals the chat behind it. */
+@media (max-width: 720px) {
+  .chat-img-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, var(--chat-img-fade, 1));
+  }
 }
 /* Explicit close — the scrim gets thin behind a large/zoomed image, so give a
    reliable tap target (also nicer on touch than hunting for the backdrop). */
