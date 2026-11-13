@@ -3239,6 +3239,10 @@ body.sidenav-resizing iframe {
 }
 .sidenav-build {
   flex: 1;
+  /* Gives way first in a narrow rail, so the controls beside it never wrap. */
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   padding: 0 12px;

@@ -16,7 +16,7 @@ async function fetchMemory(top = 0): Promise<HostMemory> {
 /**
  * THE HOST'S MEMORY, ON THE CHROME.
  *
- * Two hairline bars — RAM in use above, swap in use below — that sit in the
+ * One short reading — `11/31G`, RAM in use of RAM installed — in the
  * dim chrome colour until available RAM is actually tight, then turn amber,
  * then red. Swap alone never colours it (see shared/src/host-memory.ts).
  * The point is to be seen BEFORE the OOM killer picks the server, which on
@@ -92,13 +92,8 @@ export function MemoryGauge({ placement = 'up' }: { placement?: 'up' | 'down' })
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
-        <span className="memgauge-bars" aria-hidden="true">
-          <span className="memgauge-bar">
-            <span style={{ width: `${Math.round(r.ramUsed * 100)}%` }} />
-          </span>
-          <span className="memgauge-bar" data-empty={!r.hasSwap || undefined}>
-            <span style={{ width: `${Math.round(r.swapUsed * 100)}%` }} />
-          </span>
+        <span className="memgauge-text" aria-hidden="true">
+          {r.text}
         </span>
       </button>
       {open && (

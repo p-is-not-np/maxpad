@@ -5,7 +5,11 @@
   position: relative;
   display: inline-flex;
   height: 100%;
-  --memgauge-fill: var(--fg-faint);
+  --memgauge-fill: var(--fg-dim);
+  --memgauge-on: var(--bg);
+}
+.sidenav .memgauge {
+  --memgauge-on: var(--rail-surface);
 }
 .memgauge[data-pressure="warn"] {
   --memgauge-fill: var(--status-working);
@@ -13,35 +17,36 @@
 .memgauge[data-pressure="critical"] {
   --memgauge-fill: var(--status-blocked);
 }
-.memgauge-bars {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  width: 16px;
+/* Text, not an icon: the icon-btn's fixed 36px square would clip it. */
+.memgauge-btn.icon-btn {
+  width: auto;
+  padding: 0 9px;
+  color: var(--memgauge-fill);
 }
-.memgauge-bar {
-  display: block;
-  height: 3px;
-  border-radius: 2px;
-  background: color-mix(in srgb, var(--fg) 14%, transparent);
-  overflow: hidden;
+.memgauge-text {
+  font-family: var(--chrome-font);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
-.memgauge-bar > span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
+.memgauge[data-pressure="ok"] .memgauge-btn:hover,
+.memgauge[data-pressure="ok"] .memgauge-btn:focus-visible {
+  color: var(--fg);
+}
+/* WARN AND CRITICAL ARE A FILLED PILL, not just coloured text. Several themes
+   tone the rail's "working" colour down to a sand that sits a few degrees of
+   hue from the grey ink — as text it read as neutral. A fill does not depend
+   on the hue being loud, and the surface colour on it keeps contrast on deep
+   and light rails alike. */
+.memgauge:not([data-pressure="ok"]) .memgauge-text {
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-weight: 600;
+  color: var(--memgauge-on);
   background: var(--memgauge-fill);
-  transition: width 400ms ease;
 }
-.memgauge-bar[data-empty] {
-  opacity: 0.4;
-}
-.memgauge-btn:hover .memgauge-bar > span,
-.memgauge-btn:focus-visible .memgauge-bar > span {
-  filter: brightness(1.15);
-}
-.memgauge[data-pressure="ok"] .memgauge-btn:hover {
-  --memgauge-fill: var(--fg);
+.memgauge:not([data-pressure="ok"]) .memgauge-btn.icon-btn {
+  padding: 0 6px;
 }
 
 .memgauge-pop {
@@ -77,7 +82,7 @@
   border-radius: 999px;
   font-size: 0.6875rem;
   font-weight: 600;
-  color: var(--bg);
+  color: var(--memgauge-on);
   background: var(--memgauge-fill);
 }
 .memgauge-line {

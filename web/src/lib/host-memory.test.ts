@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatBytes, readMemory } from './host-memory';
+import { formatBytes, gaugeText, readMemory } from './host-memory';
 
 const GB = 1024 ** 3;
 
@@ -9,6 +9,27 @@ describe('formatBytes', () => {
     expect(formatBytes(812 * 1024 ** 2)).toBe('812 MB');
     expect(formatBytes(31.2 * GB)).toBe('31.2 GB');
     expect(formatBytes(1.5 * 1024 ** 4)).toBe('1.5 TB');
+  });
+});
+
+describe('gaugeText', () => {
+  const at = (totalGb: number, availGb: number) =>
+    gaugeText({
+      platform: 'linux',
+      ramTotalBytes: totalGb * GB,
+      ramAvailableBytes: availGb * GB,
+      swapTotalBytes: 0,
+      swapUsedBytes: 0,
+      top: [],
+    });
+
+  it('says used/total in whole GB, used being total minus MemAvailable', () => {
+    expect(at(31.34, 20.6)).toBe('11/31G');
+  });
+
+  it('rounds each figure on its own, and never goes negative', () => {
+    expect(at(15.6, 0.4)).toBe('15/16G');
+    expect(at(8, 8.2)).toBe('0/8G');
   });
 });
 
@@ -25,7 +46,7 @@ describe('readMemory', () => {
     expect(r.pressure).toBe('critical');
     expect(r.ramLine).toBe('RAM 3.0 GB free of 31.0 GB (10%)');
     expect(r.swapLine).toBe('Swap 7.7 GB used of 8.0 GB (96%)');
-    expect(r.swapUsed).toBeCloseTo(0.96, 2);
+    expect(r.text).toBe('28/31G');
   });
 
   it('stays neutral on a full swap when most of RAM is free', () => {
@@ -50,7 +71,6 @@ describe('readMemory', () => {
       top: [],
     });
     expect(r.pressure).toBe('ok');
-    expect(r.hasSwap).toBe(false);
     expect(r.swapLine).toBe('Swap none');
   });
 });
