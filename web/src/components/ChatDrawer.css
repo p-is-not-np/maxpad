@@ -675,3 +675,9 @@
   border-color: var(--status-dead, var(--danger));
   color: var(--status-dead, var(--danger));
 }
+
+/* MINIMAL STYLE (and the combo): a bare icon until you point at it. */
+:where([data-style="minimal"]) .chat-drawer-open,
+:where([data-style="combo"]) .chat-drawer-open {
+  background: transparent;
+}

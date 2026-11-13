@@ -4102,3 +4102,157 @@ button.chat-filechip {
   border-radius: 2px;
   background: currentColor;
 }
+
+/* ═══ MINIMAL STYLE (and the combo) ═══════════════════════════════════════════════
+   One flat surface. Nothing in the conversation floats: the composer, the
+   user bubble and code blocks are marked by a hairline or a whisper of ink,
+   never by a shadow. Shadows are kept for things that genuinely sit ABOVE
+   the page — popovers, menus, sheets, the tool modal. Declared last so it
+   reads as one layer over the rules above rather than forty scattered edits. */
+:where([data-style="minimal"]) .chat-composer,
+:where([data-style="combo"]) .chat-composer {
+  padding: 6px 12px;
+  background: var(--chat-bg);
+  border: 1px solid color-mix(in srgb, var(--chat-fg) 12%, transparent);
+  border-radius: 12px;
+  box-shadow: none;
+  transition: border-color var(--dur) var(--ease);
+}
+:where([data-style="minimal"]) .chat-composer:focus-within,
+:where([data-style="combo"]) .chat-composer:focus-within {
+  border-color: color-mix(in srgb, var(--chat-fg) 28%, transparent);
+  box-shadow: none;
+}
+:where([data-style="minimal"]) .chat-tool-btn,
+:where([data-style="combo"]) .chat-tool-btn {
+  padding: 3px 7px;
+  border-radius: 6px;
+  color: var(--chat-dim);
+}
+:where([data-style="minimal"]) .chat-tool-btn svg,
+:where([data-style="combo"]) .chat-tool-btn svg {
+  opacity: 0.65;
+}
+:where([data-style="minimal"]) .chat-bubble,
+:where([data-style="combo"]) .chat-bubble {
+  background: color-mix(in srgb, var(--chat-fg) 6%, var(--chat-bg));
+  border: 0;
+  border-radius: 10px;
+  padding: 8px 14px;
+}
+:where([data-style="minimal"]) .chat-md pre,
+:where([data-style="combo"]) .chat-md pre {
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--chat-fg) 3%, var(--chat-bg));
+  border-color: color-mix(in srgb, var(--chat-fg) 9%, transparent);
+  border-radius: 8px;
+}
+:where([data-style="minimal"]) .chat-md :not(pre) > code,
+:where([data-style="combo"]) .chat-md :not(pre) > code {
+  border: 0;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--chat-fg) 7%, var(--chat-bg));
+}
+:where([data-style="minimal"]) .chat-toolrow,
+:where([data-style="combo"]) .chat-toolrow {
+  border-radius: 6px;
+}
+:where([data-style="minimal"]) .chat-scroll-down,
+:where([data-style="combo"]) .chat-scroll-down {
+  width: 32px;
+  height: 32px;
+  font-size: 0.9375rem;
+  background: var(--chat-bg);
+  border-color: color-mix(in srgb, var(--chat-fg) 14%, transparent);
+  box-shadow: none;
+}
+
+/* The empty state: a title, a line, a row of quiet text buttons. No tile,
+   no glow, no lift on hover. */
+:where([data-style="minimal"]) .chat-empty,
+:where([data-style="combo"]) .chat-empty {
+  gap: 8px;
+}
+:where([data-style="minimal"]) .chat-empty-title,
+:where([data-style="combo"]) .chat-empty-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.011em;
+}
+:where([data-style="minimal"]) .chat-empty-mark,
+:where([data-style="combo"]) .chat-empty-mark {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  font-size: 1rem;
+  box-shadow: none;
+  margin-bottom: 4px;
+}
+:where([data-style="minimal"]) .chat-open-instead,
+:where([data-style="combo"]) .chat-open-instead {
+  margin-top: 18px;
+  gap: 8px;
+}
+:where([data-style="minimal"]) .chat-open-instead-row,
+:where([data-style="combo"]) .chat-open-instead-row {
+  gap: 6px;
+}
+:where([data-style="minimal"]) .chat-open-instead-btn,
+:where([data-style="combo"]) .chat-open-instead-btn {
+  min-height: 32px;
+  padding: 6px 11px;
+  gap: 6px;
+  border-color: color-mix(in srgb, var(--fg, #d7dae0) 11%, transparent);
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  font-size: 0.78125rem;
+}
+:where([data-style="minimal"]) .chat-open-instead-btn svg,
+:where([data-style="combo"]) .chat-open-instead-btn svg {
+  opacity: 0.6;
+}
+:where([data-style="minimal"]) .chat-open-instead-btn:hover:not(:disabled),
+:where([data-style="combo"]) .chat-open-instead-btn:hover:not(:disabled),
+:where([data-style="minimal"]) .chat-open-instead-btn:active:not(:disabled),
+:where([data-style="combo"]) .chat-open-instead-btn:active:not(:disabled) {
+  background: color-mix(in srgb, var(--fg, #d7dae0) 5%, transparent);
+  border-color: color-mix(in srgb, var(--fg, #d7dae0) 18%, transparent);
+  box-shadow: none;
+}
+:where([data-style="minimal"]) .chat-open-instead-btn:hover:not(:disabled),
+:where([data-style="combo"]) .chat-open-instead-btn:hover:not(:disabled) {
+  transform: none;
+}
+
+/* ═══ FLOATING STYLE ══════════════════════════════════════════════════════
+   The pill is the lightest, most lifted thing on the card: it takes the
+   elevated surface nearly as-is and lets a bigger shadow do the lift. 26px is
+   as round as two rows allow before the curve starts eating the first tool
+   icon. Scoped with `:where`, so `.-dropping` still outranks it. */
+:where([data-style="floating"]) .chat-composer {
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--chat-elev) 97%, var(--chat-fg));
+  border-radius: 26px;
+  box-shadow: var(--shadow-xl);
+}
+:where([data-style="floating"]) .chat-composer:focus-within {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--chat-accent) 12%, transparent), var(--shadow-xl);
+}
+
+/* ═══ COMBO STYLE ═════════════════════════════════════════════════════════
+   Over the minimal layer above: the composer is Floating's PILL — the one
+   thing in the conversation that rests above it — kept quiet: a hairline, the
+   card's own face, and a single soft shadow rather than a heavy lift. 22px is
+   as round as two rows allow before the curve eats the first tool icon. */
+:where([data-style="combo"]) .chat-composer {
+  padding: 8px 14px;
+  border-radius: 22px;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-ink) 6%, transparent), 0 8px 24px -12px
+    color-mix(in srgb, var(--shadow-ink) 28%, transparent);
+}
+:where([data-style="combo"]) .chat-composer:focus-within {
+  border-color: color-mix(in srgb, var(--chat-fg) 26%, transparent);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-ink) 6%, transparent), 0 8px 24px -12px
+    color-mix(in srgb, var(--shadow-ink) 28%, transparent);
+}

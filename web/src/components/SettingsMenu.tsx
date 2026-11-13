@@ -4,11 +4,16 @@ import { api } from '../api';
 
 import { type PushState, disablePush, enablePush, getPushState, sendTestPush } from '../lib/push';
 import {
+  STYLES,
   SYSTEM_PAIR,
   THEME_CHOICES,
   type ThemeChoice,
+  type UiStyle,
+  getServerStyle,
   getServerTheme,
+  setServerStyle,
   setServerTheme,
+  styleInForce,
   themeInForce,
   updateSettings,
   useSettings,
@@ -142,6 +147,7 @@ export function SettingsMenu() {
                 </section>
                 <section hidden={section !== 'general'} aria-label="General settings">
                   <ThemePicker chosen={themeInForce(settings)} />
+                  <StylePicker chosen={styleInForce(settings)} />
                 </section>
                 <section hidden={section !== 'notifications'} aria-label="Notification settings">
                   <PushSection />
@@ -277,6 +283,76 @@ function ThemeMock({ theme }: { theme: string }) {
         <b className="theme-mock-aa">Aa</b>
         <i className="theme-mock-line" />
         <i className="theme-mock-line theme-mock-line--short" />
+      </span>
+    </span>
+  );
+}
+
+/**
+ * THE STYLE PICKER — the theme picker's twin, for how the chrome is BUILT.
+ *
+ * Same contract as {@link ThemePicker}: one value for the install, stored
+ * server-side and pushed to every window, applied optimistically on the press
+ * and undone if the write fails. The tiles are drawn in the theme in force
+ * (they inherit the dialog's tokens), so what changes between them is only
+ * the structure — which is the only thing a style is.
+ */
+export function StylePicker({ chosen }: { chosen: UiStyle }) {
+  const [failed, setFailed] = useState(false);
+  const pick = (value: UiStyle) => {
+    const before = getServerStyle();
+    setFailed(false);
+    setServerStyle(value);
+    void api.setPref('style', value).catch((err) => {
+      console.error('could not store the style', err);
+      setServerStyle(before);
+      setFailed(true);
+    });
+  };
+  return (
+    <fieldset className="settings-row settings-themes settings-styles">
+      <legend>Style</legend>
+      <div className="theme-grid style-grid">
+        {STYLES.map((s) => (
+          <label key={s.value} className="theme-tile" data-chosen={s.value === chosen}>
+            <input
+              type="radio"
+              name="style"
+              value={s.value}
+              checked={s.value === chosen}
+              onChange={() => pick(s.value)}
+            />
+            <span className="theme-tile-preview">
+              <StyleMock look={s.value} />
+            </span>
+            <span className="theme-tile-name">{s.label}</span>
+          </label>
+        ))}
+      </div>
+      {failed ? (
+        <p className="settings-note" role="alert">
+          Couldn’t save the style. The server may be running a build from before styles existed —
+          restart muxpad and try again.
+        </p>
+      ) : null}
+    </fieldset>
+  );
+}
+
+/** The frame of a muxpad in miniature: a rail, a page, and a composer — the
+ *  three things whose construction a style changes. */
+function StyleMock({ look }: { look: UiStyle }) {
+  return (
+    <span className="style-mock" data-look={look} aria-hidden="true">
+      <span className="style-mock-rail">
+        <i className="style-mock-row" />
+        <i className="style-mock-row style-mock-row--on" />
+        <i className="style-mock-row" />
+      </span>
+      <span className="style-mock-page">
+        <i className="style-mock-line" />
+        <i className="style-mock-line style-mock-line--short" />
+        <i className="style-mock-composer" />
       </span>
     </span>
   );

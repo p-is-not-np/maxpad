@@ -14,6 +14,12 @@
   color: var(--fg-faint);
   cursor: pointer;
 }
+/* FLOATING: no divider — a quiet rounded hit area; the floating chrome draws
+   no rules. */
+:where([data-style="floating"]) .icon-btn {
+  border-left: 0;
+  border-radius: 10px;
+}
 .icon-btn:hover,
 .icon-btn:focus-visible {
   color: var(--fg);
@@ -58,6 +64,9 @@
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
+:where([data-style="floating"]) .settings-dialog {
+  border-radius: 22px;
+}
 .settings-dialog[open] {
   display: flex;
   flex-direction: column;
@@ -80,6 +89,10 @@
   padding: 8px 12px 8px 24px;
   border-bottom: 1px solid var(--settings-line);
 }
+:where([data-style="floating"]) .settings-chrome {
+  padding: 14px 14px 4px 26px;
+  border-bottom: 0;
+}
 .settings-chrome h2 {
   margin: 0;
   font-size: 0.9375rem;
@@ -97,16 +110,43 @@
   min-height: 0;
   overflow: hidden;
 }
+/* FLOATING: the sections are a SEGMENTED CONTROL across the top, not a
+   sidebar down the left — one row of choices over one column of content. */
+:where([data-style="floating"]) .settings-layout {
+  display: flex;
+  flex-direction: column;
+}
 .settings-sidebar {
   padding: 20px 10px;
   background: var(--settings-soft);
   border-right: 1px solid var(--settings-line);
   overflow: auto;
 }
+:where([data-style="floating"]) .settings-sidebar {
+  flex: 0 0 auto;
+  padding: 8px 26px 6px;
+  background: transparent;
+  border-right: 0;
+  overflow: visible;
+}
 .settings-sidebar nav {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+:where([data-style="floating"]) .settings-sidebar nav {
+  display: inline-flex;
+  flex-direction: row;
+  gap: 2px;
+  padding: 3px;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: color-mix(in srgb, var(--fg) 7%, var(--bg-elev));
+  border-radius: 12px;
+}
+:where([data-style="floating"]) .settings-sidebar nav::-webkit-scrollbar {
+  display: none;
 }
 .settings-dialog button,
 .settings-dialog input,
@@ -155,6 +195,9 @@
   border: 0;
   touch-action: manipulation;
 }
+:where([data-style="floating"]) .settings-dialog .settings-close {
+  border-radius: 12px;
+}
 .settings-sidebar nav button {
   text-align: left;
   padding: 9px 12px;
@@ -164,9 +207,30 @@
   background: transparent;
   border: 0;
 }
+:where([data-style="floating"]) .settings-sidebar nav button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  text-align: center;
+  padding: 5px 16px;
+  min-height: 32px;
+  border-radius: 9px;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+:where([data-style="floating"]) .settings-sidebar nav button:hover:not(:disabled) {
+  color: var(--fg);
+  background: transparent;
+}
 .settings-sidebar nav button[aria-current] {
   color: var(--fg);
   background: color-mix(in srgb, var(--fg) 8%, transparent);
+  font-weight: 600;
+}
+/* The chosen segment is a raised chip on the track. */
+:where([data-style="floating"]) .settings-sidebar nav button[aria-current],
+:where([data-style="floating"]) .settings-sidebar nav button[aria-current]:hover:not(:disabled) {
+  color: var(--fg);
+  background: var(--bg-elev);
+  box-shadow: var(--shadow-sm), 0 0 0 1px color-mix(in srgb, var(--fg) 8%, transparent);
   font-weight: 600;
 }
 .settings-body {
@@ -175,6 +239,10 @@
   padding: 18px 26px 22px;
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+:where([data-style="floating"]) .settings-body {
+  flex: 1 1 auto;
+  padding: 10px 26px 22px;
 }
 
 .settings-row {
@@ -361,6 +429,121 @@
 .theme-mock-line--short {
   width: 55%;
   background: var(--accent);
+}
+
+/* ─── THE STYLE MINIATURES ──────────────────────────────────────────────────
+   The theme tiles paint a PALETTE; these paint a STRUCTURE, in whatever theme
+   is in force (they inherit the dialog's tokens). So the four differ only in
+   what a style changes: is the rail its own surface, do things float, are the
+   rail and the page cards on a canvas. Each is a drawing of the real rules in
+   styles.css's style layers, not a second copy of them. */
+.style-grid {
+  /* Four styles, one row: they are read side by side, as a comparison. */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+/* "Minimal + Floating" is the one name too long for a quarter of the row in
+   bold; it wraps rather than losing the half that says what it is. */
+.style-grid .theme-tile-name {
+  white-space: normal;
+  text-wrap: balance;
+}
+@media (max-width: 700px) {
+  .style-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.style-mock {
+  --sm-canvas: color-mix(in srgb, var(--accent) 6%, var(--bg-tabbar));
+  display: flex;
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+}
+.style-mock-rail {
+  flex: 0 0 30%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 7px 4px;
+  background: var(--rail-surface);
+}
+.style-mock-row {
+  height: 5px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--rail-ink) 28%, transparent);
+}
+.style-mock-row--on {
+  height: 7px;
+  border-radius: 3px;
+  background: var(--bg-pane-face);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 14%, transparent);
+}
+.style-mock-page {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 7px 7px 5px;
+  min-width: 0;
+  background: var(--bg);
+}
+.style-mock-line {
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--fg) 30%, transparent);
+}
+.style-mock-line--short {
+  width: 55%;
+}
+.style-mock-composer {
+  margin-top: auto;
+  height: 11px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg-elev) 92%, var(--fg));
+  border: 1px solid color-mix(in srgb, var(--fg) 12%, transparent);
+  box-shadow: 0 2px 5px color-mix(in srgb, var(--shadow-ink) 45%, transparent);
+}
+/* MINIMAL: one surface, a hairline seam, nothing floats. */
+.style-mock:is([data-look="minimal"], [data-look="combo"]) .style-mock-rail {
+  background: var(--bg);
+  box-shadow: inset -1px 0 0 color-mix(in srgb, var(--fg) 12%, transparent);
+}
+.style-mock:is([data-look="minimal"], [data-look="combo"]) .style-mock-row {
+  background: color-mix(in srgb, var(--fg) 18%, transparent);
+}
+.style-mock:is([data-look="minimal"], [data-look="combo"]) .style-mock-row--on {
+  background: color-mix(in srgb, var(--fg) 14%, var(--bg));
+  box-shadow: none;
+}
+.style-mock:is([data-look="minimal"], [data-look="combo"]) .style-mock-composer {
+  border-radius: 3px;
+  background: var(--bg);
+  box-shadow: none;
+}
+/* FLOATING: two rounded cards on a tinted canvas. */
+.style-mock:is([data-look="floating"], [data-look="combo"]) {
+  gap: 3px;
+  padding: 3px;
+  background: var(--sm-canvas);
+}
+.style-mock:is([data-look="floating"], [data-look="combo"]) .style-mock-rail,
+.style-mock:is([data-look="floating"], [data-look="combo"]) .style-mock-page {
+  border-radius: 5px;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--fg) 8%, transparent), 0 2px 4px
+    color-mix(in srgb, var(--shadow-ink) 30%, transparent);
+}
+.style-mock[data-look="floating"] .style-mock-composer {
+  border-radius: 6px;
+  box-shadow: 0 3px 8px color-mix(in srgb, var(--shadow-ink) 60%, transparent);
+}
+/* COMBO: the frame of floating, the flat insides of minimal — but the
+   composer keeps a soft pill. */
+.style-mock[data-look="combo"] .style-mock-rail {
+  background: var(--bg);
+}
+.style-mock[data-look="combo"] .style-mock-composer {
+  border-radius: 6px;
+  box-shadow: 0 2px 4px color-mix(in srgb, var(--shadow-ink) 25%, transparent);
 }
 
 /* ── A SECTION'S OWN HEADING AND ITS SENTENCE ────────────────────────────
@@ -679,6 +862,11 @@
     border-right: 0;
     border-bottom: 1px solid var(--settings-line);
   }
+  :where([data-style="floating"]) .settings-sidebar {
+    padding: 4px calc(14px + env(safe-area-inset-right, 0px)) 8px
+      calc(14px + env(safe-area-inset-left, 0px));
+    border-bottom: 0;
+  }
   /* ── THE SECTION TABS SCROLL; THEY DO NOT SQUEEZE ────────────────────
      `flex: 1` split 354px between four tabs, so each got ~88px — and
      "Notifications" needs ~95px at this size. One label wrapped to two lines
@@ -696,6 +884,10 @@
     overscroll-behavior-x: contain;
     scrollbar-width: none;
   }
+  :where([data-style="floating"]) .settings-sidebar nav {
+    display: flex;
+    gap: 2px;
+  }
   .settings-sidebar nav::-webkit-scrollbar {
     display: none;
   }
@@ -709,6 +901,9 @@
     font-size: 0.9375rem;
     padding: 8px 14px;
     min-height: 44px;
+  }
+  :where([data-style="floating"]) .settings-sidebar nav button {
+    min-height: 40px;
   }
   .settings-body {
     flex: 1;
@@ -1130,4 +1325,126 @@
 }
 .machines-error {
   color: var(--status-dead);
+}
+
+/* ═══ MINIMAL STYLE (and the combo) ═══════════════════════════════════════════════
+   The dialog keeps its shadow — it is one of the few things that really is
+   above the page — and loses everything else: one surface for the side nav
+   and the body, a tighter radius, smaller nav rows. */
+:where([data-style="minimal"]) .settings-dialog,
+:where([data-style="combo"]) .settings-dialog {
+  background: var(--bg);
+  border-color: color-mix(in srgb, var(--fg) 12%, transparent);
+  border-radius: 12px;
+}
+:where([data-style="minimal"]) .settings-chrome,
+:where([data-style="combo"]) .settings-chrome {
+  padding: 6px 10px 6px 20px;
+}
+:where([data-style="minimal"]) .settings-chrome h2,
+:where([data-style="combo"]) .settings-chrome h2 {
+  font-size: 0.875rem;
+}
+:where([data-style="minimal"]) .settings-sidebar,
+:where([data-style="combo"]) .settings-sidebar {
+  padding: 14px 8px;
+  background: transparent;
+}
+:where([data-style="minimal"]) .settings-sidebar nav,
+:where([data-style="combo"]) .settings-sidebar nav {
+  gap: 1px;
+}
+:where([data-style="minimal"]) .settings-sidebar nav button,
+:where([data-style="combo"]) .settings-sidebar nav button {
+  min-height: 30px;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+:where([data-style="minimal"]) .settings-sidebar nav button[aria-current],
+:where([data-style="combo"]) .settings-sidebar nav button[aria-current] {
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+  font-weight: 500;
+}
+:where([data-style="minimal"]) .settings-dialog .settings-close,
+:where([data-style="combo"]) .settings-dialog .settings-close {
+  flex-basis: 32px;
+  width: 32px;
+  height: 32px;
+  font-size: 1.25rem;
+  border-radius: 6px;
+}
+
+/* ═══ COMBO STYLE — MINIMAL SURFACES, SEGMENTED SECTIONS ═════════════════
+   Over the minimal layer above. The sections are a SEGMENTED CONTROL across
+   the top (Floating's shape), drawn minimally: a faint track, and the chosen
+   segment is the dialog's own face with a hairline rather than a lifted chip. */
+:where([data-style="combo"]) .settings-chrome {
+  padding: 10px 10px 2px 20px;
+  border-bottom: 0;
+}
+:where([data-style="combo"]) .settings-layout {
+  display: flex;
+  flex-direction: column;
+}
+:where([data-style="combo"]) .settings-sidebar {
+  flex: 0 0 auto;
+  padding: 8px 20px 4px;
+  border: 0;
+  overflow: visible;
+}
+:where([data-style="combo"]) .settings-sidebar nav {
+  display: inline-flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 2px;
+  padding: 2px;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--fg) 5%, var(--bg));
+}
+:where([data-style="combo"]) .settings-sidebar nav::-webkit-scrollbar {
+  display: none;
+}
+:where([data-style="combo"]) .settings-sidebar nav button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  text-align: center;
+  min-height: 28px;
+  padding: 4px 14px;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+:where([data-style="combo"]) .settings-sidebar nav button:hover:not(:disabled) {
+  color: var(--fg);
+  background: color-mix(in srgb, var(--fg) 4%, transparent);
+}
+:where([data-style="combo"]) .settings-sidebar nav button[aria-current],
+:where([data-style="combo"]) .settings-sidebar nav button[aria-current]:hover:not(:disabled) {
+  color: var(--fg);
+  background: var(--bg);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--fg) 11%, transparent);
+}
+:where([data-style="combo"]) .settings-body {
+  flex: 1 1 auto;
+  padding-top: 12px;
+}
+/* Same query as the sheet above, so the sheet keeps its own insets. */
+@media (max-width: 700px), (pointer: coarse) {
+  :where([data-style="combo"]) .settings-chrome {
+    padding: 16px calc(8px + env(safe-area-inset-right, 0px)) 6px
+      calc(18px + env(safe-area-inset-left, 0px));
+  }
+  :where([data-style="combo"]) .settings-sidebar {
+    padding: 4px calc(14px + env(safe-area-inset-right, 0px)) 8px
+      calc(14px + env(safe-area-inset-left, 0px));
+  }
+  :where([data-style="combo"]) .settings-sidebar nav {
+    display: flex;
+  }
+  :where([data-style="combo"]) .settings-sidebar nav button {
+    min-height: 36px;
+    padding: 6px 14px;
+  }
 }

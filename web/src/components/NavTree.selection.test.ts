@@ -204,10 +204,16 @@ function themes(): Record<string, Record<string, string>> {
  * fourth place for it to drift.
  */
 const PANE_FACE_PCT = (() => {
-  const m = /--bg-pane-face:\s*color-mix\(in srgb, var\(--accent\) ([\d.]+)%, var\(--bg\)\)/.exec(
-    APP_CSS,
-  );
-  if (!m) throw new Error('--bg-pane-face is not the expected accent-over-bg mix');
+  // The percentage is its own token, --pane-wash, so the Minimal style can take
+  // it to 0% without restating the mix.
+  if (
+    !/--bg-pane-face:\s*color-mix\(in srgb, var\(--accent\) var\(--pane-wash\), var\(--bg\)\)/.test(
+      APP_CSS,
+    )
+  )
+    throw new Error('--bg-pane-face is not the expected accent-over-bg mix');
+  const m = /--pane-wash:\s*([\d.]+)%/.exec(APP_CSS);
+  if (!m) throw new Error('styles.css declares no default --pane-wash');
   return Number(m[1]) / 100;
 })();
 const paneFace = (t: Record<string, string>) =>
@@ -1157,4 +1163,52 @@ describe('the band captures its own ink', () => {
     );
     expect(css.slice(j, css.indexOf('}', j))).toContain('var(--band-ink)');
   });
+});
+
+/**
+ * ── THE MINIMAL STYLE (and the combo, which inherits it) ────────────────
+ *
+ * Everything above is Default. Minimal puts the rail ON the page — tokyo-night
+ * and github-light re-declare the rail tokens as the page's own surface — and
+ * the selected face becomes a whisper of the page's ink on that one surface.
+ * Selection still out-ranks hover by shape: the ring stays, the lift goes.
+ */
+describe('the Minimal style', () => {
+  const MIN = (sel: string) => `:where([data-style="minimal"]) ${sel}`;
+  const COMBO = (sel: string) => `:where([data-style="combo"]) ${sel}`;
+  const override = (theme: string): Record<string, string> => {
+    const t: Record<string, string> = {};
+    const body = ruleBody(APP_CSS, `:where([data-style="minimal"])[data-theme="${theme}"]`);
+    for (const d of body.matchAll(/(--[\w-]+):\s*([^;]+)/g))
+      t[d[1] as string] = (d[2] as string).trim();
+    return { ...THEMES[theme], ...t };
+  };
+
+  it('keeps the selected row’s ring and drops its lift — nothing in the rail floats', () => {
+    for (const scoped of [MIN(RAIL_ACTIVE), COMBO(RAIL_ACTIVE)]) {
+      const shadow = decl(ruleBody(NAV_CSS, scoped), 'box-shadow');
+      expect(shadow).toContain('inset 0 0 0 1px var(--nt-carve-edge)');
+      expect(shadow).not.toContain('var(--shadow-');
+    }
+    // …and Default still has both.
+    expect(decl(ruleBody(NAV_CSS, RAIL_ACTIVE), 'box-shadow')).toContain('var(--shadow-sm)');
+  });
+
+  it.each(['tokyo-night', 'github-light'])(
+    'puts %s’s rail on the page, with a wash of ink for the selected face',
+    (name) => {
+      const t = override(name);
+      expect(t['--rail-surface']).toBe(t['--bg']);
+      expect(t['--pane-wash']).toBe('0%');
+      const ink = /color-mix\(in srgb, var\(--fg\) ([\d.]+)%, var\(--bg\)\)/.exec(
+        t['--bg-pane-face'] ?? '',
+      );
+      expect(ink, 'the selected face is an ink wash').toBeTruthy();
+      const face = over(t['--fg'] as string, t['--bg'] as string, Number(ink?.[1]) / 100);
+      // Visible against the one surface, or selection is the ring alone.
+      expect(deltaE(face, t['--rail-surface'] as string)).toBeGreaterThan(2);
+      // Default keeps its own lifted rail and the accent wash.
+      expect(THEMES[name]?.['--rail-surface']).not.toBe(THEMES[name]?.['--bg']);
+    },
+  );
 });

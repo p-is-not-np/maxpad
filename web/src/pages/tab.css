@@ -159,7 +159,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  background: color-mix(in srgb, var(--accent) var(--pane-wash), transparent);
   pointer-events: none;
   z-index: 4;
 }
@@ -302,7 +302,7 @@
   /* Recessed chrome bar (same tone as the top nav .ws-tabbar) so the tabs read
      as plates sitting ON a bar. The empty area past the last tab stays this
      bar colour — distinct from the raised tab plates, which are --bg. */
-  background: var(--bg-tabbar);
+  background: var(--bar-surface);
   border-bottom: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
   height: var(--chrome-h);
   font-family: var(--chrome-font);
@@ -618,7 +618,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  background: color-mix(in srgb, var(--accent) var(--pane-wash), transparent);
   pointer-events: none;
   z-index: 4;
 }
@@ -844,4 +844,77 @@
   justify-content: center;
   border-radius: 4px;
   color: var(--fg-faint);
+}
+
+/* ═══ FLOATING STYLE — SEGMENTED TABS ════════════════════════════════════
+   Scoped with `:where`, so each rule cascades exactly as an unscoped one in
+   this position would (see the STYLES note at the foot of styles.css). The
+   strip is part of the content card (its face, no rule), and the tabs are a
+   SEGMENTED CONTROL on a rounded track inside it. */
+:where([data-style="floating"]) .desktop-tab-strip {
+  background: var(--bg-pane-face);
+  border-bottom: 0;
+  height: calc(var(--chrome-h) + 12px);
+  padding: 8px 8px 4px;
+}
+:where([data-style="floating"]) .desktop-tab-strip-tabs {
+  gap: 2px;
+  padding: 3px;
+  margin-bottom: 0;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--fg) 7%, var(--bg));
+}
+/* A segment: fully rounded, sitting inside the track. */
+:where([data-style="floating"]) .desktop-tab {
+  height: 100%;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+}
+:where([data-style="floating"]) .desktop-tab:hover {
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+}
+/* The chosen segment: a raised chip on the track. */
+:where([data-style="floating"]) .desktop-tab[data-active="true"],
+:where([data-style="floating"]) .desktop-tab[data-active="true"]:hover {
+  background: var(--bg-elev);
+  box-shadow: var(--shadow-sm), 0 0 0 1px color-mix(in srgb, var(--fg) 8%, transparent);
+}
+/* The accent top rail retires: the raised segment carries "open" on its own. */
+:where([data-style="floating"]) .desktop-tab[data-active="true"]::before {
+  display: none;
+}
+
+/* ═══ COMBO STYLE — SEGMENTED TABS, DRAWN MINIMALLY ══════════════════════
+   Floating's shape with Minimal's surfaces: a quiet track, and the chosen
+   segment is the card's own face with a hairline, not a lifted chip. */
+:where([data-style="combo"]) .desktop-tab-strip {
+  background: var(--bg);
+  border-bottom: 0;
+  height: calc(var(--chrome-h) + 10px);
+  padding: 6px 8px 4px;
+}
+:where([data-style="combo"]) .desktop-tab-strip-tabs {
+  gap: 2px;
+  padding: 2px;
+  margin-bottom: 0;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--fg) 5%, var(--bg));
+}
+:where([data-style="combo"]) .desktop-tab {
+  height: 100%;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
+}
+:where([data-style="combo"]) .desktop-tab:hover {
+  background: color-mix(in srgb, var(--fg) 5%, transparent);
+}
+:where([data-style="combo"]) .desktop-tab[data-active="true"],
+:where([data-style="combo"]) .desktop-tab[data-active="true"]:hover {
+  background: var(--bg);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--fg) 11%, transparent);
+}
+:where([data-style="combo"]) .desktop-tab[data-active="true"]::before {
+  display: none;
 }

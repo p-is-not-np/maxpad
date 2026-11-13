@@ -88,8 +88,39 @@ const THEME_ALIASES: Record<string, Theme> = {
   latte: 'github-light',
 };
 
+/**
+ * THE STYLE — how the chrome is BUILT, independent of what colour it is.
+ *
+ * A theme is a palette (and, since demoscene, a typeface). A style is the
+ * structure that palette is poured into: whether the rail is its own surface
+ * or the page's, whether the composer floats, whether the rail and the content
+ * are cards on a canvas. The two are orthogonal, so they are two settings and
+ * two root attributes — `data-theme` and `data-style` — and every style rule
+ * in the stylesheets is scoped under `:where([data-style="…"])` so Default is
+ * exactly the stylesheet with no style rules at all.
+ */
+export type UiStyle = 'default' | 'minimal' | 'floating' | 'combo';
+
+export const STYLES: { value: UiStyle; label: string }[] = [
+  { value: 'default', label: 'Default' },
+  { value: 'minimal', label: 'Minimal' },
+  { value: 'floating', label: 'Floating' },
+  { value: 'combo', label: 'Minimal + Floating' },
+];
+
+const VALID_STYLES = new Set<UiStyle>(STYLES.map((s) => s.value));
+
+/** A stored style, or null for anything this build does not know — the same
+ *  "an unknown name is nothing chosen" rule the theme follows. */
+export function readStyle(raw: unknown): UiStyle | null {
+  return typeof raw === 'string' && VALID_STYLES.has(raw as UiStyle) ? (raw as UiStyle) : null;
+}
+
 export interface Settings {
   theme: ThemeChoice;
+  /** This browser's style — the fallback when the install has none stored,
+   *  exactly as `theme` is. */
+  style: UiStyle;
   // Persisted width of the desktop sidebar. The upper bound is enforced live
   // while dragging (never wider than the longest tab name + its status/close
   // icon needs); this stored value is only sanity-clamped on read.
@@ -115,6 +146,7 @@ const DEFAULTS: Settings = {
   // System by default: it is the option most people want, and it is the one
   // pair in this list built to be flipped between.
   theme: 'system',
+  style: 'default',
   sidebarWidth: 280,
 };
 
@@ -158,6 +190,7 @@ function read(): Settings {
     const parsed = JSON.parse(raw) as Partial<Settings>;
     return {
       theme: readChoice(parsed),
+      style: readStyle(parsed.style) ?? DEFAULTS.style,
       sidebarWidth:
         typeof parsed.sidebarWidth === 'number' && Number.isFinite(parsed.sidebarWidth)
           ? Math.min(SIDENAV_MAX_WIDTH, Math.max(SIDENAV_MIN_WIDTH, parsed.sidebarWidth))
@@ -204,9 +237,20 @@ export function themeInForce(s: Settings): ThemeChoice {
   return serverTheme ?? s.theme;
 }
 
+/** The install's style, or null when none is stored — the twin of
+ *  `serverTheme`, and for the same reasons. */
+let serverStyle: UiStyle | null = null;
+
+/** The style ACTUALLY IN FORCE — the install's if it has one, else this
+ *  browser's. The picker asks this, for the reason `themeInForce` exists. */
+export function styleInForce(s: Settings): UiStyle {
+  return serverStyle ?? s.style;
+}
+
 function applyToDocument(s: Settings) {
   if (typeof document === 'undefined') return;
   document.documentElement.dataset.theme = resolveTheme(themeInForce(s), systemPrefersDark());
+  document.documentElement.dataset.style = styleInForce(s);
 }
 
 /**
@@ -227,6 +271,20 @@ export function setServerTheme(choice: ThemeChoice | null): void {
 /** The install's theme, or null when nothing is stored for it. */
 export function getServerTheme(): ThemeChoice | null {
   return serverTheme;
+}
+
+/** Point the document at the INSTALL's style, or `null` for none stored. Same
+ *  callers and the same no-op rule as {@link setServerTheme}. */
+export function setServerStyle(choice: UiStyle | null): void {
+  if (serverStyle === choice) return;
+  serverStyle = choice;
+  applyToDocument(current);
+  for (const fn of listeners) fn({ ...current });
+}
+
+/** The install's style, or null when nothing is stored for it. */
+export function getServerStyle(): UiStyle | null {
+  return serverStyle;
 }
 
 /**

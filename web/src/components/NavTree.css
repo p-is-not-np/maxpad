@@ -4304,3 +4304,152 @@ body.sidenav-resizing iframe {
 .navtree .navtree-tab-row[data-worker="true"] .navtree-name-text {
   color: var(--nt-ink-read);
 }
+
+/* ═══ MINIMAL STYLE (and the combo) ═══════════════════════════════════════════════
+   The rail is the page (see the theme blocks in styles.css): same surface,
+   a hairline seam, and every state drawn as a wash of the row's own ink —
+   no rings, no shadows, no accent bars. Rows are tighter and the leading
+   icon loses its tile, so the eye runs down names, not a column of boxes.
+   Declared last so it reads as one layer over the rules above. */
+:where([data-style="minimal"]) .navtree:not([data-variant="sheet"]),
+:where([data-style="combo"]) .navtree:not([data-variant="sheet"]) {
+  --nt-chip: 18px;
+  --nt-air: 10px;
+  --nt-row-tab: 30px;
+  --nt-row-ws: 28px;
+  --nt-pill: 6px;
+}
+:where([data-style="minimal"]) .navtree:not([data-variant="sheet"]) .navtree-tab-row,
+:where([data-style="combo"]) .navtree:not([data-variant="sheet"]) .navtree-tab-row {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+:where([data-style="minimal"]) .navtree-tab-icon::before,
+:where([data-style="combo"]) .navtree-tab-icon::before {
+  background: transparent;
+}
+/* The ring stays — it is what tells the selected row from a hovered one —
+   but the drop shadow under it goes: nothing in the rail floats. */
+:where([data-style="minimal"]) .navtree-tab-row[data-active="true"],
+:where([data-style="combo"]) .navtree-tab-row[data-active="true"] {
+  box-shadow: inset 0 0 0 1px var(--nt-carve-edge);
+}
+:where([data-style="minimal"]) .navtree-workingset,
+:where([data-style="combo"]) .navtree-workingset {
+  background: transparent;
+  border: 0;
+  padding-inline-start: var(--nt-pad);
+  padding-bottom: 4px;
+}
+:where([data-style="minimal"]) .navtree-workingset-head,
+:where([data-style="combo"]) .navtree-workingset-head {
+  padding-top: 10px;
+  padding-bottom: 4px;
+  font-weight: 500;
+  color: var(--fg-faint);
+}
+:where([data-style="minimal"]) .navtree-workingset .navtree-tab-row[data-active="true"],
+:where([data-style="combo"]) .navtree-workingset .navtree-tab-row[data-active="true"] {
+  background-color: color-mix(in srgb, var(--band-ink) 5%, transparent);
+}
+:where([data-style="minimal"]) .sidenav,
+:where([data-style="combo"]) .sidenav {
+  box-shadow: inset -1px 0 0 0 var(--rail-seam);
+}
+:where([data-style="minimal"]) .sidenav-brand,
+:where([data-style="combo"]) .sidenav-brand,
+:where([data-style="minimal"]) .sidenav-footer,
+:where([data-style="combo"]) .sidenav-footer {
+  border-color: var(--rail-border);
+}
+:where([data-style="minimal"]) .sidenav-build,
+:where([data-style="combo"]) .sidenav-build {
+  color: var(--fg-faint);
+}
+:where([data-style="minimal"]) .navtree:not([data-variant="sheet"]) .navtree-tab-row .chatchip,
+:where([data-style="combo"]) .navtree:not([data-variant="sheet"]) .navtree-tab-row .chatchip {
+  --chatchip-size: 18px;
+  --chatchip-glyph: 15px;
+  --chatchip-glyph-last: 14px;
+}
+
+/* ═══ FLOATING STYLE (the frame is shared with the combo) ═════════════════
+   The rail is a CARD ON THE CANVAS, like the content beside it (see the
+   STYLES note at the foot of styles.css). Not clipped: the theme popover
+   opens upward out of the footer and must not be cut by the card. Its edge is
+   the card's own (--shadow-float), so the seam goes. Declared after the
+   minimal layer, so the combo's rail is a card too. */
+:where([data-style="floating"]) .sidenav,
+:where([data-style="combo"]) .sidenav {
+  border-radius: var(--float-radius);
+  box-shadow: var(--shadow-float);
+}
+/* The handle sits in the canvas gap between the two cards. */
+:where([data-style="floating"]) .sidenav-resize-handle,
+:where([data-style="combo"]) .sidenav-resize-handle {
+  right: calc(-1 * var(--float-gap));
+  width: var(--float-gap);
+}
+:where([data-style="floating"]) .sidenav-resize-handle::after,
+:where([data-style="combo"]) .sidenav-resize-handle::after {
+  top: 18px;
+  bottom: 18px;
+  right: calc(50% - 1px);
+  border-radius: 1px;
+}
+/* No rules across the card: on a card the brand is a title and the footer a
+   foot, not plates. */
+:where([data-style="floating"]) .sidenav-brand,
+:where([data-style="combo"]) .sidenav-brand {
+  border-bottom: 0;
+}
+:where([data-style="floating"]) .sidenav-footer,
+:where([data-style="combo"]) .sidenav-footer {
+  border-top: 0;
+}
+/* Floating gives the brand a little air so it clears the card's rounded top,
+   and insets the footer from the rounded foot. */
+:where([data-style="floating"]) .sidenav-brand {
+  margin-top: 6px;
+}
+:where([data-style="floating"]) .sidenav-footer {
+  margin: 0 6px 6px;
+}
+:where([data-style="floating"]) .sidenav-footer .icon-btn {
+  align-self: center;
+  width: 32px;
+  height: 32px;
+}
+:where([data-style="floating"]) .sidenav-build {
+  border-radius: 10px;
+}
+/* FLOATING: the recently-active band is a rounded tile inside the rail card,
+   not an edge-to-edge shelf. On a rounded tile a 3px leading border draws a
+   crescent, so the bracket becomes a hairline ring in SOLID accent — still an
+   edge (which is what survives riso and demoscene, where a wash cannot), now
+   one that follows the tile, and drawn as a shadow so it costs the rows no
+   width. With no 3px to pay back, the leading padding is the plain inset
+   again. No seam below it: the floating rail draws no rules. */
+:where([data-style="floating"]) .navtree-workingset {
+  padding-inline-start: var(--nt-pad);
+  margin: 2px 0 10px;
+  border-radius: 12px;
+  border-inline-start: 0;
+  border-bottom: 0;
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* ═══ COMBO STYLE ═════════════════════════════════════════════════════════
+   The frame above, a little tighter; the rail's insides stay minimal. */
+:where([data-style="combo"]) .sidenav-resize-handle::after {
+  top: 14px;
+  bottom: 14px;
+}
+:where([data-style="combo"]) .sidenav-build {
+  border-radius: 6px;
+}
+/* The footer's icon buttons lose their plate dividers: quiet hit areas. */
+:where([data-style="combo"]) .sidenav-footer .icon-btn {
+  border-left: 0;
+  border-radius: 6px;
+}

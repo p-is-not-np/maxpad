@@ -51,7 +51,11 @@
      tab, the sidebar's selected row (it runs into the pane as a tab), and the
      wash itself. The first two were written out by hand and the third is where
      the 5% comes from — three copies of one number is exactly how they drift. */
-  --bg-pane-face: color-mix(in srgb, var(--accent) 5%, var(--bg));
+  --pane-wash: 5%;
+  /* The top bars (mobile header, desktop tab strip). Their own recessed tone
+     by default; a style that wants one flat page points this at --bg. */
+  --bar-surface: var(--bg-tabbar);
+  --bg-pane-face: color-mix(in srgb, var(--accent) var(--pane-wash), var(--bg));
 
   /* ─── THE RAIL IS ITS OWN SURFACE ─────────────────────────────────────────
      The sidebar and the pane used to be two shades of the same near-white —
@@ -349,6 +353,34 @@
   --hit-ink: #141520;
   --hit-rule: #8a5e00;
 }
+/* ── MINIMAL STYLE: ONE SURFACE ───────────────────────────────────────────
+   The rail is the page. Without a style it is its own lifted slate (#313443)
+   with its own ink; here it shares --bg and the page's ink, and the only
+   thing between the two is the hairline seam. Selection, hover and the band
+   are ink washes on that one surface (see the minimal layer in NavTree.css).
+   Same specificity as the theme block (`:where` adds none) and declared after
+   it, so it wins only where it says something. */
+:where([data-style="minimal"])[data-theme="tokyo-night"],
+:where([data-style="combo"])[data-theme="tokyo-night"] {
+  --rail-surface: #1a1b26;
+  --rail-ink: #c0caf5;
+  --rail-ink-dim: #a9b1d6;
+  --rail-ink-faint: #737aa2;
+  --rail-hover: #222433;
+  --rail-border: #24283b;
+  --rail-seam: #24283b;
+  --rail-accent: #7aa2f7;
+  --rail-status-ready: #49c07d;
+  --rail-status-working: #e8b34b;
+  /* No accent wash on the open pane either: the page is one flat colour,
+     and a split's focused pane is still marked by the pane-head rail. */
+  --pane-wash: 0%;
+  --bar-surface: var(--bg);
+  /* …which leaves the selected row nothing to "join". So the selected face
+     becomes a whisper of ink on the one surface — the same fill for the
+     sidebar's selected row and the desktop strip's open tab. */
+  --bg-pane-face: color-mix(in srgb, var(--fg) 6%, var(--bg));
+}
 
 /* Dracula — grey-purple base with vivid purple/pink accents. The standout
    colorful dark. Different both in bg tint and accent hue. */
@@ -553,6 +585,26 @@
   --hit-bg: #ffd33d;
   --hit-ink: #1f2328;
   --hit-rule: #9a6700;
+}
+/* ── MINIMAL STYLE: ONE SURFACE ───────────────────────────────────────────
+   The rail is white like the page, in the page's own ink, separated by a
+   single hairline. The deep slate rail (#2a3c50) and its re-stepped state
+   colours go with it: on white the page's status hues already read. */
+:where([data-style="minimal"])[data-theme="github-light"],
+:where([data-style="combo"])[data-theme="github-light"] {
+  --rail-surface: #ffffff;
+  --rail-ink: #1f2328;
+  --rail-ink-dim: #59636e;
+  --rail-ink-faint: #6e7781;
+  --rail-hover: #f3f4f6;
+  --rail-border: #eaeef2;
+  --rail-seam: #e5e7eb;
+  --rail-accent: #0969da;
+  --rail-status-ready: #217a4b;
+  --rail-status-working: #96650b;
+  --pane-wash: 0%;
+  --bar-surface: var(--bg);
+  --bg-pane-face: color-mix(in srgb, var(--fg) 6%, var(--bg));
 }
 
 /* Acme — warm cream paper with a vivid violet brand accent. Inspired by
@@ -2019,7 +2071,7 @@ button:focus-visible {
   align-items: stretch;
   gap: 0;
   padding: 0;
-  background: var(--bg-tabbar);
+  background: var(--bar-surface);
   border-bottom: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
   height: var(--chrome-h);
   font-family: var(--chrome-font);
@@ -2231,4 +2283,99 @@ button:focus-visible {
   top: -2px;
   background: #f59e0b;
   box-shadow: 0 0 0 2px var(--bg, #111827);
+}
+
+/* ═══ STYLES ══════════════════════════════════════════════════════════════
+   How the chrome is BUILT, independent of the theme's palette (settings.ts,
+   `data-style` on <html>). Every rule below is scoped under
+   `:where([data-style="…"])`, which adds NO specificity: each one cascades
+   exactly as it would have as an unscoped rule in this position, so a style
+   is a layer over the stylesheet and Default is the stylesheet alone.
+
+   Minimal's surfaces live in the theme blocks above (one surface for the
+   rail and the page) and at the foot of each component sheet. FLOATING's
+   frame is here: the rail and the content are two cards resting on a tinted
+   canvas. The combo is Minimal's flat surfaces inside Floating's frame, so it
+   shares the frame rules and only re-tunes its numbers. */
+
+/* The canvas is derived, not listed per theme: the theme's own recessed
+   chrome tone, nudged 6% toward its accent — darker than its cards on a dark
+   palette, a soft tinted grey under white cards on a light one. */
+:where([data-style="floating"]),
+:where([data-style="combo"]) {
+  --canvas: color-mix(in srgb, var(--accent) 6%, var(--bg-tabbar));
+}
+:where([data-style="floating"]) {
+  --float-gap: 10px;
+  --float-radius: 16px;
+  --shadow-float: 0 0 0 1px color-mix(in srgb, var(--shadow-ink) 7%, transparent), 0 1px 2px
+    color-mix(in srgb, var(--shadow-ink) 10%, transparent), 0 8px 28px -10px
+    color-mix(in srgb, var(--shadow-ink) 34%, transparent);
+}
+/* Combo: a tighter frame, and the card edge is a hairline from the page's own
+   ink plus one very soft drop — no real elevation, the minimal half's rule. */
+:where([data-style="combo"]) {
+  --float-gap: 8px;
+  --float-radius: 12px;
+  --shadow-float: 0 0 0 1px color-mix(in srgb, var(--fg) 9%, transparent), 0 1px 2px
+    color-mix(in srgb, var(--shadow-ink) 6%, transparent);
+}
+
+/* The top bar (phones, the picker) is part of the canvas rather than a plate
+   of its own, so it draws no rule and no dividers. */
+:where([data-style="floating"]) .status-bar-cap,
+:where([data-style="combo"]) .status-bar-cap {
+  background: var(--canvas);
+}
+:where([data-style="floating"]) .ws-tabbar,
+:where([data-style="combo"]) .ws-tabbar {
+  background: var(--canvas);
+  border-bottom: 0;
+}
+:where([data-style="floating"]) .brand,
+:where([data-style="combo"]) .brand {
+  border-right: 0;
+}
+:where([data-style="floating"]) .brand-text-side,
+:where([data-style="combo"]) .brand-text-side {
+  border-left: 0;
+}
+/* The canvas the two cards float on. Its padding and gap ARE the margins
+   around the rail and the content. */
+:where([data-style="floating"]) .app-body,
+:where([data-style="combo"]) .app-body {
+  background: var(--canvas);
+  padding: var(--float-gap);
+  gap: var(--float-gap);
+}
+/* The content card. It clips: terminals, iframes and the pane wash all run
+   to its edges, and the corners have to cut them. */
+:where([data-style="floating"]) .app-body > .workspace-column,
+:where([data-style="combo"]) .app-body > .workspace-column {
+  background: var(--bg);
+  border-radius: var(--float-radius);
+  box-shadow: var(--shadow-float);
+  overflow: hidden;
+  /* Safari drops overflow clipping on rounded corners for composited
+     children (xterm's canvas) without this. */
+  isolation: isolate;
+}
+/* Phones: one card under the top bar with a thin margin at the sides, running
+   into the bottom of the screen like a sheet — rounded only where it has an
+   edge to round. */
+@media (max-width: 720px) {
+  :where([data-style="floating"]) .app-body,
+  :where([data-style="combo"]) .app-body {
+    padding: 0 6px;
+    gap: 0;
+  }
+  :where([data-style="floating"]) .app-body > .workspace-column,
+  :where([data-style="combo"]) .app-body > .workspace-column {
+    border-radius: var(--float-radius) var(--float-radius) 0 0;
+  }
+}
+/* The combo's top-bar icon buttons are quiet hit areas on the canvas, not
+   plates. (Floating drops the divider from every .icon-btn — SettingsMenu.css.) */
+:where([data-style="combo"]) .ws-tabbar .icon-btn {
+  border-left: 0;
 }

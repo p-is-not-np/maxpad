@@ -43,6 +43,19 @@ describe('writing one', () => {
     expect(seen).toEqual([{ type: 'prefs.updated', prefs: { theme: 'memphis' } }]);
   });
 
+  it('takes the style beside the theme, and pushes both', async () => {
+    await put('theme', { value: 'memphis' });
+    const res = await put('style', { value: 'minimal' });
+    expect(res.status).toBe(200);
+    expect((await res.json()) as unknown).toEqual({
+      prefs: { theme: 'memphis', style: 'minimal' },
+    });
+    expect(seen.at(-1)).toEqual({
+      type: 'prefs.updated',
+      prefs: { theme: 'memphis', style: 'minimal' },
+    });
+  });
+
   it('clears it with null — the ABSENCE of a row, not an empty string', async () => {
     // A client reads "no value" as "use your own default", so the two have to
     // stay tellable apart.

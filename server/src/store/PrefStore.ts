@@ -15,7 +15,9 @@ import type Database from 'better-sqlite3';
  * behind it: anything could write anything and every browser would receive
  * it. So the keys are enumerated here and the route refuses the rest.
  */
-export const PREF_KEYS = ['theme'] as const;
+// `style` is the theme's twin: how the chrome is built rather than what colour
+// it is, and a document-level fact for exactly the same reasons.
+export const PREF_KEYS = ['theme', 'style'] as const;
 export type PrefKey = (typeof PREF_KEYS)[number];
 
 export function isPrefKey(k: string): k is PrefKey {

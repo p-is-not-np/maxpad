@@ -309,4 +309,24 @@ describe('every theme separates the rail from the pane', () => {
     expect(pane, `${name} has no --bg`).toBeTruthy();
     expect(ratio(rail as string, pane as string)).toBeGreaterThanOrEqual(1.25);
   });
+
+  /* THE MINIMAL STYLE puts the rail on the page's own surface on purpose — one
+     flat field — and separates the two with a hairline instead of a tone.
+     That is a legitimate answer to the same question as long as the line is
+     actually visible, so where the surfaces match, the --rail-seam has to
+     clear 1.15:1 against the page. */
+  it.each(['tokyo-night', 'github-light'])('%s, under the Minimal style', (name) => {
+    for (const style of ['minimal', 'combo']) {
+      const sel = `:where([data-style="${style}"])[data-theme="${name}"]`;
+      const over = STYLES.slice(STYLES.indexOf(sel));
+      const body = over.slice(over.indexOf('{'), over.indexOf('}'));
+      const rail = /--rail-surface:\s*(#[0-9a-f]{6})/i.exec(body)?.[1];
+      const seam = /--rail-seam:\s*(#[0-9a-f]{6})/i.exec(body)?.[1];
+      const pane = /--bg:\s*(#[0-9a-f]{6})/i.exec(block(name))?.[1] as string;
+      expect(rail, `${style} re-declares no rail for ${name}`).toBeTruthy();
+      const toned = ratio(rail as string, pane) >= 1.25;
+      const drawn = seam !== undefined && ratio(seam, pane) >= 1.15;
+      expect(toned || drawn, `${name}/${style}: rail and pane neither toned nor seamed`).toBe(true);
+    }
+  });
 });

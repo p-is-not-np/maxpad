@@ -52,8 +52,18 @@ describe('settings', () => {
     const { getSettings: get } = await import('./settings');
     expect(get()).toEqual({
       theme: 'system',
+      style: 'default',
       sidebarWidth: 280,
     });
+  });
+
+  it('reads a stored style, and an unknown one as Default', async () => {
+    localStorage.setItem('muxpad.settings.v1', JSON.stringify({ style: 'combo' }));
+    vi.resetModules();
+    expect((await import('./settings')).getSettings().style).toBe('combo');
+    localStorage.setItem('muxpad.settings.v1', JSON.stringify({ style: 'brutalist' }));
+    vi.resetModules();
+    expect((await import('./settings')).getSettings().style).toBe('default');
   });
 });
 

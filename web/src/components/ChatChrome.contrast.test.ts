@@ -60,8 +60,12 @@ const ratio = (a: number[], b: number[]): number => {
 const mix = (a: string, b: string, pct: number): number[] =>
   rgb(a).map((v, i) => Math.round((v * pct) / 100 + (rgb(b)[i] as number) * (1 - pct / 100)));
 
-/** The composer pill's own fill: `color-mix(--chat-elev 92%, --chat-fg)`. */
-const pill = (t: Record<string, string>) => mix(t.fg as string, t['bg-elev'] as string, 8);
+/** The composer pill's own fill: `color-mix(--chat-elev 92%, --chat-fg)` —
+ *  or 97% under the Floating style, where the pill takes the elevated surface
+ *  nearly as-is and lets the shadow do the lift. */
+const pill = (t: Record<string, string>, fgPct = 8) =>
+  mix(t.fg as string, t['bg-elev'] as string, fgPct);
+const FLOATING_FG_PCT = 3;
 
 const ALL = themes();
 
@@ -84,6 +88,25 @@ describe('the composer tool row and the pane head', () => {
       // --chat-dim is what these wear; AA for 12px text.
       expect(
         ratio(rgb(theme.tokens['fg-dim'] as string), pill(theme.tokens)),
+      ).toBeGreaterThanOrEqual(4.2);
+    },
+  );
+
+  it('builds the Floating style’s lighter pill the same way', () => {
+    const flat = CHAT.replace(/\/\*[\s\S]*?\*\//g, '');
+    const rest = flat.slice(flat.indexOf(':where([data-style="floating"]) .chat-composer {'));
+    expect(rest.slice(0, rest.indexOf('}'))).toMatch(
+      new RegExp(
+        `background:\\s*color-mix\\(in srgb,\\s*var\\(--chat-elev\\)\\s*${100 - FLOATING_FG_PCT}%,\\s*var\\(--chat-fg\\)\\)`,
+      ),
+    );
+  });
+
+  it.each(ALL.map((t) => [t.name, t] as const))(
+    '%s keeps the tool labels readable on the Floating pill too',
+    (_n, theme) => {
+      expect(
+        ratio(rgb(theme.tokens['fg-dim'] as string), pill(theme.tokens, FLOATING_FG_PCT)),
       ).toBeGreaterThanOrEqual(4.2);
     },
   );
@@ -168,6 +191,24 @@ describe('the recently-active band, on every theme', () => {
     // …and the bracket pays for its own width, or every row in the band sits
     // 3px right of every row beneath it.
     expect(rule).toMatch(/padding-inline-start:\s*calc\(var\(--nt-pad\) - 3px\)/);
+  });
+
+  /*
+   * FLOATING: the band is a rounded tile inside the rail card, and a 3px
+   * leading border on a rounded box draws a crescent. The edge survives as a
+   * 1px SOLID accent ring (an inset shadow, so it costs the rows no width and
+   * needs no padding paid back). Same accent, same strength, so the per-theme
+   * measurement below still holds; only its shape changed.
+   */
+  it('keeps its accent EDGE under the Floating style, as a ring', () => {
+    const flat = TREE.replace(/\/\*[\s\S]*?\*\//g, '');
+    const rest = flat.slice(flat.indexOf(':where([data-style="floating"]) .navtree-workingset {'));
+    const rule = rest.slice(0, rest.indexOf('}'));
+    expect(rule).toMatch(/box-shadow:\s*inset 0 0 0 1px var\(--accent\)\s*;/);
+    // Both Default edges are taken off, and the 3px they cost is given back.
+    expect(rule).toMatch(/border-inline-start:\s*0\s*;/);
+    expect(rule).toMatch(/border-bottom:\s*0\s*;/);
+    expect(rule).toMatch(/padding-inline-start:\s*var\(--nt-pad\)\s*;/);
   });
 
   it.each(rails.map((t) => [t.name, t] as const))(
