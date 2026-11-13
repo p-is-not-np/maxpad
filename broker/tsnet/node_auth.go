@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"net/netip"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -135,13 +134,11 @@ func rootFile(path string) ([]byte, error) {
 		if current == path && (!st.Mode().IsRegular() || owner.Nlink != 1 || st.Mode().Perm() != 0644) {
 			return nil, errors.New("invalid root file")
 		}
-		cmd := exec.Command("/bin/ls", "-lde", current)
-		cmd.Env = []string{"PATH=/usr/bin:/bin:/usr/sbin:/sbin", "LC_ALL=C"}
-		acl, err := cmd.Output()
+		granted, err := extendedGrants(current)
 		if err != nil {
 			return nil, err
 		}
-		if regexp.MustCompile(`(?m)^\s*\d+:`).Match(acl) {
+		if granted {
 			return nil, errors.New("ACL on root policy")
 		}
 		if current == "/" {

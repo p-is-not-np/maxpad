@@ -12,6 +12,14 @@ Build without activating any Tailscale identity:
     go build -trimpath -buildvcs=false -o /PATH/muxpad-tsnet .
     /PATH/muxpad-tsnet --version
 
+On Linux, build with `CGO_ENABLED=0` for a static helper. The protected root
+there is `/opt/muxpad-broker` (`platform_linux.go`; `platform_test.go` holds it
+equal to `../broker-paths.mjs`). No other GOOS compiles. Run the tests with a
+private `TMPDIR`, because the socket tests refuse world-writable ancestors and
+`/tmp` is one: `mkdir -m 700 ~/.cache/tsnet-test && TMPDIR=~/.cache/tsnet-test go test ./...`.
+Without the `acl` tools installed, the socket tests stub the ACL inspection
+and say so on stderr; `TestExtendedGrantsLinux` covers the inspection itself.
+
 Tests use private Unix sockets and fake HTTP requests. They do not enroll a node,
 open browsers, bind TCP/UDP network listeners, read Slack tokens, or change the
 installed system.

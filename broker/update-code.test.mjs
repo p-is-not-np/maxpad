@@ -17,6 +17,11 @@ import { test } from 'node:test';
 // Existing root ownership/ACL validation is replaced only at the fixture boundary;
 // no updater entrypoint, service command or installed state is accessed.
 const source = readFileSync(new URL('./update-code.sh', import.meta.url), 'utf8');
+// The rollover asks `link_count`, which the platform block defines per OS.
+const platform = source.slice(
+  source.indexOf('# BEGIN PLATFORM\n'),
+  source.indexOf('# END PLATFORM\n') + '# END PLATFORM\n'.length,
+);
 const rollover = source
   .split('# BEGIN COMPLETED RELEASE ROLLOVER\n')[1]
   .split('# END COMPLETED RELEASE ROLLOVER')[0]
@@ -39,6 +44,7 @@ function run(dest, release = newRelease, failMove = 0) {
     ['--noprofile', '--norc', '-s', '--', dest, release, String(failMove)],
     {
       input: `set -euo pipefail
+${platform}
 DEST=$1
 RELEASE=$2
 FAIL_MOVE=$3

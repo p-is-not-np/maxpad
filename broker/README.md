@@ -26,6 +26,94 @@ checks still apply. The simpler installer has not been executed.
 
 The legacy certificate-based deployment is documented below for reference.
 
+## Linux (Ubuntu, systemd)
+
+The same tsnet release installs on Linux. The scripts share one platform block,
+so every check above still applies. Only the system mechanics differ:
+
+| | macOS | Linux |
+|---|---|---|
+| Protected tree | `/Library/muxpad-broker` | `/opt/muxpad-broker` |
+| Broker account | `_muxbroker` (dscl, shell `/usr/bin/false`) | `muxbroker` (`useradd --system --user-group`, shell `/usr/sbin/nologin`, locked password) |
+| Service | LaunchDaemon `org.muxpad.broker` | systemd system unit `/etc/systemd/system/muxpad-broker.service` |
+| Root group | `wheel` | `root` |
+| ACL check / removal | `ls -le` / `chmod -N` | `getfacl --skip-base` and `getcap` / `setfacl -b` |
+| Library check | `otool -L` | `ldd` (static binaries need none) |
+| Update lock | `lockf` | `flock` |
+| Broker discovery | `MUXPAD_SLACK_BROKER_URL` | `/opt/muxpad-broker/setup-public.json`, written by the installer; the env var still wins |
+
+The unit runs the tsnet helper as `muxbroker` with `NoNewPrivileges`,
+`ProtectSystem=strict` (writes only to `state/`), `ProtectHome`, `PrivateTmp`,
+`PrivateDevices`, no capabilities and a restricted socket family set. Logs go
+to `state/broker.log` and `state/broker.err`, which only root and the broker
+can read.
+
+Prerequisites, installed by the administrator: `acl` (getfacl/setfacl),
+`libcap2-bin` (getcap) and `curl`. The broker refuses to start, and the
+installers refuse to continue, without the ACL tools: an absent check is
+never read as a passed one.
+
+Build the release as your ordinary user. Use the official Linux Node v24.22.0+
+archive for your architecture (verify its SHASUMS256 entry first) and a static
+helper:
+
+```sh
+npm ci --ignore-scripts --prefix broker
+(cd broker/tsnet && CGO_ENABLED=0 go build -trimpath -buildvcs=false -o /PATH/muxpad-tsnet .)
+node broker/prepare-release.mjs --tsnet /PATH/release.tar /PATH/muxpad-tsnet /PATH/node-v24.22.0-linux-x64
+```
+
+Get the archive's digest approved through an independent channel, as above.
+Then, in your own administrator terminal (not an agent pane), freeze, check and
+install it. `/root` is private to root, so it plays the part of `/private/var/root`:
+
+```sh
+/usr/bin/sudo /usr/bin/env -i PATH=/usr/bin:/bin:/usr/sbin:/sbin /usr/bin/install -d -o root -g root -m 700 /root/muxpad-broker-review
+/usr/bin/sudo /usr/bin/env -i PATH=/usr/bin:/bin:/usr/sbin:/sbin /usr/bin/setfacl -b /root/muxpad-broker-review
+/usr/bin/sudo /usr/bin/env -i PATH=/usr/bin:/bin:/usr/sbin:/sbin /usr/bin/install -o root -g root -m 600 /PATH/release.tar /root/muxpad-broker-review/release.tar
+/usr/bin/sudo /usr/bin/env -i PATH=/usr/bin:/bin:/usr/sbin:/sbin /usr/bin/sha256sum /root/muxpad-broker-review/release.tar
+```
+
+**Only after an exact digest match:**
+
+```sh
+/usr/bin/sudo /usr/bin/env -i PATH=/usr/bin:/bin:/usr/sbin:/sbin /usr/bin/tar -xf /root/muxpad-broker-review/release.tar -C /root/muxpad-broker-review
+/usr/bin/sudo /usr/bin/env -i PATH=/usr/bin:/bin:/usr/sbin:/sbin /bin/chown -R root:root /root/muxpad-broker-review/broker
+/usr/bin/sudo /usr/bin/env -i PATH=/usr/bin:/bin:/usr/sbin:/sbin /usr/bin/setfacl -R -b /root/muxpad-broker-review/broker
+/usr/bin/sudo /usr/bin/env -i PATH=/usr/bin:/bin:/usr/sbin:/sbin /bin/chmod -R go-w /root/muxpad-broker-review/broker
+/usr/bin/sudo /usr/bin/env -i PATH=/usr/bin:/bin:/usr/sbin:/sbin /bin/bash --noprofile --norc /root/muxpad-broker-review/broker/install-tsnet.sh https://MUXPAD_HOST/ AGENT_OS_USERNAME
+```
+
+The installer creates `muxbroker`, installs `/opt/muxpad-broker`, enrolls the
+separate `muxpad-secure` tailnet node (this host's own Tailscale is untouched),
+prompts for the Slack token without echo, and runs
+`systemctl enable --now muxpad-broker.service`. It then writes
+`setup-public.json`, so muxpad's server finds the broker after its own restart.
+Restart only muxpad's server; never ptyd. An interrupted setup resumes with
+`--resume` before the two arguments, as in [tsnet/BUILD.md](tsnet/BUILD.md).
+
+Updates use a newly frozen and verified release the same way, then:
+
+```sh
+/usr/bin/sudo /usr/bin/env -i PATH=/usr/bin:/bin:/usr/sbin:/sbin /bin/bash --noprofile --norc /root/muxpad-broker-review/broker/update-code.sh
+```
+
+It runs `systemctl disable` and `stop`, installs, then `enable` and `start`.
+A unit that is restarting reads as running, so the script never writes code
+under a broker that is about to come back. Use `systemctl status
+muxpad-broker` to look at the service. Do not edit the unit by hand: the
+installer refuses to overwrite an existing one, and the update checks that it
+is still root-owned and has no ACLs.
+
+The Linux path has unit tests (shell helpers, the generated unit under
+`systemd-analyze verify`, the Go helper's ACL inspection and paths, and server
+discovery). It has **not** been run as root on a real host. Account creation,
+systemd activation, tsnet enrollment under the unit's confinement, the
+effective-access checks against the agent UID, and update/restart remain
+acceptance checks for the first real install. The legacy `install.sh` has a
+Linux branch too. The `setup/mac-setup.mjs` wizard is macOS-only.
+
+
 # One-click muxpad Slack approvals
 
 Prepared and tested code; not installed or activated. No live token has been copied
