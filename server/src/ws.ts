@@ -2431,6 +2431,12 @@ export function attachWsServer(deps: {
             // outlive the send it names and be worn by the next autonomous
             // turn. See `pendingSendText`.
             conn.pendingSendText = null;
+            // The Home screen's row hint: a snippet of what the turn said,
+            // stored before the status edges below so their refetch carries
+            // it. A turn with nothing to quote keeps the previous one.
+            if (frame.ok !== false && frame.summary?.trim()) {
+              deps.cache.setReplyHint(paneId, frame.summary);
+            }
             // No question outlives its turn (the runner resolves them all on
             // interrupt/result), so the blocked state can't either.
             deps.cache.setBlocked(paneId, false);
@@ -2680,6 +2686,9 @@ export function attachWsServer(deps: {
             if (typeof frame.qid !== 'string' || !Array.isArray(frame.questions)) return;
             const firstOpen = conn.pendingQuestions.size === 0;
             conn.pendingQuestions.set(frame.qid, frame.questions);
+            // The Home screen's row hint: what it is asking, set before the
+            // block edge below so that edge's refetch already carries it.
+            if (firstOpen) deps.cache.setQuestionHint(paneId, frame.questions[0]?.question ?? null);
             // D5: "needs input" had NO representation in the nav. The question
             // reached chat sockets and a push and touched nothing else, so a
             // chat parked on ask_user read as plain idle in the sidebar — the
@@ -2717,7 +2726,10 @@ export function attachWsServer(deps: {
             // `blocked` with no card, which is the same wedge one level down.
             if (wasFront) {
               const next = conn.pendingQuestions.entries().next();
-              if (!next.done) presentQuestion(next.value[0], next.value[1]);
+              if (!next.done) {
+                deps.cache.setQuestionHint(paneId, next.value[1][0]?.question ?? null);
+                presentQuestion(next.value[0], next.value[1]);
+              }
             }
           } else if (frame.t === 'notify') {
             // The `notify` TOOL — the agent deciding this one is worth a phone.

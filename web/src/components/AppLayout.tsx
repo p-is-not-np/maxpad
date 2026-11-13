@@ -88,7 +88,14 @@ export function AppLayout() {
       <CommandPalette />
       {showTopBar && (
         <header className="ws-tabbar">
-          <Brand asLink={true} responsive={true} markOnly={!!activeWorkspace} />
+          <Brand
+            asLink={true}
+            responsive={true}
+            markOnly={!!activeWorkspace}
+            // On a phone the mark is the Home button: the way back from a
+            // chat to the list of what needs you.
+            home={isMobile}
+          />
           {activeWorkspace && isMobile && (
             // Single merged trigger on mobile: workspace + tab breadcrumb
             // opening the drop-down NavTree panel. The top bar only ever hosts
