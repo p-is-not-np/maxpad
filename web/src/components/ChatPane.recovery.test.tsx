@@ -350,6 +350,48 @@ it('falls back to the extension when a thumbnail will not decode', async () => {
   expect(host.querySelector('.chat-chip-kind')?.textContent).toBe('PNG');
 });
 
+it('opens a composer thumbnail in the lightbox, stepping through the tray', async () => {
+  await setup();
+  vi.stubGlobal('XMLHttpRequest', FakeXHR);
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+  const urls: string[] = [];
+  vi.stubGlobal('URL', {
+    ...URL,
+    createObjectURL: () => {
+      const u = `blob:test/${urls.length}`;
+      urls.push(u);
+      return u;
+    },
+    revokeObjectURL: () => {},
+  });
+  await pick('one.png', 'image/png');
+  await pick('notes.pdf', 'application/pdf');
+  await pick('two.png', 'image/png');
+  // A pdf has no picture to open, so it gets no button.
+  expect(host.querySelectorAll('.chat-chip-open')).toHaveLength(2);
+  expect(host.querySelector('.chat-img-backdrop')).toBeNull();
+  await act(async () => {
+    host.querySelector<HTMLButtonElement>('[aria-label="View two.png"]')!.click();
+  });
+  const full = host.querySelector<HTMLImageElement>('.chat-img-backdrop img.chat-img-full');
+  expect(full?.getAttribute('src')).toBe('blob:test/1');
+  // The set is the tray's images only — the pdf is not a stop in it.
+  expect(host.querySelector('.chat-img-count')?.textContent).toBe('2 / 2');
+  await act(async () => {
+    host.querySelector<HTMLButtonElement>('.chat-img-close')!.click();
+  });
+  expect(host.querySelector('.chat-img-backdrop')).toBeNull();
+  // Viewing is not removing: the attachments are all still queued.
+  expect(host.querySelectorAll('.chat-chip')).toHaveLength(3);
+});
+
 it('cancels one file without touching the rest of the pick', async () => {
   await setup();
   vi.stubGlobal('XMLHttpRequest', FakeXHR);

@@ -6342,7 +6342,7 @@ export function ChatPane({
                     </div>
                   ) : null}
                   <div className="chat-chips">
-                    {chips.map((ch) => {
+                    {chips.map((ch, _i, all) => {
                       const preview = previews.current.get(ch.id);
                       const pct =
                         ch.size > 0
@@ -6375,21 +6375,44 @@ export function ChatPane({
                             // re-renders this chip as the extension badge,
                             // which is the same thing a pdf gets and is
                             // legible.
-                            <img
-                              className="chat-chip-thumb"
-                              src={preview.url}
-                              alt={ch.name}
-                              onError={() => {
-                                const cur = previews.current.get(ch.id);
-                                if (!cur?.url) return;
-                                URL.revokeObjectURL(cur.url);
-                                previews.current.set(ch.id, { ...cur, url: null });
-                                // The previews map is a ref, so nothing has
-                                // asked React to look at it: re-render through
-                                // the queue, which is the component's state.
-                                setChips((prev) => [...prev]);
+                            // TAP TO SEE IT BIG. The lightbox gets every
+                            // image in the tray, so the arrows step through
+                            // what is about to be sent, as they do for a sent
+                            // message's gallery.
+                            <button
+                              type="button"
+                              className="chat-chip-open"
+                              aria-label={`View ${ch.name}`}
+                              onClick={() => {
+                                const imgs = all.flatMap((c) => {
+                                  const u = previews.current.get(c.id)?.url;
+                                  return u ? [{ id: c.id, url: u, name: c.name }] : [];
+                                });
+                                setOpenImage({
+                                  items: imgs.map(({ url, name }) => ({ url, name, video: false })),
+                                  index: Math.max(
+                                    0,
+                                    imgs.findIndex((m) => m.id === ch.id),
+                                  ),
+                                });
                               }}
-                            />
+                            >
+                              <img
+                                className="chat-chip-thumb"
+                                src={preview.url}
+                                alt={ch.name}
+                                onError={() => {
+                                  const cur = previews.current.get(ch.id);
+                                  if (!cur?.url) return;
+                                  URL.revokeObjectURL(cur.url);
+                                  previews.current.set(ch.id, { ...cur, url: null });
+                                  // The previews map is a ref, so nothing has
+                                  // asked React to look at it: re-render through
+                                  // the queue, which is the component's state.
+                                  setChips((prev) => [...prev]);
+                                }}
+                              />
+                            </button>
                           ) : (
                             // Everything that is not an image: its extension,
                             // because a broken-image glyph is what an <img>

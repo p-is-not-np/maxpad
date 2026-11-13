@@ -2107,6 +2107,19 @@
   object-fit: cover;
   display: block;
 }
+/* The thumbnail is a button: tap it to see what you are about to send at full
+   size, in the same lightbox a sent image opens in. Sits UNDER the × and ↻
+   (later siblings, absolutely placed), so those stay their own targets. */
+.chat-chip-open {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+  -webkit-tap-highlight-color: transparent;
+}
 .chat-chip-remove {
   position: absolute;
   top: 2px;
@@ -2444,7 +2457,15 @@ button.chat-filechip {
   gap: 10px;
   min-width: 0;
   min-height: 0;
-  padding: 24px;
+  /* Clear the notch, the home indicator and a landscape phone's side insets.
+     `max` rather than a sum: on a desktop every inset is 0 and the 24px that
+     shipped is unchanged; on a phone the inset only wins where it is bigger.
+     ZoomableImage reads this padding back off the computed style, so the fit
+     follows it without a second constant. */
+  padding: max(24px, calc(env(safe-area-inset-top, 0px) + 12px))
+    max(24px, calc(env(safe-area-inset-right, 0px) + 12px))
+    max(24px, calc(env(safe-area-inset-bottom, 0px) + 12px))
+    max(24px, calc(env(safe-area-inset-left, 0px) + 12px));
 }
 /* The box the image is actually measured against: whatever the stage has left
    after the nav. `min-height: 0` is load-bearing — a flex child defaults to
@@ -2551,7 +2572,7 @@ button.chat-filechip {
 .chat-img-close {
   position: absolute;
   top: calc(env(safe-area-inset-top, 0px) + 10px);
-  right: 14px;
+  right: calc(env(safe-area-inset-right, 0px) + 14px);
   z-index: 2;
   display: grid;
   place-items: center;

@@ -311,3 +311,73 @@ describe('double-tap zooms once', () => {
     expect(img.classList.contains('-zoomed')).toBe(true);
   });
 });
+
+describe('swipe down closes', () => {
+  const drag = (img: Element, dx: number, dy: number) =>
+    act(() => {
+      const ev = (type: string, touches: { clientX: number; clientY: number }[]) => {
+        const e = new Event(type, { bubbles: true });
+        Object.defineProperty(e, 'touches', { value: touches });
+        img.dispatchEvent(e);
+      };
+      ev('touchstart', [{ clientX: 100, clientY: 100 }]);
+      ev('touchmove', [{ clientX: 100 + dx, clientY: 100 + dy }]);
+      ev('touchend', []);
+    });
+
+  it('a long downward drag dismisses the lightbox', () => {
+    const { onClose } = mount([IMG(1)]);
+    drag(document.querySelector('.chat-img-zoom')!, 4, 140);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('a short one snaps back instead', () => {
+    const { onClose } = mount([IMG(1)]);
+    const img = document.querySelector('.chat-img-zoom') as HTMLImageElement;
+    drag(img, 0, 40);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(img.style.transform).toBe('translate(0px, 0px)');
+  });
+
+  it('an upward drag does not close', () => {
+    const { onClose } = mount([IMG(1)]);
+    drag(document.querySelector('.chat-img-zoom')!, 0, -160);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('a sideways drag steps the gallery and does not close', () => {
+    // Separate mounts: two drags inside 300ms would read as a double-tap.
+    const { onClose, onIndex } = mount([IMG(1), IMG(2)]);
+    drag(document.querySelector('.chat-img-zoom')!, -150, 30);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(onIndex).toHaveBeenCalledWith(1);
+  });
+
+  it('the image follows the finger while it is pulled', () => {
+    mount([IMG(1)]);
+    const img = document.querySelector('.chat-img-zoom') as HTMLImageElement;
+    act(() => {
+      const e = new Event('touchstart', { bubbles: true });
+      Object.defineProperty(e, 'touches', { value: [{ clientX: 0, clientY: 0 }] });
+      img.dispatchEvent(e);
+      const m = new Event('touchmove', { bubbles: true });
+      Object.defineProperty(m, 'touches', { value: [{ clientX: 0, clientY: 50 }] });
+      img.dispatchEvent(m);
+    });
+    expect(img.style.transform).toBe('translate(0px, 50px)');
+  });
+});
+
+describe('safe areas', () => {
+  it('the stage and the close button clear the notch and home indicator', () => {
+    const css = readFileSync(join(__dirname, 'ChatPane.css'), 'utf-8');
+    const rule = (sel: string) => {
+      const block = css.slice(css.indexOf(`${sel} {`));
+      return block.slice(0, block.indexOf('}'));
+    };
+    const stage = rule('.chat-img-stage');
+    for (const side of ['top', 'right', 'bottom', 'left'])
+      expect(stage).toContain(`env(safe-area-inset-${side}`);
+    expect(rule('.chat-img-close')).toContain('env(safe-area-inset-right');
+  });
+});

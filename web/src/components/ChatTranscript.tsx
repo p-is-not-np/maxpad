@@ -637,6 +637,7 @@ export function ImageModal({
               url={item.url}
               name={item.name}
               onSwipe={many ? go : undefined}
+              onDismiss={onClose}
             />
           )}
         </div>
@@ -704,13 +705,20 @@ function ZoomableImage({
   url,
   name,
   onSwipe,
+  onDismiss,
 }: {
   url: string;
   name: string;
   /** Step the gallery. Absent for a lone image — then a swipe does nothing. */
   onSwipe?: ((delta: number) => void) | undefined;
+  /** Close the lightbox — a swipe DOWN at 1x, the phone's "put it away". */
+  onDismiss?: (() => void) | undefined;
 }) {
   const [scale, setScale] = useState(1);
+  // How far a swipe-down has dragged the picture, in px. Drawn as a translate
+  // so the image follows the finger and the gesture reads as "pulling it
+  // away"; snaps back to 0 if released short of the threshold.
+  const [pull, setPull] = useState(0);
   const [pos, setPos] = useState({ x: 0, y: 0 });
   // The contained fit size at scale 1 (px), computed from the natural size and
   // the STAGE — the base the zoom multiplies. null until the image loads.
@@ -734,6 +742,7 @@ function ZoomableImage({
     /** Any touchstart — tells a real double-click from a synthesized one. */
     lastTouch: 0,
     swipeDX: 0,
+    swipeDY: 0,
   });
   const MAX = 5;
 
@@ -816,6 +825,8 @@ function ZoomableImage({
 
   /** A swipe only exists at 1x — above it, one finger is panning the image. */
   const SWIPE_PX = 60;
+  /** Further than a sideways swipe: closing is the bigger consequence. */
+  const DISMISS_PX = 90;
 
   const onTouchStart = (e: React.TouchEvent) => {
     const gs = g.current;
@@ -843,6 +854,7 @@ function ZoomableImage({
       gs.lastTap = now;
       gs.mode = sRef.current > 1 ? 'pan' : 'swipe';
       gs.swipeDX = 0;
+      gs.swipeDY = 0;
       gs.startX = pRef.current.x;
       gs.startY = pRef.current.y;
       gs.startCX = a.clientX;
@@ -871,9 +883,12 @@ function ZoomableImage({
       if (!a) return;
       const dx = a.clientX - gs.startCX;
       const dy = a.clientY - gs.startCY;
-      // Horizontal intent only: a mostly-vertical drag is a scroll gesture and
-      // must not flick to the next picture.
-      gs.swipeDX = Math.abs(dx) > Math.abs(dy) ? dx : 0;
+      // Horizontal intent steps the gallery; a mostly-DOWNWARD drag pulls the
+      // picture away to close it. Neither may fire for the other's gesture.
+      const horizontal = Math.abs(dx) > Math.abs(dy);
+      gs.swipeDX = horizontal ? dx : 0;
+      gs.swipeDY = !horizontal && dy > 0 ? dy : 0;
+      if (onDismiss) setPull(gs.swipeDY);
     }
   };
   const onTouchEnd = (e: React.TouchEvent) => {
@@ -883,6 +898,15 @@ function ZoomableImage({
       onSwipe?.(gs.swipeDX < 0 ? 1 : -1);
       gs.swipeDX = 0;
     }
+    if (gs.mode === 'swipe' && gs.swipeDY >= DISMISS_PX && onDismiss) {
+      gs.swipeDY = 0;
+      onDismiss();
+      return;
+    }
+    gs.swipeDY = 0;
+    // Unconditional: this handler's `pull` is the render's, which a move in
+    // the same frame has already outdated. React drops a no-op set.
+    setPull(0);
     if (e.touches.length === 0) gs.mode = 'none';
     // Pinched back to 1 → snap the pan to center.
     if (sRef.current <= 1 && (pRef.current.x !== 0 || pRef.current.y !== 0)) {
@@ -951,9 +975,10 @@ function ZoomableImage({
               height: `${fit.h * scale}px`,
               maxWidth: 'none',
               maxHeight: 'none',
-              transform: `translate(${pos.x}px, ${pos.y}px)`,
+              transform: `translate(${pos.x}px, ${pos.y + pull}px)`,
+              opacity: pull ? Math.max(0.4, 1 - pull / 400) : undefined,
             }
-          : { transform: `translate(${pos.x}px, ${pos.y}px)` }
+          : { transform: `translate(${pos.x}px, ${pos.y + pull}px)` }
       }
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
