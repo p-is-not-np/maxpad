@@ -25,8 +25,9 @@ import { join } from 'node:path';
  * a prompt on a rare path is still a prompt on somebody's screen.
  *
  * So this module does not auto-discover a browser at all. It takes an explicit
- * path, or it uses the Chromium that Playwright manages under
- * `~/Library/Caches/ms-playwright` — which muxpad's own tooling downloaded and
+ * path, or it uses the Chromium that Playwright manages under its cache
+ * directory (`~/Library/Caches/ms-playwright` on macOS, `~/.cache/ms-playwright`
+ * on Linux, or wherever `PLAYWRIGHT_BROWSERS_PATH` points) — which muxpad's own tooling downloaded and
  * which is not a registered application — or it answers null and lets the caller
  * say so. Guessing at somebody's real Chrome is precisely what caused the bug,
  * and it was never even the browser we wanted: launching the user's actual
@@ -52,6 +53,8 @@ export interface FindChromeDeps {
   list?: (dir: string) => string[];
   /** Existence check. Only ever called on paths OUTSIDE any bundle. */
   exists?: (path: string) => boolean;
+  /** Decides where Playwright's cache lives. Defaults to process.platform. */
+  platform?: NodeJS.Platform;
 }
 
 export interface FoundChrome {
@@ -126,6 +129,26 @@ export function newestPlaywrightChromium(entries: string[], prefix = 'chromium')
 const HEADLESS_SHELL = 'chromium_headless_shell';
 
 /**
+ * Where Playwright keeps its downloaded browsers, mirroring Playwright's own
+ * `registryDirectory`. Only macOS uses `~/Library/Caches` — looking there on
+ * Linux found nothing and left muxpad with no browser at all.
+ */
+export function playwrightCacheDir(
+  env: NodeJS.ProcessEnv,
+  home: string,
+  platform: NodeJS.Platform,
+): string {
+  // `0` means "inside node_modules", which is not a place we can name from here.
+  const pinned = env.PLAYWRIGHT_BROWSERS_PATH;
+  if (pinned && pinned !== '0') return pinned;
+  if (platform === 'darwin') return join(home, 'Library', 'Caches', 'ms-playwright');
+  if (platform === 'win32') {
+    return join(env.LOCALAPPDATA ?? join(home, 'AppData', 'Local'), 'ms-playwright');
+  }
+  return join(env.XDG_CACHE_HOME ?? join(home, '.cache'), 'ms-playwright');
+}
+
+/**
  * The executable inside a playwright platform directory, named but not touched.
  *
  * Keyed on the `.app` we can see by LISTING the platform directory — which is an
@@ -176,7 +199,7 @@ export function findChrome(deps: FindChromeDeps = {}): FoundChrome | null {
   // 2. The builds Playwright manages for muxpad. Listing stops at the bundle.
   //    THE SHELL FIRST — see the note above. The full browser is the fallback
   //    for an install that has no shell downloaded, not the preference.
-  const cache = join(home, 'Library', 'Caches', 'ms-playwright');
+  const cache = playwrightCacheDir(env, home, deps.platform ?? process.platform);
   const entries = list(cache);
   for (const [prefix, source] of [
     [HEADLESS_SHELL, 'playwright headless shell'],
