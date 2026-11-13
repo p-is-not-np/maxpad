@@ -2,10 +2,12 @@ import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { createServer } from 'node:http';
+import { join } from 'node:path';
 import { test } from 'node:test';
 import { checkNodeAuthority } from './node-policy.mjs';
+import { shortTempRoot } from './test-tmp.mjs';
 test('private authority client uses only Unix transport, exact peer bytes and bounded failure without retries', async () => {
-  const dir = mkdtempSync('/private/tmp/mux-authority-test-');
+  const dir = mkdtempSync(join(shortTempRoot(), 'mux-authority-test-'));
   const socketPath = `${dir}/authority.sock`;
   const peer = {
     nodeID: 'node',

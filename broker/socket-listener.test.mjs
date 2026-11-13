@@ -2,21 +2,18 @@ import assert from 'node:assert/strict';
 import {
   chmodSync,
   lstatSync,
-  mkdtempSync,
-  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { createServer, request } from 'node:http';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { listenPrivateSocket } from './socket-listener.mjs';
+import { protectedTempDir, protectedTempSkip } from './test-tmp.mjs';
 
-test('private socket serves requests and refuses regular files, symlinks and public parent', async () => {
-  const dir = mkdtempSync(join(realpathSync(tmpdir()), 'muxsock-'));
-  chmodSync(dir, 0o700);
+test('private socket serves requests and refuses regular files, symlinks and public parent', { skip: protectedTempSkip }, async () => {
+  const dir = protectedTempDir('muxsock-');
   const path = join(dir, 'broker.sock');
   const server = createServer((_req, res) => res.end('protected'));
   try {

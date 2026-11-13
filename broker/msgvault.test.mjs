@@ -3,6 +3,18 @@ import { test } from 'node:test';
 import { CAPABILITIES, MSGVAULT, capabilityOf } from './capabilities.mjs';
 import { describeMsgvault, msgvaultArgv, validateMsgvault } from './msgvault.mjs';
 
+// Some tests reach msgvault's REAL help, read from the binary the integration
+// declaration names. Where msgvault is not installed every command reads as
+// unknown, so those tests are skipped with that reason rather than failed.
+const noMsgvault = (() => {
+  try {
+    validateMsgvault('msgvault.run', { args: ['stats'] });
+    return false;
+  } catch (e) {
+    return /has no command/.test(e.message) && 'no msgvault binary declared on this machine';
+  }
+})();
+
 const INSTALL = {
   binary: '/usr/local/libexec/msgvault/msgvault',
   agentUrl: 'http://127.0.0.1:8787',
@@ -175,7 +187,7 @@ test('only verbs that work against 0.22.0 are offered', () => {
   );
 });
 
-test('the dialog names the thing being asked for, not just the verb', () => {
+test('the dialog names the thing being asked for, not just the verb', { skip: noMsgvault }, () => {
   // Approving "search" without its query is approving nothing.
   assert.match(describeMsgvault('msgvault.search', { query: 'tax 2025' }), /"tax 2025"/);
   assert.match(describeMsgvault('msgvault.show-message', { id: 'abc' }), /abc/);
@@ -222,7 +234,7 @@ test('the dialog names the thing being asked for, not just the verb', () => {
  * These assertions are about the two things that keeps honest: every argument
  * is composed rather than forwarded, and the verb cannot become a send.
  */
-test('composing a new email names its recipients, and still cannot send', () => {
+test('composing a new email names its recipients, and still cannot send', { skip: noMsgvault }, () => {
   // This test asserted the OPPOSITE — that `draft-compose` appeared in no
   // command line this module could build — and it was right while
   // reply-only was the rule. The owner changed that after a chat could not

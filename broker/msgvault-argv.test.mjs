@@ -3,6 +3,19 @@ import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { test } from 'node:test';
 import { argvIsRead, parseHelpFlags, reviewArgv } from './msgvault-argv.mjs';
+import { validateMsgvault } from './msgvault.mjs';
+
+// Some tests reach msgvault's REAL help, read from the binary the integration
+// declaration names. Where msgvault is not installed every command reads as
+// unknown, so those tests are skipped with that reason rather than failed.
+const noMsgvault = (() => {
+  try {
+    validateMsgvault('msgvault.run', { args: ['stats'] });
+    return false;
+  } catch (e) {
+    return /has no command/.test(e.message) && 'no msgvault binary declared on this machine';
+  }
+})();
 
 /**
  * THE REVIEW IS THE WHOLE SECURITY SURFACE of the argv path, so it is tested
@@ -107,8 +120,7 @@ test('parseHelpFlags reads the real binary’s help, not a shape we imagined', (
  * whole value of the review, and without them every refusal reads as
  * "msgvault is broken". So they are TAGGED, and only tagged errors repeat.
  */
-test('the review refuses through fail(), which marks the error safe to repeat', async () => {
-  const { validateMsgvault } = await import('./msgvault.mjs');
+test('the review refuses through fail(), which marks the error safe to repeat', { skip: noMsgvault }, async () => {
   for (const [args, expected] of [
     [['search', '--deep'], /search has no --deep/],
     [['add-account'], /administers the archive/],

@@ -48,10 +48,25 @@ The unit runs the tsnet helper as `muxbroker` with `NoNewPrivileges`,
 to `state/broker.log` and `state/broker.err`, which only root and the broker
 can read.
 
-Prerequisites, installed by the administrator: `acl` (getfacl/setfacl),
-`libcap2-bin` (getcap) and `curl`. The broker refuses to start, and the
-installers refuse to continue, without the ACL tools: an absent check is
-never read as a passed one.
+**Prerequisites.** The administrator must install them first:
+
+```sh
+sudo apt install acl libcap2-bin curl
+```
+
+`acl` provides getfacl/setfacl, and `libcap2-bin` provides getcap. A stock
+Ubuntu may lack `acl`. The running broker
+shells out to getfacl and getcap on every protected-path check
+(`protected-path.mjs`) and refuses to start without them. So the installers
+and `update-code.sh` check for them first, before they create or stop
+anything, and exit with the `apt install` line for whatever is missing.
+A missing check never counts as a passed one.
+
+On Linux, the broker tests skip the two setfacl fixtures without `acl`, and
+skip the msgvault-help tests without a declared msgvault binary. Each skip
+gives its reason. Socket tests need a temporary directory whose ancestors are
+not world-writable. `/tmp` is world-writable, so they use your home directory
+or a private `TMPDIR`.
 
 Build the release as your ordinary user. Use the official Linux Node v24.22.0+
 archive for your architecture (verify its SHASUMS256 entry first) and a static

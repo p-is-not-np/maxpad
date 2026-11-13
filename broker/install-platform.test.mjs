@@ -281,3 +281,26 @@ test('both installers ship, and import-check, the whole update manifest', () => 
     assert.deepEqual(checked, modules, `${name} import-checks a different module list`);
   }
 });
+
+test('a missing ACL tool stops the installers before any change, naming the package', () => {
+  // Called right after the root check (update-code.sh: right after the block)
+  // and before anything is created or stopped.
+  for (const name of SCRIPTS) {
+    const src = read(name);
+    const call = src.indexOf('\nrequire_tools getfacl setfacl getcap');
+    assert.ok(call > src.indexOf(END), `${name} checks its tools before defining the check`);
+    for (const later of ['\ncreate_account', '\nservice_disable', ' copy_tree "$DEST']) {
+      const used = src.indexOf(later, src.indexOf(END));
+      if (used !== -1) assert.ok(call < used, `${name} acts before checking tools`);
+    }
+  }
+  if (process.platform !== 'linux') return;
+  const r = shell('require_tools definitely-not-a-tool getcap');
+  assert.equal(r.status, 1);
+  assert.match(
+    r.stderr,
+    /Missing required tools: definitely-not-a-tool\. .*apt install definitely-not-a-tool/,
+  );
+  const acl = shell('require_tools getfacl setfacl');
+  if (acl.status !== 0) assert.match(acl.stderr, /sudo apt install acl$/m);
+});

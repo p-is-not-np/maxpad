@@ -180,8 +180,27 @@ SystemCallArchitectures=native
 WantedBy=multi-user.target
 UNIT
 }
+# Refuse BEFORE any change when a tool the checks depend on is missing.
+# protected-path.mjs makes the running broker refuse without getfacl and
+# getcap too, so an install that skipped this would only fail later, with
+# the account and tree already created. `require_tools NAME…`; macOS ships
+# its equivalents with the system.
+require_tools() {
+ local name dir missing='' packages=''
+ [[ $OS == linux ]] || return 0
+ for name in "$@"; do
+  for dir in /usr/bin /bin /usr/sbin /sbin; do [[ -x $dir/$name ]] && continue 2; done
+  missing="$missing $name"
+  case $name in getfacl|setfacl) packages="$packages acl" ;; getcap) packages="$packages libcap2-bin" ;; *) packages="$packages $name" ;; esac
+ done
+ [[ -z $missing ]] && return 0
+ packages=$(printf '%s\n' $packages | /usr/bin/sort -u | /usr/bin/tr '\n' ' ')
+ echo "Missing required tools:$missing. Install them first: sudo apt install ${packages% }" >&2
+ exit 1
+}
 # END PLATFORM
 [[ $(/usr/bin/id -u) == 0 ]] || { echo 'Run this installer with sudo in your own terminal.' >&2; exit 1; }
+require_tools getfacl setfacl getcap
 [[ $# == 6 ]] || { echo 'Expected NODE ORIGIN TEAM CERT KEY MUXPAD_URL; use the verified-stage clean-environment command in README.md'; exit 1; }
 RUNTIME=$1 ORIGIN=$2 TEAM=$3 CERT=$4 KEY=$5 MUXPAD_UI=$6
 SOURCE=$(cd -- "$(/usr/bin/dirname -- "$0")" && pwd -P)
