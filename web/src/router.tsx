@@ -3,6 +3,7 @@ import { AppLayout } from './components/AppLayout';
 import { WorkspaceLayout } from './components/WorkspaceLayout';
 import { noticeCaptureNonce } from './lib/slack-notice-diagnostic';
 import { DocView } from './pages/DocView';
+import { HomeView } from './pages/HomeView';
 import { HostedAppView, HostedView } from './pages/HostedView';
 import { PopoutView } from './pages/PopoutView';
 import { RootRedirect } from './pages/RootRedirect';
@@ -92,9 +93,19 @@ const hostedAppRoute = createRoute({
   component: HostedAppView,
 });
 
+// /home — what needs you (the phone's landing screen; see HomeView). A child
+// of the app layout for the reason /hosted is: no workspace, so AppLayout
+// renders the Outlet under its own chrome.
+const homeRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/home',
+  component: HomeView,
+});
+
 const routeTree = rootRoute.addChildren([
   appLayoutRoute.addChildren([
     rootRedirectRoute,
+    homeRoute,
     hostedRoute,
     hostedAppRoute,
     workspaceLayoutRoute.addChildren([tabRoute]),
