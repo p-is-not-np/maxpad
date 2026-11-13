@@ -35,6 +35,7 @@ import {
   unrubber,
   unsoftScale,
   wheelIntent,
+  wheelPan,
   wheelPx,
   wheelZoomFactor,
   zoomAround,
@@ -392,15 +393,8 @@ export function attachZoom(
     stop();
     moving();
     if (wheelIntent(e, isZoomed(view.s)) === 'pan') {
-      view = clampPan(
-        {
-          s: view.s,
-          x: view.x - wheelPx(e.deltaX, e.deltaMode),
-          y: view.y - wheelPx(e.deltaY, e.deltaMode),
-        },
-        natural,
-        size(),
-      );
+      const d = wheelPan(e);
+      view = clampPan({ s: view.s, x: view.x + d.x, y: view.y + d.y }, natural, size());
     } else {
       const s = clamp(
         view.s * wheelZoomFactor(wheelPx(e.deltaY, e.deltaMode), e.ctrlKey),

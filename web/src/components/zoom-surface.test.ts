@@ -422,21 +422,42 @@ describe('desktop', () => {
     expect(at.y).toBeCloseTo(under.y, 0);
   });
 
-  it('the mouse wheel zooms in and back out to exactly fit, never below', () => {
-    for (let i = 0; i < 5; i++) wheel({ deltaY: -100, clientX: 180, clientY: 350 });
+  const ctrlIn = (n: number) => {
+    for (let i = 0; i < n; i++) wheel({ ctrlKey: true, deltaY: -20, clientX: 180, clientY: 350 });
+  };
+
+  it('ctrl+wheel zooms back out to exactly fit, never below, and stops at 5x', () => {
+    ctrlIn(10);
     expect(zoom()).toBeGreaterThan(1.5);
-    for (let i = 0; i < 20; i++) wheel({ deltaY: 100, clientX: 30, clientY: 30 });
+    for (let i = 0; i < 40; i++) wheel({ ctrlKey: true, deltaY: 20, clientX: 30, clientY: 30 });
     expect(zoom()).toBeCloseTo(1);
     expect(drawn().ty).toBeCloseTo(0);
-  });
-
-  it('the wheel stops at 5x', () => {
-    for (let i = 0; i < 60; i++) wheel({ deltaY: -100, clientX: 180, clientY: 350 });
+    ctrlIn(200);
     expect(zoom()).toBeCloseTo(5);
   });
 
+  it('a plain wheel on the fitted picture zooms in at the cursor', () => {
+    wheel({ deltaY: -100, clientX: 180, clientY: 350 });
+    expect(zoom()).toBeGreaterThan(1.1);
+  });
+
+  it('a plain wheel SCROLLS a zoomed picture and leaves the zoom alone', () => {
+    ctrlIn(10);
+    const z = zoom();
+    const before = drawn();
+    wheel({ deltaY: 100, clientX: 180, clientY: 350 });
+    expect(zoom()).toBeCloseTo(z);
+    expect(drawn().ty).toBeCloseTo(before.ty - 100); // content moves up: scrolled down
+    wheel({ deltaX: 0, deltaY: 60, shiftKey: true, clientX: 180, clientY: 350 });
+    expect(drawn().tx).toBeLessThan(before.tx);
+    // …and stops at the edge rather than scrolling into the backdrop.
+    for (let i = 0; i < 100; i++) wheel({ deltaY: 100, clientX: 180, clientY: 350 });
+    const t = drawn();
+    expect(t.ty + NAT.h * t.k).toBeCloseTo(BOX.h, 0);
+  });
+
   it('drag pans a zoomed picture with the mouse', () => {
-    for (let i = 0; i < 5; i++) wheel({ deltaY: -100, clientX: 180, clientY: 350 });
+    ctrlIn(10);
     const under = pixelAt(180, 350);
     ptr('pointerdown', 1, 180, 350, 'mouse');
     now += 16;
