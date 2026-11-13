@@ -30,7 +30,7 @@
 .chat-typing s {
   text-decoration: none;
   white-space: pre;
-  font: 0.8125rem / 1.125rem var(--chrome-font, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font: 0.8125rem / 1.125rem var(--term-font);
 }
 
 /* ══ 1 · BRAILLE — the canonical CLI spinner ══════════════════════════════ */

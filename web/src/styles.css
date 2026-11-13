@@ -13,7 +13,13 @@
      dropdown rows, pane headers). Separate from the terminal font (which
      follows the browser font size) so the chrome reads as a unified machined
      surface regardless of what's running inside the panes. */
-  --chrome-font: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
+  /* WAS MONOSPACE, AND THAT IS WHAT MADE THE CHROME READ AS DATED. Labels,
+     buttons and titles in a mono face look like terminal output bolted onto
+     an app. The chrome now follows the UI sans (four themes already set their
+     own proportional chrome face, so nothing here had to be mono); anything
+     with COLUMNS — code, ids, paths, URLs, the cron clock — names
+     --term-font instead, which every theme keeps monospace. */
+  --chrome-font: var(--ui-font);
   --chrome-size: 0.8125rem;
   --chrome-size-sm: 0.75rem;
 
@@ -2014,7 +2020,7 @@ button:focus-visible {
   gap: 0;
   padding: 0;
   background: var(--bg-tabbar);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
   height: var(--chrome-h);
   font-family: var(--chrome-font);
   font-size: var(--chrome-size);
@@ -2125,12 +2131,13 @@ button:focus-visible {
 }
 
 /* Wordmark treatment. Deliberately set apart from the workspace headers below
-   it (bold sans, near-black): the brand is a quiet mono LOGOTYPE — lighter
-   weight, tracked out, dimmed — so it reads as persistent app chrome, not as
-   another bold section header competing for the same rung of the hierarchy. */
+   it: the brand is a quiet LOGOTYPE in the UI sans — semibold, tracked
+   slightly tight, a touch dimmed — so it reads as persistent app chrome, not
+   as another section header competing for the same rung of the hierarchy.
+   (It was a tracked-out monospace, which read as a terminal prompt.) */
 .brand-text {
-  font-weight: 400;
-  letter-spacing: 0.06em;
+  font-weight: 650;
+  letter-spacing: -0.015em;
   /* Quiet, but not washed out — sit close to full fg with just a touch of dim. */
   color: color-mix(in srgb, var(--fg-dim) 20%, var(--fg));
   transition: color 120ms ease;

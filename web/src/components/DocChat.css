@@ -72,7 +72,7 @@
   margin: 12px 0 6px;
 }
 .doc-chat-assistant code {
-  font-family: var(--chrome-font);
+  font-family: var(--term-font);
   font-size: 0.9em;
   background: var(--bg);
   border: 1px solid var(--border);

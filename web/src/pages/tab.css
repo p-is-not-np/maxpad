@@ -303,7 +303,7 @@
      as plates sitting ON a bar. The empty area past the last tab stays this
      bar colour — distinct from the raised tab plates, which are --bg. */
   background: var(--bg-tabbar);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
   height: var(--chrome-h);
   font-family: var(--chrome-font);
   font-size: var(--chrome-size);

@@ -195,10 +195,13 @@
   margin: 0;
 }
 .chat-empty-title {
-  color: var(--chat-dim);
-  font-size: 1.0625rem;
-  font-weight: 550;
-  letter-spacing: -0.01em;
+  /* The one headline on an empty screen: full ink, display size, tight
+     tracking. At 17px dim it read as a caption under an icon. */
+  color: var(--chat-fg, var(--fg));
+  font-size: 1.5rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 .chat-empty-hint {
   font-size: 0.84375rem;
@@ -213,11 +216,11 @@
   color: var(--chat-dim);
 }
 .chat-empty-mark {
-  width: 46px;
-  height: 46px;
+  width: 60px;
+  height: 60px;
   display: grid;
   place-items: center;
-  border-radius: 13px;
+  border-radius: 18px;
   font-size: 1.375rem;
   color: var(--chat-accent-fg);
   background: linear-gradient(
@@ -226,7 +229,7 @@
     color-mix(in srgb, var(--chat-accent) 60%, #000)
   );
   box-shadow: 0 6px 20px -8px color-mix(in srgb, var(--chat-accent) 70%, transparent);
-  margin-bottom: 4px;
+  margin-bottom: 8px;
 }
 .chat-empty-spinner {
   width: 22px;
@@ -780,12 +783,12 @@
   border: 0;
   background: transparent;
   color: var(--chat-faint);
-  font-family: var(--chrome-font, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-family: var(--chrome-font);
   font-size: 0.78125rem;
   text-align: left;
   cursor: pointer;
-  border-radius: 7px;
-  transition: color 120ms ease, background 120ms ease;
+  border-radius: var(--radius);
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
 .chat-toolrow:hover {
   color: var(--chat-dim);
@@ -802,6 +805,10 @@
 .chat-toolrow-arg {
   flex: 1 1 auto;
   min-width: 0;
+  /* The verb is a label ("Ran"); the argument is a command or a path, which
+     is the part that wants columns. */
+  font-family: var(--term-font);
+  font-size: 0.75rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1354,7 +1361,10 @@
      one of two vertical lines. */
   padding: 8px 12px;
   background: color-mix(in srgb, var(--chat-elev) 92%, var(--chat-fg));
-  border: 1px solid color-mix(in srgb, var(--chat-fg) 12%, var(--chat-border));
+  /* A hairline drawn from the ink alone, so it is the same weight on every
+     theme instead of inheriting each palette's --border (invisible on some
+     light rails, heavy on some dark ones). */
+  border: 1px solid color-mix(in srgb, var(--chat-fg) 11%, transparent);
   /* 26px was the radius of a ONE-ROW pill, where a deep curve is the shape of
      the object. With a tool row under the input the pill is twice as tall and
      a near-capsule corner starts eating the ends of that row — the first icon
@@ -1374,9 +1384,11 @@
   gap: 8px;
 }
 .chat-composer:focus-within {
-  border-color: color-mix(in srgb, var(--chat-accent) 65%, var(--chat-border));
+  border-color: color-mix(in srgb, var(--chat-accent) 55%, transparent);
   /* Keep the float shadow AND add the accent focus ring (don't replace it). */
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--chat-accent) 18%, transparent), var(--shadow-lg);
+  /* A wide, faint halo rather than a tight bright ring: 4px at 12% reads as
+     a glow around the pill, not as a second border drawn outside it. */
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--chat-accent) 12%, transparent), var(--shadow-lg);
 }
 
 /* A file is being dragged over the composer: say it will be taken. */
@@ -1399,7 +1411,7 @@
 .chat-composer-tools {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 6px;
   min-height: 26px;
   padding: 0;
   /* A QUERY CONTAINER, because the thing that runs out of room is this ROW and
@@ -1446,9 +1458,9 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 8px;
+  padding: 4px 8px;
   border: 0;
-  border-radius: 7px;
+  border-radius: 999px;
   background: transparent;
   /* --chat-dim, NOT --chat-faint. Measured across the ten themes that ship,
      the faint token sits at 2.1–3.3:1 on the composer's own surface — under
@@ -1462,11 +1474,11 @@
   letter-spacing: 0;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 120ms ease, color 120ms ease;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .chat-tool-btn:hover:not(:disabled),
 .chat-tool-btn:focus-visible {
-  background: color-mix(in srgb, var(--chat-fg) 9%, transparent);
+  background: color-mix(in srgb, var(--chat-fg) 8%, transparent);
   color: var(--chat-fg);
 }
 .chat-tool-btn svg {
@@ -2606,18 +2618,17 @@ button.chat-filechip {
 }
 .chat-open-instead-lbl {
   color: var(--fg-faint, #6f7488);
-  font-family: var(--chrome-font, inherit);
-  font-size: 0.6875rem;
-  letter-spacing: 0.04em;
-  text-transform: lowercase;
+  font-family: var(--ui-font, inherit);
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 .chat-open-instead-row {
   display: flex;
   align-items: center;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 8px;
-  max-width: 420px;
+  gap: 10px;
+  max-width: 460px;
 }
 .chat-open-instead-btn {
   display: inline-flex;
@@ -2626,13 +2637,17 @@ button.chat-filechip {
   /* ≥44px tall including the border — Apple's minimum comfortable touch
      target, which the old 20px text links were less than half of. */
   min-height: 44px;
-  padding: 10px 14px;
-  border: 1px solid color-mix(in srgb, var(--border-strong, #3b4261) 65%, transparent);
+  padding: 10px 16px;
+  /* A raised card: the elevated surface, a hairline drawn from the ink so it
+     holds on every theme, and the small shadow. Hover lifts it a step. */
+  border: 1px solid color-mix(in srgb, var(--fg, #d7dae0) 10%, transparent);
   border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--fg, #d7dae0) 2%, transparent);
+  background: var(--chat-elev, var(--bg-elev));
+  box-shadow: var(--shadow-sm);
   color: var(--fg-dim, #a9b1d6);
   font-family: var(--chrome-font, inherit);
   font-size: 0.8125rem;
+  font-weight: 500;
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
@@ -2651,9 +2666,12 @@ button.chat-filechip {
 .chat-open-instead-btn:hover:not(:disabled),
 .chat-open-instead-btn:active:not(:disabled) {
   color: var(--fg, #d7dae0);
-  background: color-mix(in srgb, var(--fg, #d7dae0) 6%, transparent);
-  border-color: color-mix(in srgb, var(--border-strong, #3b4261) 100%, transparent);
+  background: color-mix(in srgb, var(--fg, #d7dae0) 4%, var(--chat-elev, var(--bg-elev)));
+  border-color: color-mix(in srgb, var(--accent, #7aa2f7) 45%, transparent);
   box-shadow: var(--shadow-md);
+}
+.chat-open-instead-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
 }
 .chat-open-instead-btn:active:not(:disabled) {
   transform: translateY(0.5px);
@@ -3358,7 +3376,7 @@ button.chat-filechip {
 /* Concrete resolved model id under an alias (e.g. Opus → claude-opus-4-8):
    monospace so the exact version reads unambiguously. */
 .chat-model-id {
-  font-family: var(--chrome-font, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-family: var(--term-font);
   font-size: 0.625rem;
   letter-spacing: -0.01em;
 }
@@ -3553,10 +3571,23 @@ button.chat-filechip {
 /* The mark carrying a brand logo drops the accent gradient: Claude's orange
    and Codex's green are the point, and they cannot be read on top of it. */
 .chat-empty-mark.-logo {
-  background: var(--chat-elev, var(--bg-elev));
-  border: 1px solid var(--chat-border, var(--border));
-  box-shadow: none;
-  color: var(--chat-dim, var(--fg-dim));
+  /* A soft raised tile: the elevated surface with a faint wash of the accent
+     from the top, a hairline and the small shadow — so the mark reads as an
+     object rather than as an outline drawn on the page. */
+  background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--chat-accent, var(--accent)) 10%, transparent),
+      transparent 70%
+    ), var(--chat-elev, var(--bg-elev));
+  border: 1px solid color-mix(in srgb, var(--chat-fg, var(--fg)) 10%, transparent);
+  box-shadow: var(--shadow-md);
+  color: var(--chat-accent, var(--accent));
+}
+/* The glyph is drawn at 12px for its inline uses; in the tile it wants to be
+   a real icon. Sized here so the component's API does not change. */
+.chat-empty-mark.-logo > svg {
+  width: 26px;
+  height: 26px;
 }
 
 .chat-empty-ident {
@@ -3565,13 +3596,18 @@ button.chat-filechip {
   justify-content: center;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: -4px;
+  margin-top: 0;
   font-family: var(--chrome-font, inherit);
-  font-size: 0.78125rem;
+  font-size: 0.75rem;
 }
 .chat-empty-ident-name {
+  /* A small chip rather than a bare word, so the mode reads as a label of
+     the screen and not as a stray line of text. */
   color: var(--fg-dim, #a9b1d6);
   font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--fg, #d7dae0) 7%, transparent);
 }
 .chat-empty-ident-cwd {
   font-family: var(--mono-font, monospace);

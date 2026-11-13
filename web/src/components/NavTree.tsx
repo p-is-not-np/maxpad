@@ -378,7 +378,7 @@ function WorkingSetStrip({
        mechanism cannot drift from it. */
     <div className="navtree-workingset" aria-label="Recently active">
       <div className="navtree-workingset-head" aria-hidden="true">
-        recently active
+        Recently active
       </div>
       {rows.map(({ tab, workspace, at }) => (
         <WorkingSetRow

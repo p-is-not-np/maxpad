@@ -25,7 +25,7 @@
   border-radius: 8px;
   background: var(--bg-active, rgba(0, 0, 0, 0.35));
   color: var(--fg, #c0caf5);
-  font-family: var(--chrome-font, ui-sans-serif, system-ui, sans-serif);
+  font-family: var(--term-font);
   font-size: 0.8125rem;
   outline: none;
 }
@@ -39,7 +39,7 @@
   border-radius: 8px;
   background: transparent;
   color: var(--fg-dim, #a9b1d6);
-  font-family: var(--chrome-font, ui-sans-serif, system-ui, sans-serif);
+  font-family: var(--term-font);
   font-size: 0.8125rem;
   text-align: left;
   overflow: hidden;

@@ -1201,12 +1201,11 @@ describe('nothing in the rail scrolls sideways', () => {
     expect(all).toEqual(['hidden', 'clip']);
   });
 
-  it('still bleeds the active row out to the rail edge — the clip is flush', () => {
+  it('the active row is an inset pill — it no longer bleeds past the rail padding', () => {
+    // It used to reach out to the rail edge to join the pane; it is a
+    // rounded pill inside the rail now, so nothing reaches for the clip.
     const active = ruleBody(NAV_CSS, '.navtree-tab-row[data-active="true"]');
-    const group = ruleBody(NAV_CSS, '.navtree-group');
-    expect(resolve(decl(active, 'margin-right'), BASE)).toBe(
-      -resolve(side(decl(group, 'padding'), 'right'), BASE),
-    );
+    expect(active).not.toMatch(/margin-right/);
   });
 });
 
@@ -1499,8 +1498,13 @@ describe('section labels share their tracking', () => {
     );
   });
 
-  it('tracks them enough for bold caps at 11px to hold their shape', () => {
-    // Below about 0.1em the counters close at this size and weight.
-    expect(tracking('.navtree-workingset-head')).toBeGreaterThanOrEqual(0.1);
+  it('sets them in sentence case, so they need no caps tracking', () => {
+    // The 0.12em this used to require was for bold CAPS at 11px. Sentence
+    // case at 12px semibold holds its shape untracked; wide tracking on
+    // lowercase reads as a typo.
+    expect(tracking('.navtree-workingset-head')).toBeLessThanOrEqual(0.02);
+    expect(NAV_CSS.replace(/\/\*[\s\S]*?\*\//g, '')).not.toMatch(
+      /\.navtree-ws-row \.navtree-name-text \{[^}]*text-transform:\s*uppercase/,
+    );
   });
 });

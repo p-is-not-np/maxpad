@@ -319,7 +319,9 @@ describe('selection is the CONTENT SURFACE, not a colour on the list', () => {
     // and the wash itself.
     const body = ruleBody(NAV_CSS, RAIL_ACTIVE);
     expect(decl(body, 'background-color')).toBe('var(--bg-pane-face)');
-    expect(decl(body, 'border-radius')).toMatch(/0 0/);
+    // A rounded inset pill now, not a tab running into the pane — see the
+    // SHAPE test below.
+    expect(decl(body, 'border-radius')).toBe('var(--radius)');
   });
 
   it('frees the accent entirely — selection spends none of it', () => {
@@ -612,86 +614,37 @@ describe('the ARITHMETIC — six themes, and the defect the TAB introduces', () 
   });
 
   it('SELECTION OUT-RANKS HOVER on every theme — by SHAPE, which hover has no access to', () => {
-    // THE point of this file, and it has now caught three designs.
+    // THE point of this file, and it has now caught four designs.
     //
-    // While selection was an accent wash it was far from any rail and the fill
-    // alone always won. The tab is the PANE's face, which on a theme whose rail
-    // and pane sit close together barely separates from the rail at all:
-    //
-    //   acme — lilac rail #f0e9f6, cream pane #fdf6ea + a 5% violet wash
-    //   tab vs rail        ΔE 2.40
-    //   hover at 4%        ΔE 2.70   ← an idle row beats the row you are on
-    //   hover at 6%        ΔE 4.05
-    //
-    // THE EDGE THAT USED TO ANSWER THIS IS GONE, and the arithmetic above is
-    // why it was tried: three inset hairlines, a channel hover does not have.
-    // It could not hold the geometry. The hairlines follow the ROW's rectangle
-    // while the fillets extend the surface 18px past it, so the top edge ran
-    // straight through the point where the tab had already curved away and
-    // ended in mid-air over the corner. Reported as "the lines here are no
-    // good".
-    //
-    // The premise was wrong too, which is the part worth keeping. A ΔE
-    // comparison between selection and hover assumes they compete for one
-    // glance, and they do not: hover is transient and sits under the cursor,
-    // where the reader already knows their pointer is, while selection has to
-    // be readable AT REST — and at rest nothing is hovered. What selection has
-    // that hover cannot have at any fill value is the SHAPE: the row merges
-    // into the pane. A tint cannot round a corner into the content.
-    //
-    // So the invariant is unchanged — "distinguished in a way hover never is" —
-    // and what carries it is the funnel.
+    // The fill alone does not do it on every theme — on acme the pane face
+    // sits closer to the rail than a hover tint does (the arithmetic below
+    // records that). So selection has to be carried by something hover never
+    // has. It was the funnel: the row ran out to the rail edge and flared
+    // into the pane. That silhouette read as dated and as a notch cut out of
+    // the rail, so selection is now an INSET PILL: the pane's own face, a
+    // hairline ring from the pane's ink, and a small lift. Hover gets a tint
+    // and nothing else — no ring, no shadow, no pane face.
     const selected = ruleBody(NAV_CSS, RAIL_ACTIVE);
     const hovered = ruleBody(NAV_CSS, '.navtree-tab-row:hover');
-    // Its own element, not a pseudo of the row — see the ownership test below
-    // for the two separate bugs that bought that.
-    const fillet = ruleBody(NAV_CSS, '.navtree-tab-funnel');
+    const funnel = ruleBody(NAV_CSS, '.navtree-tab-funnel');
 
-    // The shape, stated as the three things that make it one: it takes the
-    // pane's own face, it loses its right-hand corners, and it reaches past the
-    // rail's padding so there is no strip of rail left between the two.
     expect(decl(selected, 'background-color')).toBe('var(--bg-pane-face)');
-    expect(decl(selected, 'border-radius')).toMatch(/^var\(--nt-pill\) 0 0 var\(--nt-pill\)$/);
-    expect(decl(selected, 'margin-right')).toContain('-1');
-    expect(decl(fillet, 'background-image')).toContain('--bg-pane-face');
+    expect(decl(selected, 'border-radius')).toBe('var(--radius)');
+    // Inset: it no longer reaches past the rail's padding into the pane.
+    expect(selected).not.toMatch(/margin-right/);
+    // The retired flare paints nothing.
+    expect(decl(funnel, 'display')).toBe('none');
 
-    // And hover has none of it — no fill from the pane, no geometry at all. A
-    // hovered row cannot be mistaken for the selected one however the two fills
-    // measure on a given theme, which is what the edge was standing in for.
     expect(fill(hovered)).not.toContain('--bg-pane-face');
     expect(hovered).not.toMatch(/border-radius|margin-right|box-shadow/);
-    // ── AND THE EDGE IS BACK, BECAUSE THE OBJECTION TO IT WAS ANSWERED ────
-    // This used to assert the opposite: no edge at all, on the grounds that a
-    // straight line cannot follow this shape and one that tries ends over the
-    // curve. That was true of a border drawn by the ROW ALONE — the row's
-    // rectangle stops where the fillet has already curved away.
-    //
-    // The hairline is now drawn by both parts, each taking the stretch it
-    // owns. The row's inset ring does the top, the bottom and the rounded left
-    // end; the funnel's middle band covers the overlap where the ring would
-    // run on into the flare; and each fillet carries the line round as a 1px
-    // arc just inside its radius. They meet at a point that falls out of the
-    // geometry rather than being tuned: the arc's lower end is (funnel-left,
-    // row-top) for any row height and any rail width, because both are
-    // derived from the same 18px fillet and the same --nt-pad.
-    expect(decl(selected, 'box-shadow')).toBe('inset 0 0 0 1px var(--nt-carve-edge)');
-    // The mask. Without this third layer the straight run continues under the
-    // fillet and out the other side — the exact failure the old assertion was
-    // protecting against.
-    expect(decl(fillet, 'background-image')).toContain('linear-gradient(var(--bg-pane-face)');
-    expect(decl(fillet, 'background-size')).toContain('calc(100% - 36px)');
-    // Both arcs carry the stroke, and both stop 1px short of the fill so the
-    // line sits ON the silhouette rather than inside the pane's face.
-    expect((decl(fillet, 'background-image') ?? '').match(/--nt-carve-edge/g)).toHaveLength(2);
-    expect(decl(fillet, 'background-image')).toContain('17px 18px');
-    // Derived from the row's ink — which is the PANE's here — so it reads on
-    // all six themes for the same reason the ink does. `--border` would not:
-    // it measures 1.00:1 against the rail on alucard.
-    // Declared in the row's island block (the one that rebinds the pane's ink),
-    // not the paint block above — so this looks at the sheet, not one rule.
+    // The ring, drawn from the row's ink — the PANE's here — so it reads on
+    // every theme for the same reason the ink does. `--border` would not: it
+    // measures 1.00:1 against the rail on alucard.
+    expect(decl(selected, 'box-shadow')).toContain('inset 0 0 0 1px var(--nt-carve-edge)');
+    expect(decl(selected, 'box-shadow')).toContain('var(--shadow-sm)');
     expect(NAV_CSS).toMatch(/--nt-carve-edge:\s*color-mix\(in srgb, var\(--fg\)/);
 
-    // The fill arithmetic is still RECORDED, because it is the reason the shape
+    // The fill arithmetic is still RECORDED, because it is the reason the ring
     // has to carry this and a palette change that fixes acme should show up
     // here as a change rather than silently.
     const fillAloneFails = Object.entries(THEMES)
@@ -889,7 +842,9 @@ describe('item 2 — the seams are WHITESPACE, not hairlines', () => {
     // size as a chat and heavier, which is why three workspaces read as three
     // more list items instead of as three containers.
     const label = ruleBody(NAV_CSS, '.navtree-ws-row .navtree-name-text');
-    expect(decl(label, 'text-transform')).toBe('uppercase');
+    // Sentence case now: the chevron, the air and the dimmer ink mark it as
+    // a header; the caps were spending weight on a job already done.
+    expect(label).not.toMatch(/text-transform/);
     expect(Number.parseFloat(decl(label, 'font-size'))).toBeLessThan(13);
     expect(decl(label, 'color')).toBe('var(--fg-dim)');
     expect(

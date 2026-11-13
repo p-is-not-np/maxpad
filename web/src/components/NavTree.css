@@ -803,8 +803,15 @@
    different KIND of thing at a glance, and the tracking is what keeps it
    legible after the case change. */
 .navtree-ws-row .navtree-name-text {
-  font-size: 0.6875rem;
-  font-weight: 700;
+  /* ── SENTENCE CASE, 12px, SEMIBOLD ─────────────────────────────────────
+     The header was 11px bold caps tracked at 0.12em, which read as the
+     loudest text in the rail. The disclosure chevron, the air above each
+     group and the dimmer ink already make it a different KIND of row, so the
+     caps and the tracking were spending weight on a job that was done.
+     The paragraph below is the history of the tracking number, kept because
+     it explains why the old caps needed it. */
+  font-size: 0.75rem;
+  font-weight: 600;
   /* ── TRACKING, AND WHY IT IS THIS NUMBER ───────────────────────────────
      Bold caps at 11px need air between the letters or they read as one dark
      block: the counters close up, the word loses its shape, and what you see
@@ -815,8 +822,7 @@
      recently-active heading). Two caps labels in one list that are tracked
      differently read as two kinds of thing, and there is only one kind of
      thing here — a section name. */
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  letter-spacing: 0.005em;
   color: var(--fg-dim);
 }
 /* The active workspace steps to full ink — one channel, no fill. The accent
@@ -1261,7 +1267,17 @@
    to read the ACTIVE PANE's background rather than the theme's. */
 .navtree-tab-row[data-active="true"] {
   background-color: var(--bg-pane-face);
-  border-radius: var(--nt-pill) 0 0 var(--nt-pill);
+  /* ── AN INSET PILL, NOT A TAB ──────────────────────────────────────────
+     The row used to run out to the rail's edge and flare into the pane
+     through two concave fillets (the funnel, below) — a browser tab turned on
+     its side. It read as dated and, on a rail that is darker than the pane,
+     as a notch cut out of the sidebar. Now it is a rounded pill sitting
+     INSIDE the rail with the rail's own padding on every side. It keeps the
+     pane's face and the pane's ink (the island rebinding below), so it still
+     says "this is the one open on the right" by colour rather than by shape.
+     The long notes that follow describe the old tab silhouette; the ring
+     still draws its edge, only around a whole pill now. */
+  border-radius: var(--radius);
   /* ── THE SILHOUETTE GETS A HAIRLINE, AS ONE CONTINUOUS PATH ─────────────
      The note below is the record of this being tried and abandoned, and it is
      still right about WHY: three inset hairlines on the row's rectangle ran
@@ -1279,13 +1295,7 @@
      Keyed to the row's own --fg, which is the PANE's ink here (see the island
      rebinding below), so it reads against the pane face on every theme rather
      than being a colour picked for one. */
-  box-shadow: inset 0 0 0 1px var(--nt-carve-edge);
-  /* Out past the GROUP's own right padding, so the row genuinely touches the
-     pane instead of stopping a hair short of it. Measured: without this the tab
-     ended at 277 against a rail edge of 279, and two pixels of rail showing
-     through is enough to read as a seam rather than a join. */
-  margin-right: calc(var(--nt-pad) * -1);
-  padding-right: calc(var(--nt-air) + var(--nt-pad));
+  box-shadow: inset 0 0 0 1px var(--nt-carve-edge), var(--shadow-sm);
   /* AND NO EDGE, which is a REVERSAL, and the reversal is the point.
 
      What was here: three inset hairlines, top, bottom and left, added because
@@ -1343,6 +1353,10 @@
    were given one pseudo-element. Rather than write a third qualifier, the
    funnel is a node: `.navtree-tab-funnel`, rendered only on the active row. */
 .navtree-tab-funnel {
+  /* Retired with the tab silhouette: the selected row is an inset pill now
+     (see .navtree-tab-row[data-active="true"]), so there is no join to flare.
+     The node is still rendered; it simply paints nothing. */
+  display: none;
   position: absolute;
   right: calc(var(--nt-pad) * -1);
   left: auto;
@@ -2155,7 +2169,7 @@
   display: inline-flex;
   align-items: baseline;
   gap: 5px;
-  font-family: var(--chrome-font);
+  font-family: var(--term-font);
   font-size: 0.65625rem;
   line-height: 1.2;
   letter-spacing: 0.02em;
@@ -3220,7 +3234,7 @@ body.sidenav-resizing iframe {
      hairline lines up exactly with the tab strip's bottom line at the top
      of the workspace, in both split and tabbed views. */
   height: var(--chrome-h);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
 }
 .sidenav-brand .brand {
   flex: 1;
@@ -3237,7 +3251,7 @@ body.sidenav-resizing iframe {
   display: flex;
   align-items: stretch;
   height: var(--chrome-h);
-  border-top: 1px solid var(--border);
+  border-top: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
 }
 .sidenav-build {
   flex: 1;
@@ -3247,6 +3261,7 @@ body.sidenav-resizing iframe {
   color: var(--fg-dim);
   font-family: var(--chrome-font);
   font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
   text-decoration: none;
   transition: background 80ms ease, color 80ms ease;
 }
@@ -3268,8 +3283,8 @@ body.sidenav-resizing iframe {
   left: 0;
   border: 1px solid var(--border);
   border-bottom: none;
-  border-radius: 6px 6px 6px 0;
-  box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.22);
+  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) 0;
+  box-shadow: var(--shadow-lg);
 }
 
 /* ─── Foot: Hosted ───────────────────────────────────────────────────── */
@@ -3282,7 +3297,9 @@ body.sidenav-resizing iframe {
 .navtree-foot {
   margin: 14px 8px 0 4px;
   padding-top: 10px;
-  border-top: 1px solid var(--border);
+  /* A whisper, not a rule: derived from the ink so it shows on every rail,
+     at a strength that separates without drawing a wall across the list. */
+  border-top: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
 }
 .navtree-foot-link {
   display: flex;
@@ -4029,10 +4046,11 @@ body.sidenav-resizing iframe {
      gap that separates it from its own first row is the one that must not be
      the tighter of the two. */
   padding: 8px calc(var(--nt-pad) + var(--nt-indent)) 10px;
-  font-size: 0.625rem;
+  /* Sentence case, like the workspace headers — see .navtree-ws-row
+     .navtree-name-text for why the caps went. */
+  font-size: 0.71875rem;
   font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  letter-spacing: 0.005em;
   /* ── THE DOT IS GONE ──────────────────────────────────────────────────
      There was a 5px accent square in front of this label. In a rail whose
      ONLY other coloured marks are status — a dot for wants-you, a tick for
