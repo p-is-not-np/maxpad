@@ -30,6 +30,7 @@ import { cardsRoutes } from './routes/cards.js';
 import { chatActionsRoutes } from './routes/chat-actions.js';
 import { cronsRoutes } from './routes/crons.js';
 import { eventsRoutes } from './routes/events.js';
+import { hostRoutes } from './routes/host.js';
 import { nodesRoutes } from './routes/nodes.js';
 import { openRoutes } from './routes/open.js';
 import { paneIoRoutes } from './routes/pane-io.js';
@@ -409,6 +410,7 @@ export function createApp(deps: AppDeps): Hono {
   // store/PrefStore.ts. Mounted beside the other reads rather than under
   // /api/settings: there is no per-device settings endpoint and never was,
   // because every other setting IS per-device and lives in localStorage.
+  app.route('/api/host', hostRoutes());
   app.route('/api/prefs', prefsRoutes({ db: resolved.db, events: resolved.events }));
   app.route('/api/panes', attachmentsRoutes(resolved));
   app.route('/api/panes', summaryRoutes(resolved));

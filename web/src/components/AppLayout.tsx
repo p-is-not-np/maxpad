@@ -9,6 +9,7 @@ import { useWindowAttention } from '../use-window-attention';
 import { useWorkspaces, visibleWorkspaces } from '../workspaces';
 import { Brand } from './Brand';
 import { CommandPalette } from './CommandPalette';
+import { MemoryGauge } from './MemoryGauge';
 import { MobileNavSwitcher } from './MobileNavSwitcher';
 import { MoveUndoToast } from './MoveUndoToast';
 import { NavTree, RailSearchButton } from './NavTree';
@@ -112,6 +113,7 @@ export function AppLayout() {
           >
             muxpad <span className="brand-text-side-version">{__MUXPAD_VERSION__}</span>
           </a>
+          <MemoryGauge placement="down" />
           <SettingsMenu />
         </header>
       )}
@@ -147,6 +149,7 @@ export function AppLayout() {
                 >
                   {__MUXPAD_VERSION__}
                 </a>
+                <MemoryGauge />
                 <ThemeSwitch />
                 <SettingsMenu />
               </div>
