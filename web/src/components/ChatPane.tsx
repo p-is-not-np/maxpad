@@ -216,7 +216,12 @@ import {
 import { ChatScrollController, FOLLOW_THRESHOLD_PX } from '../lib/chat-scroll-controller';
 import { ANCHOR_ATTR, domScrollSurface } from '../lib/chat-scroll-dom';
 import { shouldPageOlder, topPageZone } from '../lib/chat-scroll-intent';
-import { companionTextForImagePaste, splitClipboard } from '../lib/clipboard-detect';
+import {
+  companionTextForImagePaste,
+  dragHasFiles,
+  filesFromDataTransfer,
+  splitClipboard,
+} from '../lib/clipboard-detect';
 import { trackKeyboardInset } from '../lib/keyboard-inset';
 import {
   childIsRunning,
@@ -730,6 +735,12 @@ export function optimisticEchoLanded(events: readonly ChatEvent[], optimistic: s
  * in a PWA" shortcut does not transfer, and how a stale read used to latch.
  */
 export { keyboardInset as chatKeyboardInset } from '../lib/keyboard-inset';
+
+/** A name for a file that arrived without one — an iOS drop or paste can hand
+ *  over a bare blob, and the upload route types it by extension. */
+export function fallbackName(f: Blob): string {
+  return `${f.type.startsWith('image/') ? 'image' : 'file'}${attachmentExtForMime(f.type) ?? '.png'}`;
+}
 
 export function mergeHistorySnapshot(
   prev: readonly ChatEvent[],
@@ -2746,14 +2757,16 @@ export function ChatPane({
   // the phone offered only Photo Library and Take Photo. Naming the extensions
   // the server accepts restores the full native sheet and keeps the OS greying
   // out anything the upload would have rejected afterwards.
-  const onPickFiles = async (e: ChangeEvent<HTMLInputElement>) => {
-    const el = e.target;
+  /**
+   * The one way a file becomes an attachment — the `+` picker and a drop onto
+   * the composer both end here, so they accept and refuse exactly the same.
+   */
+  const acceptFiles = (all: File[]) => {
     // Accept exactly what the server upload route accepts: a known MIME, or a
     // known filename extension when the provider reports no type (HEIC
     // pickers, some Android providers, and iOS Files for several document
     // types all hand over type=''). Dropping anything is LOUD — a silently
     // swallowed pick reads as "the app is broken".
-    const all = Array.from(el.files ?? []);
     const files = all.filter(
       (f) => attachmentExtForMime(f.type) !== null || attachmentExtFromName(f.name) !== null,
     );
@@ -2764,14 +2777,45 @@ export function ChatPane({
         tone: 'danger',
       });
     }
-    el.value = ''; // reset so re-picking the same file still fires onChange
     if (files.length === 0) return;
     // NOT AWAITED, AND NOT SEQUENTIAL. The chips exist on this frame — the
     // pick's receipt — and the queue runs two transfers at a time behind them.
     // A failure is no longer a toast that scrolls away either: it stays on the
     // chip, with the file still in hand, one tap from a retry.
-    enqueueUploads(files.map((f) => ({ file: f, name: f.name || 'image.png' })));
+    enqueueUploads(files.map((f) => ({ file: f, name: f.name || fallbackName(f) })));
     inputRef.current?.focus();
+  };
+  const onPickFiles = (e: ChangeEvent<HTMLInputElement>) => {
+    const el = e.target;
+    const all = Array.from(el.files ?? []);
+    el.value = ''; // reset so re-picking the same file still fires onChange
+    acceptFiles(all);
+  };
+  // ── DRAG A FILE ONTO THE COMPOSER ─────────────────────────────────────────
+  // There was no drop handler at all, so a photo dragged out of Photos on an
+  // iPhone (or a file from Finder) did nothing: the draft is contenteditable,
+  // and a contenteditable only takes TEXT drops by default. Both events have
+  // to be cancelled — a drop is only delivered to a target whose `dragover`
+  // said yes. A text drag (a snippet from the log) is left to the browser.
+  const [dropping, setDropping] = useState(false);
+  const onComposerDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!dragHasFiles(e.dataTransfer)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    if (!dropping) setDropping(true);
+  };
+  const onComposerDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    // `dragleave` fires on every child boundary; only leaving the composer
+    // itself ends the hover.
+    const next = e.relatedTarget as Node | null;
+    if (next && e.currentTarget.contains(next)) return;
+    setDropping(false);
+  };
+  const onComposerDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!dragHasFiles(e.dataTransfer)) return;
+    e.preventDefault();
+    setDropping(false);
+    acceptFiles(filesFromDataTransfer(e.dataTransfer));
   };
 
   // Pasting/picking an image uploads it to the pane's attachment dir and
@@ -2946,15 +2990,17 @@ export function ChatPane({
   const onPaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
     const data = e.clipboardData;
     if (!data) return;
-    const { imageOnly, imageItems } = splitClipboard(data);
-    if (imageItems.length === 0) return; // plain text — default paste
+    const { imageOnly } = splitClipboard(data);
+    // From items AND `files`: iOS can hand a pasted photo over in `files` with
+    // no image item, and reading items alone pasted nothing.
+    const blobs = filesFromDataTransfer(data).filter((f) => f.type.startsWith('image/'));
+    if (blobs.length === 0) return; // plain text — default paste
     // Swallow the event: the async upload finishes after the default paste
     // would have run, so we insert both path(s) and any companion text
     // ourselves for a deterministic order (macOS bundles a transient file://
     // URL with screenshots; companionTextForImagePaste drops it).
     e.preventDefault();
     const text = imageOnly ? '' : companionTextForImagePaste(data.getData('text/plain'));
-    const blobs = imageItems.map((item) => item.getAsFile()).filter((b): b is File => b !== null);
     void (async () => {
       const queued: { file: File | Blob; name: string }[] = [];
       for (const blob of blobs) {
@@ -6073,7 +6119,13 @@ export function ChatPane({
               composer whatever it says. */}
             {/* In the measured wrap: reserves transcript space and follows the keyboard. */}
             {active && <SlackApprovalAlert paneId={paneId} />}
-            <div className="chat-composer">
+            <div
+              className={`chat-composer${dropping ? ' -dropping' : ''}`}
+              onDragEnter={onComposerDragOver}
+              onDragOver={onComposerDragOver}
+              onDragLeave={onComposerDragLeave}
+              onDrop={onComposerDrop}
+            >
               {/* No `capture` attribute, deliberately: with one, iOS goes straight
                 to the camera. Without it — and with an `accept` that is not
                 image-only — the share sheet offers Photo Library, Take Photo,

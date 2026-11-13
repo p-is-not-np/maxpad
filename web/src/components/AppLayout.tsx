@@ -2,6 +2,7 @@ import { Outlet, useRouterState } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import { useAppTheme } from '../lib/app-theme';
 import { MOBILE_BREAKPOINT } from '../lib/mobile-layout';
+import { trackStatusBarCap } from '../lib/status-bar-cap';
 import { SIDENAV_MIN_WIDTH, updateSettings, useSettings } from '../settings';
 import { useMediaQuery } from '../use-media-query';
 import { useWindowAttention } from '../use-window-attention';
@@ -79,6 +80,7 @@ export function AppLayout() {
 
   return (
     <div className="app-layout">
+      <StatusBarCap />
       {/* Mounted once, above everything, and deliberately OUTSIDE the
           workspace/sidebar branches below: ⌘K has to work on the workspace
           picker and on mobile too, which is exactly where the rail's own
@@ -355,4 +357,14 @@ function measureSidenavContentWidth(aside: HTMLElement): number {
     if (needed > max) max = needed;
   }
   return Math.ceil(max);
+}
+
+/** The opaque band over the status bar — see lib/status-bar-cap.ts. */
+function StatusBarCap() {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!ref.current) return;
+    return trackStatusBarCap(ref.current, window.visualViewport ?? null);
+  }, []);
+  return <div ref={ref} className="status-bar-cap" aria-hidden="true" />;
 }

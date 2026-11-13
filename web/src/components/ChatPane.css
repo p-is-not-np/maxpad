@@ -1380,6 +1380,12 @@
     rgba(0, 0, 0, 0.45), 0 2px 8px -4px rgba(0, 0, 0, 0.35);
 }
 
+/* A file is being dragged over the composer: say it will be taken. */
+.chat-composer.-dropping {
+  border-color: var(--chat-accent);
+  border-style: dashed;
+}
+
 /* Photo/attach button on the left (opens the OS photo picker → uploads via the
    same attachments endpoint the TUI composer uses). Quiet ghost button. */
 /* ── THE PILL'S TOOL ROW ──────────────────────────────────────────────────

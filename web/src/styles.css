@@ -1916,6 +1916,20 @@ select:focus {
   padding-top: env(safe-area-inset-top);
   overflow: hidden;
 }
+/* Opaque band over the status bar, kept on the VISUAL viewport's top while
+   the keyboard pans the page (lib/status-bar-cap.ts) — so iOS 26's status-bar
+   blur has a flat colour to blur instead of the conversation. Zero tall where
+   there is no inset; invisible at rest, over a strip already this colour. */
+.status-bar-cap {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top, 0px);
+  background: var(--bg);
+  z-index: 10000;
+  pointer-events: none;
+}
 /* PWA standalone match for the height swap above. */
 @media (display-mode: standalone) {
   .app-layout {
