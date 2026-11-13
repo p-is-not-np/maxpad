@@ -606,7 +606,17 @@ export function ImageModal({
   return (
     <div className="chat-modal-backdrop chat-img-backdrop">
       <button type="button" className="chat-modal-scrim" aria-label="Close" onClick={onClose} />
-      <div className="chat-img-stage">
+      {/* The stage covers the scrim, so a tap in the empty space around the
+          image lands here, not on the scrim. Close on that too — but only when
+          the tap hit the stage or frame itself, never the image or the nav. */}
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: Escape and the × button close it from the keyboard */}
+      <div
+        className="chat-img-stage"
+        onClick={(e) => {
+          const t = e.target as HTMLElement;
+          if (t === e.currentTarget || t.classList.contains('chat-img-frame')) onClose();
+        }}
+      >
         {/* The FRAME is what the image is measured against, and it has a size of
             its own: `flex: 1; min-height: 0` inside a stage that is pinned to
             the backdrop. Without it the stage was sized BY the image and

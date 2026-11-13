@@ -55,6 +55,22 @@ afterEach(() => {
 });
 
 describe('the lightbox', () => {
+  it('closes on a tap in the empty space around the image, not on the image', () => {
+    // The stage sits over the scrim, so the scrim alone never saw those taps.
+    const { host, onClose } = mount([IMG(1), IMG(2)]);
+    const click = (sel: string) =>
+      act(() => {
+        host.querySelector(sel)?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      });
+    click('.chat-img-full');
+    click('.chat-img-arrow');
+    expect(onClose).not.toHaveBeenCalled();
+    click('.chat-img-frame');
+    expect(onClose).toHaveBeenCalledTimes(1);
+    click('.chat-img-stage');
+    expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
   it('puts the image INSIDE the stage that gets measured', () => {
     // The fit bug in structural form: ZoomableImage measures
     // `imgRef.parentElement`, so the image being a child of the stage — and
