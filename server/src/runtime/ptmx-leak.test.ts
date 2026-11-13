@@ -8,6 +8,7 @@ import {
   ownedFdSet,
   ownedPtyCount,
   ptmxRdev,
+  ptyDriverKey,
   strayPtmxFds,
   sweepMode,
   sweepStrayPtmx,
@@ -69,6 +70,23 @@ describe('recognising a ptmx descriptor', () => {
     expect(deviceMajor(251658388)).toBe(15);
     expect(deviceMajor(251658389)).toBe(15);
     expect(deviceMajor(268435604)).not.toBe(15);
+    expect(ptyDriverKey(251658387, 'darwin')).toBe(ptyDriverKey(251658389, 'darwin'));
+  });
+
+  it('on Linux, matches /dev/ptmx exactly and never /dev/null', () => {
+    // Measured: a node-pty master fstats as 0x502 (5:2), same as /dev/ptmx.
+    // The darwin decoding read both 0x502 and /dev/null (0x103) as major 0,
+    // so ptyd reported its own stdin as a leaked pty on every spawn.
+    const ptmx = ptyDriverKey(0x502, 'linux');
+    expect(ptyDriverKey(0x502, 'linux')).toBe(ptmx);
+    expect(ptyDriverKey(0x103, 'linux')).not.toBe(ptmx); // /dev/null
+    expect(ptyDriverKey(0x8805, 'linux')).not.toBe(ptmx); // /dev/pts/5
+    expect(ptyDriverKey(0x500, 'linux')).not.toBe(ptmx); // /dev/tty
+  });
+
+  it('finds no strays in a process that holds only its own stdio', () => {
+    // The live symptom on Linux: "2 pty descriptor(s) belong to nobody (0,20)".
+    expect(sweepStrayPtmx(ptmxRdev(), 'observe').strays).not.toContain(0);
   });
 
   it('says no for something that is not a character device', () => {

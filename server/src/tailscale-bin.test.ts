@@ -182,7 +182,10 @@ describe('the shell CLI agrees with the helper', () => {
     const got = await bin({ MUXPAD_TAILSCALE_BIN: '', PATH: '/usr/bin:/bin' });
     // Only assert the app bundle when this machine actually has one; the
     // precedence itself is pinned by the pure-helper test above.
-    expect(got === TAILSCALE_APP_BIN || got === '').toBe(true);
+    // On Linux the package installs tailscale into /usr/bin itself, so the
+    // trimmed PATH still finds it — PATH winning is the precedence under test.
+    const onPath = existsSync('/usr/bin/tailscale') || existsSync('/bin/tailscale');
+    expect(got === TAILSCALE_APP_BIN || got === '' || (onPath && got === 'tailscale')).toBe(true);
     expect(tailscaleBins({}).at(-1)).toBe(TAILSCALE_APP_BIN);
   });
 });

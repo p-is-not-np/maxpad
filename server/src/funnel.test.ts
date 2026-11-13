@@ -14,6 +14,8 @@ function fakeExec(
   return fn;
 }
 
+// Every funnel here gets `env: {}`: a test run inside a muxpad pane inherits
+// MUXPAD_TAILSCALE_BIN, which would otherwise outrank the binaries under test.
 const STATUS_JSON = JSON.stringify({ Self: { DNSName: 'example-host.example-tailnet.ts.net.' } });
 
 describe('createTailscaleFunnel', () => {
@@ -21,7 +23,7 @@ describe('createTailscaleFunnel', () => {
     const exec = fakeExec((_cmd, args) =>
       args[0] === 'status' ? { stdout: STATUS_JSON } : { stdout: '' },
     );
-    const funnel = createTailscaleFunnel({ publicPort: 7778, exec });
+    const funnel = createTailscaleFunnel({ publicPort: 7778, exec, env: {} });
     const state = await funnel.ensure();
     expect(state).toEqual({ baseUrl: 'https://example-host.example-tailnet.ts.net:8443' });
     expect(exec.calls[0]).toEqual({
@@ -35,7 +37,7 @@ describe('createTailscaleFunnel', () => {
     const exec = fakeExec((_cmd, args) =>
       args[0] === 'status' ? { stdout: STATUS_JSON } : { stdout: '' },
     );
-    const funnel = createTailscaleFunnel({ publicPort: 7778, exec });
+    const funnel = createTailscaleFunnel({ publicPort: 7778, exec, env: {} });
     await funnel.ensure();
     const before = exec.calls.length;
     await funnel.ensure();
@@ -51,7 +53,7 @@ describe('createTailscaleFunnel', () => {
       }
       return args[0] === 'status' ? { stdout: STATUS_JSON } : { stdout: '' };
     });
-    const funnel = createTailscaleFunnel({ publicPort: 7778, exec });
+    const funnel = createTailscaleFunnel({ publicPort: 7778, exec, env: {} });
     const state = await funnel.ensure();
     expect(state.warning).toBeUndefined();
     expect(exec.calls[1]?.cmd).toBe('/Applications/Tailscale.app/Contents/MacOS/Tailscale');
@@ -63,7 +65,7 @@ describe('createTailscaleFunnel', () => {
     const exec = fakeExec(() => {
       throw new Error('Funnel not available; "funnel" node attribute not set');
     });
-    const funnel = createTailscaleFunnel({ publicPort: 7778, exec });
+    const funnel = createTailscaleFunnel({ publicPort: 7778, exec, env: {} });
     const state = await funnel.ensure();
     expect(state.baseUrl).toBe('http://127.0.0.1:7778');
     expect(state.warning).toContain('funnel unavailable');
@@ -94,7 +96,7 @@ describe('createTailscaleFunnel', () => {
     const exec = fakeExec(() => {
       throw new Error('The Tailscale GUI failed to start');
     });
-    const funnel = createTailscaleFunnel({ publicPort: 7778, exec });
+    const funnel = createTailscaleFunnel({ publicPort: 7778, exec, env: {} });
     const first = await funnel.ensure();
     const after = exec.calls.length;
     expect(after).toBeGreaterThan(0);
@@ -107,7 +109,7 @@ describe('createTailscaleFunnel', () => {
     const exec = fakeExec((_cmd, args) =>
       args[0] === 'status' ? { stdout: '{"Self":{}}' } : { stdout: '' },
     );
-    const funnel = createTailscaleFunnel({ publicPort: 9999, exec });
+    const funnel = createTailscaleFunnel({ publicPort: 9999, exec, env: {} });
     const state = await funnel.ensure();
     expect(state.baseUrl).toBe('http://127.0.0.1:9999');
     expect(state.warning).toContain('DNSName');
