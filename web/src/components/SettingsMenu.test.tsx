@@ -29,6 +29,17 @@ vi.mock('../settings', () => ({
     { value: 'demoscene', label: 'Demoscene' },
   ],
   SYSTEM_PAIR: { light: 'alucard', dark: 'dracula' },
+  // The Style picker beside it: the same in-force question, and the same
+  // optimistic setter, as the theme's.
+  styleInForce: (s: { style?: string }) => s.style ?? 'default',
+  getServerStyle: () => null,
+  setServerStyle: vi.fn(),
+  STYLES: [
+    { value: 'default', label: 'Default' },
+    { value: 'minimal', label: 'Minimal' },
+    { value: 'floating', label: 'Floating' },
+    { value: 'combo', label: 'Minimal + Floating' },
+  ],
 }));
 let root: ReturnType<typeof createRoot>;
 let host: HTMLDivElement;
@@ -548,4 +559,34 @@ it('writes the install’s theme, never a chat row', async () => {
   expect(src).toMatch(/api\.setPref\('theme', value\)/);
   expect(src).not.toMatch(/patchTabRow/);
   expect(src).not.toMatch(/patchTab\(/);
+});
+
+/**
+ * THE STYLE PICKER sits beside the theme's, in General, and follows its
+ * contract: one radio group, the style in force checked, and an optimistic
+ * install-wide write that undoes itself on failure.
+ */
+it('offers the four styles in General, with the one in force chosen', async () => {
+  await open();
+  const general = document.querySelector('[aria-label="General settings"]');
+  const group = general?.querySelector('.settings-styles');
+  expect(group?.querySelector('legend')?.textContent).toBe('Style');
+  const radios = [...(group?.querySelectorAll<HTMLInputElement>('input[name="style"]') ?? [])];
+  expect(radios.map((r) => r.value)).toEqual(['default', 'minimal', 'floating', 'combo']);
+  expect(radios.filter((r) => r.checked).map((r) => r.value)).toEqual(['default']);
+  // Each tile draws its style, so the four previews are distinguishable.
+  expect(
+    [...(group?.querySelectorAll<HTMLElement>('.style-mock') ?? [])].map((m) => m.dataset.look),
+  ).toEqual(['default', 'minimal', 'floating', 'combo']);
+});
+
+it('writes the install’s style and reverts when it cannot be stored', () => {
+  const src = readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), 'SettingsMenu.tsx'),
+    'utf8',
+  );
+  expect(src).toMatch(/<StylePicker chosen=\{styleInForce\(settings\)\}/);
+  expect(src).toMatch(/api\.setPref\('style', value\)/);
+  expect(src).toMatch(/const before = getServerStyle\(\)/);
+  expect(src).toMatch(/\.catch\(\(err\) => \{[\s\S]{0,320}setServerStyle\(before\)/);
 });
