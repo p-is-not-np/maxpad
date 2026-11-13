@@ -30,3 +30,9 @@ test('the state paths the transport pins are inside that tree', async () => {
   assert.equal(linux.brokerPath('state', 'origin'), '/opt/muxpad-broker/state/origin');
   assert.equal(linux.brokerPath('state', 'broker.sock'), '/opt/muxpad-broker/state/broker.sock');
 });
+
+test('the operator config lives in /Library/muxpad on macOS and /etc/muxpad on Linux', async () => {
+  assert.equal((await load('darwin')).SYSTEM_ROOT, '/Library/muxpad');
+  assert.equal((await load('linux')).SYSTEM_ROOT, '/etc/muxpad');
+  assert.equal((await load('linux')).systemPath('connectors.json'), '/etc/muxpad/connectors.json');
+});

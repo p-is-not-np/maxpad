@@ -27,6 +27,28 @@ const ROOTS = { darwin: '/Library/muxpad-broker', linux: '/opt/muxpad-broker' };
 const PLATFORM = process.platform;
 export const BROKER_ROOT = ROOTS[PLATFORM] ?? null;
 
+/**
+ * WHERE THE OPERATOR'S CONFIG LIVES — connectors.json, integrations.json,
+ * origins/ — and the muxpad server reads the same files (see
+ * server/src/connectors/system-dir.ts, which must agree with this).
+ *
+ *   macOS   /Library/muxpad
+ *   Linux   /etc/muxpad
+ *
+ * `/etc` rather than under `/opt/muxpad-broker`: these are files a human
+ * writes by hand as root, which is what `/etc` is for, and the muxpad server
+ * reads them too, so they are not the broker's private tree. Any other
+ * platform keeps the macOS path, which is what every caller used before there
+ * was a choice — so nothing there changes.
+ */
+const SYSTEM_ROOTS = { darwin: '/Library/muxpad', linux: '/etc/muxpad' };
+export const SYSTEM_ROOT = SYSTEM_ROOTS[PLATFORM] ?? SYSTEM_ROOTS.darwin;
+
+/** A path inside the operator's config directory. */
+export function systemPath(...parts) {
+  return [SYSTEM_ROOT, ...parts].join('/');
+}
+
 /** A path inside the protected tree, or a throw on an unsupported platform. */
 export function brokerPath(...parts) {
   if (!BROKER_ROOT) throw Error(`Protected deployment is not supported on ${PLATFORM}`);

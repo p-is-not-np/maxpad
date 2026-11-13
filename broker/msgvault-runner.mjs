@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { systemPath } from './broker-paths.mjs';
 import { msgvaultArgv } from './msgvault.mjs';
 import { assertProtectedPath } from './protected-path.mjs';
 
@@ -23,7 +24,7 @@ import { assertProtectedPath } from './protected-path.mjs';
  * is a human-paced rate.
  */
 export function msgvaultRunner({
-  declarationPath = '/Library/muxpad/integrations.json',
+  declarationPath = systemPath('integrations.json'),
   io = { readFileSync, assertProtectedPath },
   run = execFile,
   timeoutMs = 30_000,

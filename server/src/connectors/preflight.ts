@@ -1,5 +1,7 @@
 import { statSync } from 'node:fs';
 import { type ConnectorInstall, INSTALLS_PATH, type Installs, loadInstalls } from './install.js';
+import { POLICY_PATH } from './scope.js';
+import { rootGroup } from './system-dir.js';
 
 /**
  * WHAT AN INTEGRATION NEEDS, CHECKED — not described in a wiki.
@@ -83,6 +85,8 @@ export interface PreflightEnv {
   stat(path: string): { uid: number; mode: number; isFile: boolean } | null;
   /** Is a process listening for this integration's daemon? */
   daemonRunning(id: string): boolean | null;
+  /** Which OS's tools the remedies should name. */
+  platform: NodeJS.Platform;
 }
 
 export const realEnv: PreflightEnv = {
@@ -99,6 +103,7 @@ export const realEnv: PreflightEnv = {
   // without asking the OS questions it should not be asking, and a wrong YES
   // is worse than an honest "look for yourself".
   daemonRunning: () => null,
+  platform: process.platform,
 };
 
 /**
@@ -187,14 +192,20 @@ export const INTEGRATIONS: Integration[] = [
             return {
               state: 'unknown',
               found: 'no libraries are declared',
-              remedy: `List any non-system libraries the binary loads under "libraries" in ${INSTALLS_PATH} — \`otool -L <binary>\` shows them. Repointing one with install_name_tool invalidates the signature, so re-sign afterwards (\`codesign --force --sign - <binary>\`) or it will not launch on Apple Silicon.`,
+              remedy:
+                env.platform === 'darwin'
+                  ? `List any non-system libraries the binary loads under "libraries" in ${INSTALLS_PATH} — \`otool -L <binary>\` shows them. Repointing one with install_name_tool invalidates the signature, so re-sign afterwards (\`codesign --force --sign - <binary>\`) or it will not launch on Apple Silicon.`
+                  : `List any non-system libraries the binary loads under "libraries" in ${INSTALLS_PATH} — \`ldd <binary>\` shows them.`,
             };
           for (const lib of where.libraries) {
             const r = ownedAwayFromAgents(env, lib, `the library ${lib}`, '', 'runtime');
             if (r.state !== 'ok')
               return {
                 ...r,
-                remedy: `Copy it beside the binary, repoint it with install_name_tool, then RE-SIGN: codesign --force --sign - ${where.binary}. The re-sign is not optional — install_name_tool invalidates the signature and an unsigned binary will not launch on Apple Silicon.`,
+                remedy:
+                  env.platform === 'darwin'
+                    ? `Copy it beside the binary, repoint it with install_name_tool, then RE-SIGN: codesign --force --sign - ${where.binary}. The re-sign is not optional — install_name_tool invalidates the signature and an unsigned binary will not launch on Apple Silicon.`
+                    : `Copy it into a root-owned directory beside the binary and point the binary at it (\`patchelf --set-rpath <dir> ${where.binary}\`), so the loader never reaches a copy an agent can replace.`,
               };
           }
           return { state: 'ok' };
@@ -256,19 +267,18 @@ export const INTEGRATIONS: Integration[] = [
         id: 'policy-root-owned',
         question: 'Is the connector policy out of the agent account’s reach?',
         run: (env) => {
-          const st = env.stat('/Library/muxpad/connectors.json');
+          const st = env.stat(POLICY_PATH);
           if (!st)
             return {
               state: 'unknown',
               found: 'no policy file — nothing is scoped to a machine yet',
-              remedy:
-                'Write /Library/muxpad/connectors.json as root with {"enforce": true, "allow": {...}}. Until it exists every chat on every machine may use every connector.',
+              remedy: `Write ${POLICY_PATH} as root with {"enforce": true, "allow": {...}}. Until it exists every chat on every machine may use every connector.`,
             };
           if (st.uid !== 0)
             return {
               state: 'blocked',
               found: 'the policy file is not root-owned, so the agents it binds can edit it',
-              remedy: 'sudo chown root:wheel /Library/muxpad/connectors.json',
+              remedy: `sudo chown root:${rootGroup(env.platform)} ${POLICY_PATH}`,
             };
           return { state: 'ok' };
         },

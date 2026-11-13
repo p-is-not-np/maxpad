@@ -1,5 +1,6 @@
 import type Database from 'better-sqlite3';
 import { LOCAL_NODE_ID, NodeStore } from '../store/NodeStore.js';
+import { MUXPAD_SYSTEM_DIR } from './system-dir.js';
 import { type FileIO, loadTrustedText, realIO } from './trusted-file.js';
 
 /**
@@ -88,7 +89,7 @@ export interface ConnectorPolicy {
 }
 
 /** Root-owned, 0644, no symlinks, like the broker's node policy. */
-export const POLICY_PATH = '/Library/muxpad/connectors.json';
+export const POLICY_PATH = `${MUXPAD_SYSTEM_DIR}/connectors.json`;
 
 /** Nothing configured: no scoping, stated plainly rather than implied. */
 export const UNSCOPED: ConnectorPolicy = { enforce: false, allow: {} };

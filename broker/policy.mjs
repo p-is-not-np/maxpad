@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { systemPath } from './broker-paths.mjs';
 import { assertProtectedPath } from './protected-path.mjs';
 
 /**
@@ -34,7 +35,7 @@ import { assertProtectedPath } from './protected-path.mjs';
  * agents cannot read. See origins.mjs.
  */
 
-export const POLICY_PATH = '/Library/muxpad/connectors.json';
+export const POLICY_PATH = systemPath('connectors.json');
 
 /** The machine the broker runs on. A request asserting this is asserting the
  *  thing that is already true, so believing it costs nothing. */
@@ -87,7 +88,9 @@ export function loadPolicy(path = POLICY_PATH, io = { readFileSync, assertProtec
   if (src && typeof src === 'object' && !Array.isArray(src))
     for (const [k, v] of Object.entries(src))
       if (/^[a-z][a-z0-9_-]{0,31}$/.test(k) && Array.isArray(v)) {
-        const machines = v.filter((m) => typeof m === 'string' && /^[a-z0-9][a-z0-9_-]{0,31}$/.test(m));
+        const machines = v.filter(
+          (m) => typeof m === 'string' && /^[a-z0-9][a-z0-9_-]{0,31}$/.test(m),
+        );
         if (machines.length) allow[k] = machines;
       }
   return { enforce: parsed.enforce, allow };

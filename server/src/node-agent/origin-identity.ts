@@ -7,8 +7,8 @@ import { join } from 'node:path';
  *
  * One file, `<dataDir>/origin-key`, holding `<origin> <key>`. The origin is
  * the name the host policy uses (`trayo`); the key is the other half of the
- * one the broker holds under /Library/muxpad/origins on the machine that
- * decides.
+ * one the broker holds under <config dir>/origins (/Library/muxpad, or
+ * /etc/muxpad on Linux) on the machine that decides.
  *
  * ── WHAT THIS DOES NOT PRETEND ─────────────────────────────────────────────
  * On this host the key is readable by anything running as this user, agents

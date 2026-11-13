@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
+import { systemPath } from './broker-paths.mjs';
 import { msgvaultRunner } from './msgvault-runner.mjs';
 
 const DECL = JSON.stringify({
@@ -57,10 +58,7 @@ test('checks the BINARY too, not only the file that names it', async () => {
     },
   });
   await h.runner('msgvault.stats', {});
-  assert.deepEqual(seen, [
-    '/Library/muxpad/integrations.json',
-    '/usr/local/libexec/msgvault/msgvault',
-  ]);
+  assert.deepEqual(seen, [systemPath('integrations.json'), '/usr/local/libexec/msgvault/msgvault']);
 });
 
 test('refuses a declaration that points the grant off this machine', async () => {
@@ -117,12 +115,12 @@ test('the real guard accepts the files this actually runs against', () => {
   // The declaration is root-owned 0644; the installed binary root-owned 0755.
   // Both are "protected" in the sense that matters — no group or other write,
   // all the way up — and neither has a single exact mode this could pin.
-  for (const path of ['/Library/muxpad/integrations.json'])
+  for (const path of [systemPath('integrations.json')])
     if (existsSync(path)) assertProtectedPath(path, [0]);
 });
 
 test('passing a mode makes it reject the very files it guards', () => {
-  const path = '/Library/muxpad/integrations.json';
+  const path = systemPath('integrations.json');
   if (!existsSync(path)) return;
   assert.throws(
     () => assertProtectedPath(path, [0], { mode: 0o022 }),

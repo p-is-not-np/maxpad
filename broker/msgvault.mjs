@@ -42,6 +42,7 @@
  */
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { systemPath } from './broker-paths.mjs';
 import { reviewArgv } from './msgvault-argv.mjs';
 
 const str = (v, max) =>
@@ -368,7 +369,8 @@ const SPEC = {
   'msgvault.calendar-conflicts': {
     validate: (p) => calendarWindow(p),
     argv: (p) => calendarRangeArgv('conflicts', p),
-    describe: (p) => `find overlapping events in ${p.calendar} for ${p.account}, ${p.start} to ${p.end}`,
+    describe: (p) =>
+      `find overlapping events in ${p.calendar} for ${p.account}, ${p.start} to ${p.end}`,
   },
   /**
    * ── AND FIXING ONE AFTER THE FACT ─────────────────────────────────────
@@ -431,7 +433,8 @@ const SPEC = {
       '--scope',
       'single',
     ],
-    describe: (p) => `delete event ${p.event} from ${p.calendar} (${p.account}) — this occurrence only`,
+    describe: (p) =>
+      `delete event ${p.event} from ${p.calendar} (${p.account}) — this occurrence only`,
   },
   'msgvault.draft-compose': {
     validate: (p) => {
@@ -494,7 +497,7 @@ const SPEC = {
 const helpCache = new Map();
 function declaredBinary() {
   try {
-    const d = JSON.parse(readFileSync('/Library/muxpad/integrations.json', 'utf8'))?.msgvault;
+    const d = JSON.parse(readFileSync(systemPath('integrations.json'), 'utf8'))?.msgvault;
     return typeof d?.binary === 'string' ? d.binary : null;
   } catch {
     return null;

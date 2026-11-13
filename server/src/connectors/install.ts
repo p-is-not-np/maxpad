@@ -1,3 +1,4 @@
+import { MUXPAD_SYSTEM_DIR } from './system-dir.js';
 import { type FileIO, loadJsonFile, realIO } from './trusted-file.js';
 
 /**
@@ -28,7 +29,7 @@ import { type FileIO, loadJsonFile, realIO } from './trusted-file.js';
  */
 
 /** Root-owned, 0644, beside connectors.json. */
-export const INSTALLS_PATH = '/Library/muxpad/integrations.json';
+export const INSTALLS_PATH = `${MUXPAD_SYSTEM_DIR}/integrations.json`;
 
 export interface ConnectorInstall {
   /** The data directory — the thing that must be out of the agents' reach. */

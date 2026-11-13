@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { systemPath } from './broker-paths.mjs';
 import { assertProtectedPath } from './protected-path.mjs';
 
 /**
@@ -41,7 +42,7 @@ import { assertProtectedPath } from './protected-path.mjs';
  */
 
 /** Root-owned, one file per origin, mode 0600 and owned by the broker. */
-export const ORIGINS_DIR = '/Library/muxpad/origins';
+export const ORIGINS_DIR = systemPath('origins');
 
 /** How far a proof's clock may be from the broker's. Long enough for a slow
  *  tailnet hop, short enough that a captured proof is worthless by the time
@@ -65,7 +66,13 @@ const NAME = /^[a-z0-9][a-z0-9-]{0,30}[a-z0-9]$/;
  *  broker will act on is in here, so a proof for one action cannot be
  *  replayed onto another. */
 export function proofMessage({ origin, action, payload, ts, nonce }) {
-  return JSON.stringify([String(origin), String(action), stable(payload), Number(ts), String(nonce)]);
+  return JSON.stringify([
+    String(origin),
+    String(action),
+    stable(payload),
+    Number(ts),
+    String(nonce),
+  ]);
 }
 
 /** Key order must not change the bytes, or an honest relay breaks the proof. */
@@ -103,7 +110,11 @@ export class Origins {
   #io;
   #dir;
   #now;
-  constructor({ dir = ORIGINS_DIR, now = Date.now, io = { readFileSync, assertProtectedPath } } = {}) {
+  constructor({
+    dir = ORIGINS_DIR,
+    now = Date.now,
+    io = { readFileSync, assertProtectedPath },
+  } = {}) {
     this.#dir = dir;
     this.#now = now;
     this.#io = io;

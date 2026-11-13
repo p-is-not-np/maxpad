@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { INTEGRATIONS, type PreflightEnv, nextStep, preflight, ready } from './preflight.js';
+import { POLICY_PATH } from './scope.js';
 
 /**
  * These checks encode an hour of copy-paste-and-see. Each one failed for real
@@ -22,8 +23,11 @@ const WHERE = {
   slack: { home: '/n/a', binary: '/n/a', account: 'n/a' },
 };
 
+// The pinned msgvault install is a Mac's, so its remedies are macOS's unless a
+// test says otherwise.
 const env = (
   over: Record<string, { uid: number; mode: number; isFile?: boolean } | null>,
+  platform: NodeJS.Platform = 'darwin',
 ): PreflightEnv => ({
   selfUid: AGENT_UID,
   stat: (p) => {
@@ -31,6 +35,7 @@ const env = (
     return v ? { uid: v.uid, mode: v.mode, isFile: v.isFile ?? true } : null;
   },
   daemonRunning: () => null,
+  platform,
 });
 
 /** Everything as it ended up after the install. */
@@ -40,7 +45,7 @@ const GOOD = {
   '/usr/local/libexec/msgvault/libduckdb.dylib': { uid: 0, mode: 0o755 },
   '/var/log/msgvault.out.log': { uid: SERVICE_UID, mode: 0o640 },
   '/var/log/msgvault.err.log': { uid: SERVICE_UID, mode: 0o640 },
-  '/Library/muxpad/connectors.json': { uid: 0, mode: 0o644 },
+  [POLICY_PATH]: { uid: 0, mode: 0o644 },
 };
 const by = (rs: ReturnType<typeof preflight>, id: string) => rs.find((r) => r.id === id);
 const check = (id: string, e: PreflightEnv) => preflight(id, e, WHERE as never);
@@ -169,20 +174,14 @@ describe('what to do next', () => {
 
 describe('Slack’s policy check', () => {
   it('calls an absent policy UNKNOWN, and says what its absence means', () => {
-    const r = by(
-      check('slack', env({ ...GOOD, '/Library/muxpad/connectors.json': null })),
-      'policy-root-owned',
-    );
+    const r = by(check('slack', env({ ...GOOD, [POLICY_PATH]: null })), 'policy-root-owned');
     expect(r?.state).toBe('unknown');
     expect(r?.remedy).toMatch(/every chat on every machine may use every connector/);
   });
 
   it('blocks a policy the agents it binds could edit', () => {
     const r = by(
-      check(
-        'slack',
-        env({ ...GOOD, '/Library/muxpad/connectors.json': { uid: AGENT_UID, mode: 0o644 } }),
-      ),
+      check('slack', env({ ...GOOD, [POLICY_PATH]: { uid: AGENT_UID, mode: 0o644 } })),
       'policy-root-owned',
     );
     expect(r?.state).toBe('blocked');
@@ -299,5 +298,30 @@ describe('the checks know no paths of their own', () => {
     } as never);
     expect(by(rs, 'libraries-root-owned')?.state).toBe('unknown');
     expect(by(rs, 'libraries-root-owned')?.remedy).toMatch(/otool -L/);
+  });
+});
+
+describe('on Linux', () => {
+  it('names Linux tools, and a group Linux has', () => {
+    const libs = by(
+      check(
+        'msgvault',
+        env(
+          {
+            ...GOOD,
+            '/usr/local/libexec/msgvault/libduckdb.dylib': { uid: AGENT_UID, mode: 0o755 },
+          },
+          'linux',
+        ),
+      ),
+      'libraries-root-owned',
+    );
+    expect(libs?.remedy).toMatch(/patchelf/);
+    expect(libs?.remedy).not.toMatch(/codesign|install_name_tool/);
+    const policy = by(
+      check('slack', env({ ...GOOD, [POLICY_PATH]: { uid: AGENT_UID, mode: 0o644 } }, 'linux')),
+      'policy-root-owned',
+    );
+    expect(policy?.remedy).toBe(`sudo chown root:root ${POLICY_PATH}`);
   });
 });
