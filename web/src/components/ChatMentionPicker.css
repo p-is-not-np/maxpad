@@ -250,14 +250,17 @@
   margin: 3px 0;
   padding: 7px 12px 8px;
   text-align: left;
-  background: linear-gradient(color-mix(in srgb, var(--chat-fg) 3.5%, transparent), transparent 70%),
+  background:
+    linear-gradient(color-mix(in srgb, var(--chat-fg) 3.5%, transparent), transparent 70%),
     var(--chat-panel);
   border: 1px solid var(--chat-border-strong);
   border-radius: 11px;
   box-shadow: 0 1px 2px rgb(0 0 0 / 7%);
   color: inherit;
   font-family: inherit;
-  transition: border-color 0.14s ease, box-shadow 0.14s ease;
+  transition:
+    border-color 0.14s ease,
+    box-shadow 0.14s ease;
 }
 /* Hover is driven by the LINK rather than the box: on a report the box also
    contains the answer and its own mentions, and a border that lit up while the
@@ -431,10 +434,12 @@ button.chat-mention-card-head {
    works the same for the twentieth worker in a fan-out as for the first. */
 .chat-mention-card[data-paired="true"] {
   border-color: color-mix(in srgb, var(--chat-accent) 60%, var(--chat-border-strong));
-  background: linear-gradient(
+  background:
+    linear-gradient(
       color-mix(in srgb, var(--chat-accent) 7%, transparent),
       color-mix(in srgb, var(--chat-accent) 2.5%, transparent) 70%
-    ), var(--chat-panel);
+    ),
+    var(--chat-panel);
 }
 /* THE STUB STOPS FADING. At rest it fades because it ends in mid-air and a
    hard end reads as a broken line; while the pair is lit the line is not
@@ -495,7 +500,10 @@ button.chat-mention-card-head {
    that works on a phone, where there is no hover at all. */
 .chat-mention-card[data-openable="true"] {
   cursor: pointer;
-  transition: border-color 90ms ease, box-shadow 90ms ease, transform 90ms ease;
+  transition:
+    border-color 90ms ease,
+    box-shadow 90ms ease,
+    transform 90ms ease;
 }
 .chat-mention-card[data-openable="true"]:hover {
   border-color: var(--chat-accent);

@@ -206,9 +206,9 @@ export interface AppDeps {
      */
     tunnel?:
       | {
-          ensure(opts?: { start?: boolean }): Promise<
-            import('./tunnel/TunnelApp.js').TunnelEnsureResult
-          >;
+          ensure(opts?: {
+            start?: boolean;
+          }): Promise<import('./tunnel/TunnelApp.js').TunnelEnsureResult>;
           firstUrlWaitMs?: number;
         }
       | undefined;

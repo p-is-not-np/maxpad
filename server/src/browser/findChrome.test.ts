@@ -37,11 +37,7 @@ const PW = '/home/Library/Caches/ms-playwright';
 
 /** Records every filesystem touch so a test can assert where we did NOT go. */
 function deps(
-  opts: {
-    tree?: Record<string, string[]>;
-    present?: string[];
-    env?: NodeJS.ProcessEnv;
-  } = {},
+  opts: { tree?: Record<string, string[]>; present?: string[]; env?: NodeJS.ProcessEnv } = {},
 ) {
   const present = new Set(opts.present ?? []);
   const listed: string[] = [];

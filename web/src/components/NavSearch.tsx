@@ -22,7 +22,10 @@ import './NavSearch.css';
 function Highlight({
   text,
   range,
-}: { text: string; range?: readonly [number, number] | undefined }) {
+}: {
+  text: string;
+  range?: readonly [number, number] | undefined;
+}) {
   const [before, hit, after] = splitHighlight(text, range);
   if (!hit) return <>{text}</>;
   return (

@@ -157,7 +157,10 @@ export function Markdown({ text, hl }: { text: string; hl?: readonly string[] | 
 export function HighlightedText({
   text,
   hl,
-}: { text: string; hl?: readonly string[] | undefined }) {
+}: {
+  text: string;
+  hl?: readonly string[] | undefined;
+}) {
   const runs = useMemo<HighlightRun[] | null>(
     () => (hl && hl.length > 0 ? highlightRuns(text, hl) : null),
     [text, hl],

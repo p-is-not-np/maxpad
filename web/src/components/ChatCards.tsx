@@ -233,7 +233,11 @@ function HtmlCard({
   card,
   peek,
   onFoldable,
-}: { card: ChatCard; peek: boolean; onFoldable: (v: boolean) => void }) {
+}: {
+  card: ChatCard;
+  peek: boolean;
+  onFoldable: (v: boolean) => void;
+}) {
   const ref = useRef<HTMLIFrameElement>(null);
   const slot = useRef<HTMLDivElement>(null);
   const [h, setH] = useState(120);
@@ -398,7 +402,11 @@ function CardBody({
   card,
   peek,
   onFoldable,
-}: { card: ChatCard; peek: boolean; onFoldable: (v: boolean) => void }) {
+}: {
+  card: ChatCard;
+  peek: boolean;
+  onFoldable: (v: boolean) => void;
+}) {
   if (card.format === 'html') return <HtmlCard card={card} peek={peek} onFoldable={onFoldable} />;
   if (card.format === 'markdown')
     return (

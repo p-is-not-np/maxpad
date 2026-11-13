@@ -129,7 +129,9 @@
   box-shadow: none !important;
   border-radius: 0 !important;
   font-family: var(--chrome-font);
-  transition: background 100ms ease, color 100ms ease;
+  transition:
+    background 100ms ease,
+    color 100ms ease;
 }
 
 /* Focused pane = vibrant toolbar + a real accent wash over the content.
@@ -385,8 +387,9 @@
      line across the tab's bottom edge, exactly the seam the height
      overlap below exists to remove (the top edge is under the accent
      rail, so it needs no line either). */
-  box-shadow: inset 1px 0 0 color-mix(in srgb, var(--fg) 10%, transparent), inset -1px 0 0
-    color-mix(in srgb, var(--fg) 10%, transparent);
+  box-shadow:
+    inset 1px 0 0 color-mix(in srgb, var(--fg) 10%, transparent),
+    inset -1px 0 0 color-mix(in srgb, var(--fg) 10%, transparent);
   /* Full container height = over the strip's hairline: the open tab fuses
      seamlessly into its pane, no dividing line. */
   height: 100%;
@@ -537,7 +540,10 @@
   color: var(--fg-faint);
   cursor: pointer;
   opacity: 0;
-  transition: opacity 100ms ease, color 100ms ease, background 100ms ease;
+  transition:
+    opacity 100ms ease,
+    color 100ms ease,
+    background 100ms ease;
 }
 /* Hover-reveal only (the active tab included) — status leads the label, so
    the trailing slot stays quiet until pointed at. Touch has no hover: keep
@@ -646,7 +652,9 @@
   min-width: 0;
   max-width: 70%;
   padding: 0 6px;
-  transition: background 80ms ease, color 80ms ease;
+  transition:
+    background 80ms ease,
+    color 80ms ease;
 }
 .pane-chrome-title-link:hover {
   background: var(--bg-hover);
@@ -716,7 +724,10 @@
   color: var(--fg-faint);
   cursor: pointer;
   opacity: 0.6;
-  transition: opacity 80ms ease, color 80ms ease, background 80ms ease;
+  transition:
+    opacity 80ms ease,
+    color 80ms ease,
+    background 80ms ease;
 }
 .pane-surface-trigger:hover,
 .pane-surface-trigger:focus-visible {
@@ -780,7 +791,9 @@
   border: none;
   color: var(--fg-faint);
   cursor: pointer;
-  transition: color 80ms ease, background 80ms ease;
+  transition:
+    color 80ms ease,
+    background 80ms ease;
 }
 .pane-chrome-btn svg {
   width: 18px;

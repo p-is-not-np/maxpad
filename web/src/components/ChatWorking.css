@@ -133,7 +133,9 @@
   margin-top: -1.5px;
   border-radius: 1px;
   background: var(--chat-accent);
-  animation: ct-ball-x 1.3s linear infinite, ct-ball-y 0.52s ease-in-out infinite alternate;
+  animation:
+    ct-ball-x 1.3s linear infinite,
+    ct-ball-y 0.52s ease-in-out infinite alternate;
 }
 @keyframes ct-paddle {
   0%,

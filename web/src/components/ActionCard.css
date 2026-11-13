@@ -35,10 +35,9 @@
   padding: 8px 11px;
   margin: 4px 10px;
   border-radius: 10px;
-  background: linear-gradient(
-      color-mix(in srgb, var(--chat-fg, #1c1c22) 5%, transparent),
-      transparent 70%
-    ), var(--chat-panel, #fff);
+  background:
+    linear-gradient(color-mix(in srgb, var(--chat-fg, #1c1c22) 5%, transparent), transparent 70%),
+    var(--chat-panel, #fff);
   border: 1px solid var(--chat-border, #dcdce6);
   color: var(--chat-fg, #1c1c22);
   font-family: var(--chrome-font, inherit);

@@ -1054,6 +1054,7 @@ function MediaGallery({
           <button
             // Index-suffixed: the same attachment can legitimately appear twice
             // in one message, so the url alone isn't a unique key.
+            // biome-ignore lint/suspicious/noArrayIndexKey: see above; the list is static per message.
             key={`${it.url}-${i}`}
             type="button"
             className={`chat-gallery-item${video ? ' -video' : ''}`}
@@ -1385,7 +1386,10 @@ export function NoticeCard({
 export function AgentLaunchCard({
   description,
   anchorId,
-}: { description: string; anchorId?: string | undefined }) {
+}: {
+  description: string;
+  anchorId?: string | undefined;
+}) {
   const text = `Agent "${description}" launched`;
   return (
     <div className="chat-turn chat-turn-notice" data-eid={anchorId}>

@@ -1356,7 +1356,8 @@
      also has to COVER the row's inset ring across the 14px where the flare
      begins. Without it the straight line would run on under the fillet and
      out the other side, which is the failure the row's note describes. */
-  background-image: radial-gradient(
+  background-image:
+    radial-gradient(
       circle at 0% 0%,
       transparent 17px,
       var(--nt-carve-edge) 17px 18px,
@@ -1367,9 +1368,16 @@
       transparent 17px,
       var(--nt-carve-edge) 17px 18px,
       var(--bg-pane-face) 18px
-    ), linear-gradient(var(--bg-pane-face), var(--bg-pane-face));
-  background-size: 18px 18px, 18px 18px, 18px calc(100% - 36px);
-  background-position: right top, right bottom, right center;
+    ),
+    linear-gradient(var(--bg-pane-face), var(--bg-pane-face));
+  background-size:
+    18px 18px,
+    18px 18px,
+    18px calc(100% - 36px);
+  background-position:
+    right top,
+    right bottom,
+    right center;
   background-repeat: no-repeat;
   pointer-events: none;
 }
@@ -1800,7 +1808,8 @@
    two that can disagree tomorrow. */
 [data-theme="riso"] .navtree-mark[data-state="working"] {
   border: 0;
-  background: radial-gradient(circle at 50% 17%, var(--status-working) 0 2.1px, transparent 2.3px),
+  background:
+    radial-gradient(circle at 50% 17%, var(--status-working) 0 2.1px, transparent 2.3px),
     radial-gradient(
       circle at 50% 83%,
       color-mix(in srgb, var(--status-working) 55%, transparent) 0 2.1px,
@@ -1991,7 +2000,7 @@
    whose only remaining state was the PARENT's: a chat with two running
    sub-agents expanded under it wore a green tick and nothing else. The caret
    says open; the hue says what the workers are doing. */
-  .navtree-subs-pill[data-state="idle"] {
+.navtree-subs-pill[data-state="idle"] {
   background: color-mix(in srgb, var(--fg) 11%, transparent);
   color: var(--fg-dim);
 }
@@ -3246,7 +3255,9 @@ body.sidenav-resizing iframe {
   font-family: var(--chrome-font);
   font-size: 0.6875rem;
   text-decoration: none;
-  transition: background 80ms ease, color 80ms ease;
+  transition:
+    background 80ms ease,
+    color 80ms ease;
 }
 .sidenav-build:hover {
   background: var(--bg-hover);
