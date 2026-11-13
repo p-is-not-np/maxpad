@@ -1180,6 +1180,8 @@
   border-radius: var(--nt-pill);
   color: var(--nt-ink-read);
   font-weight: 500;
+  /* Colour only — nothing in the rail moves (see NavTree.spacing.test). */
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 /* Renaming collapses the row to icon + input: the meta, controls and status
    all stand down, and a 5-track template would strand the input in one narrow
@@ -2731,7 +2733,7 @@
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  box-shadow: var(--shadow-lg);
   font-family: var(--ui-font);
   font-size: 0.8125rem;
 }
@@ -2820,7 +2822,7 @@
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  box-shadow: var(--shadow-lg);
 }
 .navtree-submenu.-left {
   left: auto;
@@ -2920,7 +2922,7 @@
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  box-shadow: var(--shadow-lg);
   color: var(--fg-dim);
   font-family: var(--ui-font);
   font-size: 0.8125rem;

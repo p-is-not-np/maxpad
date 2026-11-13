@@ -51,7 +51,7 @@
   background: var(--chat-elev);
   border: 1px solid var(--chat-border-strong);
   border-radius: 12px;
-  box-shadow: 0 10px 30px rgb(0 0 0 / 28%);
+  box-shadow: var(--shadow-lg);
   padding: 4px 0 5px;
 }
 
@@ -254,7 +254,7 @@
     var(--chat-panel);
   border: 1px solid var(--chat-border-strong);
   border-radius: 11px;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 7%);
+  box-shadow: var(--shadow-sm);
   color: inherit;
   font-family: inherit;
   transition: border-color 0.14s ease, box-shadow 0.14s ease;
@@ -264,7 +264,7 @@
    pointer was over a paragraph promised a click that paragraph does not make. */
 .chat-mention-card:has(.chat-mention-card-head:hover) {
   border-color: var(--chat-accent);
-  box-shadow: 0 2px 10px rgb(0 0 0 / 13%);
+  box-shadow: var(--shadow-md);
 }
 @media (prefers-reduced-motion: reduce) {
   .chat-mention-card {
@@ -499,7 +499,7 @@ button.chat-mention-card-head {
 }
 .chat-mention-card[data-openable="true"]:hover {
   border-color: var(--chat-accent);
-  box-shadow: 0 2px 10px rgb(0 0 0 / 13%);
+  box-shadow: var(--shadow-md);
 }
 .chat-mention-card[data-openable="true"]:hover .chat-mention-card-name {
   text-decoration: underline;

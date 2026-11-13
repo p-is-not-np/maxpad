@@ -139,6 +139,32 @@
      glance without dominating the chrome plate. */
   --chrome-rail: 3px;
 
+  /* ─── Shape, elevation and motion ───────────────────────────────────────
+     One small scale each, so a control, a card and a popover agree on how
+     round they are and how far they float.
+
+     The shadows are built from ONE ink, --shadow-ink, mixed down to each
+     layer's alpha. Dark themes leave it pure black — there is nothing darker
+     than the surface to cast onto it, so the shadow has to be strong to read
+     at all. Light themes re-point it at a soft, slightly cool tint (see the
+     light theme blocks): the same black at the same alpha reads as a smudge
+     on white, which is what the popovers looked like before this. */
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --shadow-ink: rgb(0 0 0);
+  --shadow-sm: 0 1px 2px color-mix(in srgb, var(--shadow-ink) 18%, transparent);
+  --shadow-md: 0 1px 2px color-mix(in srgb, var(--shadow-ink) 12%, transparent), 0 6px 16px -4px
+    color-mix(in srgb, var(--shadow-ink) 30%, transparent);
+  --shadow-lg: 0 2px 6px color-mix(in srgb, var(--shadow-ink) 14%, transparent), 0 14px 36px -8px
+    color-mix(in srgb, var(--shadow-ink) 42%, transparent);
+  --shadow-xl: 0 4px 12px color-mix(in srgb, var(--shadow-ink) 16%, transparent), 0 28px 70px -16px
+    color-mix(in srgb, var(--shadow-ink) 55%, transparent);
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--accent) 24%, transparent);
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --dur-fast: 120ms;
+  --dur: 180ms;
+
   /* ─── "Click again" ─────────────────────────────────────────────────────
      The fill under an ARMED destructive control — the × that is one click
      from closing a workspace, the menu row one click from deleting a chat,
@@ -400,6 +426,8 @@
   /* Rail: a decisive step toward the ink, so the pane reads as a separate
      surface at last (ΔL* 78 against the pane, from 2.7). */
   --bg: #f5f4fb;
+  /* Light ground: a soft cool shadow, not black — see --shadow-ink. */
+  --shadow-ink: rgb(30 36 60 / 0.55);
   --bg-elev: #ffffff;
   --bg-hover: #e2ddf5;
   --bg-chrome: #edecf7;
@@ -470,6 +498,8 @@
   --rail-status-ready: #9bc3ae;
   --rail-status-working: #d5c19d;
   --bg: #ffffff;
+  /* Light ground: a soft cool shadow, not black — see --shadow-ink. */
+  --shadow-ink: rgb(30 36 60 / 0.55);
   --bg-elev: #ffffff;
   --bg-hover: #eaeef2;
   --bg-chrome: #f6f8fa;
@@ -549,6 +579,8 @@
   --rail-status-ready: #9bc3ae;
   --rail-status-working: #d5c19d;
   --bg: #fdf6ea;
+  /* Light ground: a soft cool shadow, not black — see --shadow-ink. */
+  --shadow-ink: rgb(30 36 60 / 0.55);
   --bg-elev: #fffdf6;
   --bg-hover: #f6ecd8;
   --bg-chrome: #f9f0e0;
@@ -1234,6 +1266,8 @@
   --term-font: "SF Mono", Menlo, Monaco, monospace;
 
   --bg: #f7f4ec;
+  /* Light ground: a soft cool shadow, not black — see --shadow-ink. */
+  --shadow-ink: rgb(30 36 60 / 0.55);
   --bg-elev: #fffdf7;
   --bg-hover: #ffe1ef;
   --bg-chrome: #efe9dc;
@@ -1423,6 +1457,8 @@
   --term-font: "SF Mono", Menlo, Monaco, monospace;
 
   --bg: #fbf8f1;
+  /* Light ground: a soft cool shadow, not black — see --shadow-ink. */
+  --shadow-ink: rgb(30 36 60 / 0.55);
   --bg-elev: #ffffff;
   --bg-hover: #ffe8f3;
   --bg-chrome: #f2eee4;
@@ -1776,6 +1812,12 @@ a:hover {
   text-decoration: underline;
 }
 
+/* Selected text takes a tint of the theme's accent rather than the OS blue,
+   which clashed with every palette that is not blue. */
+::selection {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
 /* Thin themed scrollbars. scrollbar-width / scrollbar-color INHERIT in CSS,
    so applying them to html/body cascades to every descendant — including
    xterm.js's .xterm-viewport. xterm reserves a scrollbar's worth of width
@@ -1790,20 +1832,24 @@ body {
 }
 
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+/* A slim capsule floating in a wider gutter: 4px of thumb at rest, inset by a
+   transparent border so the hit area stays generous. Faded at rest so it
+   recedes behind the content, full --fg-dim under the pointer. */
 ::-webkit-scrollbar-thumb {
-  background: var(--fg-faint);
-  border-radius: 4px;
-  border: 2px solid transparent;
+  background: color-mix(in srgb, var(--fg-faint) 70%, transparent);
+  border-radius: 999px;
+  border: 3px solid transparent;
   background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--fg-dim);
+  background-clip: padding-box;
 }
 ::-webkit-scrollbar-corner {
   background: transparent;
@@ -1842,14 +1888,28 @@ select {
   background: var(--bg-elev);
   border: 1px solid var(--border);
   padding: 6px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   color: var(--fg);
   outline: none;
-  transition: border-color 80ms ease;
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
 input:focus,
 select:focus {
   border-color: var(--accent);
+}
+/* The ring only for the keyboard, where it is the whole signal; a click
+   already says where focus went. */
+input:focus-visible,
+select:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+
+/* Keyboard focus on any button: an accent outline held off the edge, so it
+   reads on a filled button as well as a ghost one. Components that draw their
+   own focus treatment override this with their own :focus-visible rule. */
+button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 75%, transparent);
+  outline-offset: 2px;
 }
 
 .btn {
@@ -1857,14 +1917,21 @@ select:focus {
   color: var(--fg);
   border: 1px solid var(--border);
   padding: 6px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   font-size: 0.8125rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 80ms ease, border-color 80ms ease;
+  box-shadow: var(--shadow-sm);
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
 }
 .btn:hover {
   background: var(--bg-hover);
   border-color: var(--border-strong);
+}
+.btn:active {
+  transform: translateY(0.5px);
+  box-shadow: none;
 }
 .btn-primary {
   background: var(--accent);
@@ -1872,7 +1939,9 @@ select:focus {
   border-color: var(--accent);
 }
 .btn-primary:hover {
-  filter: brightness(0.95);
+  background: var(--accent);
+  border-color: var(--accent);
+  filter: brightness(1.06) saturate(1.05);
 }
 
 /* ─── The status channel's colour rule ──────────────────────────────────
