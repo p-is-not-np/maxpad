@@ -15,7 +15,9 @@ set -uo pipefail
 # A SCHEDULER HANDS A JOB ALMOST NO ENVIRONMENT. launchd gives PATH=/usr/bin:/bin
 # and little else, which is how the first run outside a terminal died: the CLI
 # needs `jq` (homebrew), and the card script shelled out to a bare `muxpad`.
-export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+# Extended, not replaced: on Linux node itself is often only on the PATH the
+# service was given (a private toolchain dir), and replacing it lost node.
+export PATH="${PATH:+$PATH:}/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 export MUXPAD_BIN="$ROOT/scripts/muxpad"
 export MUXPAD_API_URL="${MUXPAD_API_URL:-http://127.0.0.1:${MUXPAD_PORT:-7777}}"

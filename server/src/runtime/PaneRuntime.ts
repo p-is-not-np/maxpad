@@ -1,5 +1,6 @@
 import { execFile, execFileSync } from 'node:child_process';
 import { EventEmitter } from 'node:events';
+import { readlinkSync } from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
@@ -504,13 +505,20 @@ export class PaneRuntime extends EventEmitter {
   }
 
   /**
-   * Best-effort lookup of the shell's current working directory via lsof on
-   * the PTY process pid. Reflects wherever the user cd'd to inside the shell,
+   * Best-effort lookup of the shell's current working directory — /proc on
+   * Linux, lsof on the PTY process pid elsewhere. Reflects wherever the user cd'd to inside the shell,
    * which is what we want when spawning a sibling pane that should "inherit"
    * the cwd. Returns null if the process is gone or lsof isn't available.
    */
   getCurrentCwd(): string | null {
     if (!this.process || this.exited) return null;
+    // Linux names it directly — no subprocess, and lsof is not on a minimal
+    // install. Falls through to lsof where /proc does not exist (macOS).
+    try {
+      return readlinkSync(`/proc/${this.process.pid}/cwd`);
+    } catch {
+      // no /proc, or the process is gone
+    }
     try {
       const output = execFileSync(
         'lsof',

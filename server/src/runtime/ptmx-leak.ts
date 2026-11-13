@@ -132,9 +132,26 @@ export function ownedFdSet(devices: ReadonlyMap<number, number | null> = new Map
   return owned;
 }
 
-/** The major half of a device number — the driver, shared by all its clones. */
+/** The major half of a DARWIN device number — the driver, shared by all its clones. */
 export function deviceMajor(rdev: number): number {
   return (rdev >> 24) & 0xff;
+}
+
+/**
+ * What a pty master has in common with `/dev/ptmx`, per platform.
+ *
+ * DARWIN: the major, because `/dev/ptmx` clones (see `isPtmxFd`), and `dev_t`
+ * keeps the major in the top 8 bits.
+ *
+ * LINUX: the WHOLE device number. A master opened through `/dev/ptmx` fstats as
+ * `/dev/ptmx` itself (5:2, `0x502`) — measured: the node-pty master reads
+ * `0x502`, the slave lives on `/dev/pts` (136:N). Linux also packs the major
+ * into bits 8-19, so the darwin decoding read every small device as major 0 and
+ * the sweep reported ptyd's own stdin (`/dev/null`, 1:3) as a leaked pty on
+ * every spawn. Major 5 alone would still match `/dev/tty` and `/dev/console`.
+ */
+export function ptyDriverKey(rdev: number, platform: NodeJS.Platform = process.platform): number {
+  return platform === 'darwin' ? deviceMajor(rdev) : rdev;
 }
 
 /**
@@ -156,16 +173,16 @@ export function isPtmxFd(fd: number, ptmxMajor: number | null): boolean {
   if (ptmxMajor === null) return false;
   try {
     const st = fstatSync(fd);
-    return st.isCharacterDevice() && deviceMajor(st.rdev) === ptmxMajor;
+    return st.isCharacterDevice() && ptyDriverKey(st.rdev) === ptmxMajor;
   } catch {
     return false;
   }
 }
 
-/** The pty driver's major number, or null where there is no /dev/ptmx. */
+/** The pty driver's key (see `ptyDriverKey`), or null where there is no /dev/ptmx. */
 export function ptmxRdev(path = '/dev/ptmx'): number | null {
   try {
-    return deviceMajor(statSync(path).rdev);
+    return ptyDriverKey(statSync(path).rdev);
   } catch {
     return null;
   }
@@ -203,7 +220,7 @@ export function sweepStrayPtmx(
     try {
       const st = fstatSync(fd);
       devices.set(fd, st.rdev);
-      isPty.set(fd, major !== null && st.isCharacterDevice() && deviceMajor(st.rdev) === major);
+      isPty.set(fd, major !== null && st.isCharacterDevice() && ptyDriverKey(st.rdev) === major);
     } catch {
       devices.set(fd, null);
       isPty.set(fd, false);

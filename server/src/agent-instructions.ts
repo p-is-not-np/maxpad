@@ -584,8 +584,9 @@ their screen.**
   configured, allowed, and headless. Use it for navigation, screenshots,
   snapshots and any UI verification.
 - **NO PLAYWRIGHT MCP IN YOUR TOOL LIST? You still must not launch one.** Codex
-  agents run under Apple's seatbelt sandbox, where Chromium cannot register its
-  MachPortRendezvousServer and every \`browserType.launch()\` dies as
+  agents run inside an OS sandbox (Apple's seatbelt on macOS, where Chromium
+  cannot register its MachPortRendezvousServer; Landlock and seccomp on Linux),
+  and every \`browserType.launch()\` dies as
   \`Target page, context or browser has been closed\`. \`--no-sandbox\` does not
   help: that flag is Chromium's own sandbox, not the OS one around your process.
   Reinstalling browsers does not help either.
@@ -593,7 +594,7 @@ their screen.**
   **Connect to muxpad's browser instead — it is already running, outside your
   sandbox, and it is yours.** Plain HTTP, no process launch:
 
-      http://127.0.0.1:7777/api/browsers/s-$MUXPAD_TAB_ID/cdp
+      $MUXPAD_API_URL/api/browsers/s-$MUXPAD_TAB_ID/cdp
 
   That URL IS a Chrome DevTools Protocol endpoint, and asking for it STARTS the
   browser if it is cold (a couple of seconds, once). Point any CDP client at it:
@@ -639,7 +640,8 @@ This is the rule two different agents broke in one day, so it is spelled out.
   Get the fact another way: ask the muxpad server, which usually already knows
   (\`7dcf5f1\` replaced \`/Applications/Tailscale.app/…\` with one API call), or
   use a binary muxpad owns — the browsers under
-  \`~/Library/Caches/ms-playwright\` are ours and prompt-free, and
+  \`~/Library/Caches/ms-playwright\` (Linux: \`~/.cache/ms-playwright\`) are
+  ours and prompt-free, and
   \`MUXPAD_CHROME_BIN\` exists for when they are not there. If neither works,
   **return nothing and say so.** "I could not find one, here is how to configure
   it" is a fine outcome. A dialog on somebody's desk is not.
