@@ -34,6 +34,7 @@ vi.mock('@anthropic-ai/claude-agent-sdk', () => import('../test-helpers/fakeAgen
 
 import { createClaudeBackend } from '../agent-runner/backends/claude.js';
 import type { RunnerHost } from '../agent-runner/backends/types.js';
+import { setControllerMarker } from '../controller.js';
 import {
   fakeHook,
   fakeSession,
@@ -134,6 +135,45 @@ function boot(mode: AgentMode = 'chat', gate: 'on' | 'off' | 'unset' = 'on') {
 
 const decision = (d: Decision) => d.hookSpecificOutput?.permissionDecision ?? null;
 
+describe('CONTROLLER MODE — a live voice call makes this pane dispatch, not work', () => {
+  afterEach(() => setControllerMarker(dataDir, 'pane-1', false));
+
+  it('refuses execution while a call is live and lifts it when the call ends', async () => {
+    const fx = boot('chat', 'unset');
+    expect((await fx.ask('Edit', { file_path: '/x' })).continue).toBe(true);
+    setControllerMarker(dataDir, 'pane-1', true);
+    expect(decision(await fx.ask('Edit', { file_path: '/x' }))).toBe('deny');
+    expect(decision(await fx.ask('Bash', { command: 'pnpm test' }))).toBe('deny');
+    const dispatch = await fx.ask('Bash', { command: 'muxpad agent new --name="fix it" "go"' });
+    expect(dispatch.continue).toBe(true);
+    setControllerMarker(dataDir, 'pane-1', false);
+    expect((await fx.ask('Edit', { file_path: '/x' })).continue).toBe(true);
+    await fx.stop();
+  });
+
+  it('delivers the contract once per call, and says when the call is over', async () => {
+    const fx = boot('chat', 'unset');
+    const session = fakeSession();
+    const turn = async (text: string) => {
+      fx.backend.send(text);
+      await fx.settle();
+      session.push(sdk.result());
+      await session.settle();
+      await fx.settle();
+    };
+    setControllerMarker(dataDir, 'pane-1', true);
+    await turn('fix the login bug');
+    await turn('how is it going');
+    setControllerMarker(dataDir, 'pane-1', false);
+    await turn('thanks');
+    const texts = session.promptTexts;
+    expect(texts[0]).toContain('A VOICE CALL IS LIVE');
+    expect(texts[1]).not.toContain('<muxpad-controller>');
+    expect(texts[2]).toContain('The voice call has ended');
+    await fx.stop();
+  });
+});
+
 describe('where the gate sits', () => {
   it('is a PreToolUse hook — the surface bypassPermissions leaves working', () => {
     // `canUseTool` is the obvious place and it is unavailable: muxpad runs
@@ -151,13 +191,23 @@ describe('where the gate sits', () => {
 
   it('is NOT registered in Agent mode — that face is documented as raw', async () => {
     const fx = boot('agent');
-    expect(hasFakeHook('PreToolUse')).toBe(false);
+    // The hook itself is always installed now (controller mode, controller.ts,
+    // shares it), so what is asserted is the behaviour: an irreversible verb
+    // passes straight through, with no question.
+    const d = await fx.ask('Bash', { command: 'git push origin main' });
+    expect(d.continue).toBe(true);
+    expect(fx.sent.filter((f) => f.t === 'question')).toHaveLength(0);
     await fx.stop();
   });
 
   it('is not registered at all when MUXPAD_GATE=off', async () => {
     const fx = boot('chat', 'off');
-    expect(hasFakeHook('PreToolUse')).toBe(false);
+    // The hook itself is always installed now (controller mode, controller.ts,
+    // shares it), so what is asserted is the behaviour: an irreversible verb
+    // passes straight through, with no question.
+    const d = await fx.ask('Bash', { command: 'git push origin main' });
+    expect(d.continue).toBe(true);
+    expect(fx.sent.filter((f) => f.t === 'question')).toHaveLength(0);
     await fx.stop();
   });
 
@@ -165,7 +215,12 @@ describe('where the gate sits', () => {
     // Being asked to approve a delete or a push you just typed is not safety;
     // it trains you to tap through. See gateEnabled.
     const fx = boot('chat', 'unset');
-    expect(hasFakeHook('PreToolUse')).toBe(false);
+    // The hook itself is always installed now (controller mode, controller.ts,
+    // shares it), so what is asserted is the behaviour: an irreversible verb
+    // passes straight through, with no question.
+    const d = await fx.ask('Bash', { command: 'git push origin main' });
+    expect(d.continue).toBe(true);
+    expect(fx.sent.filter((f) => f.t === 'question')).toHaveLength(0);
     await fx.stop();
   });
 });

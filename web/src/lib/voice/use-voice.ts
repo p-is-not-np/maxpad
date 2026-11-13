@@ -13,6 +13,7 @@
 // for the mic" ordering here, even though it would be tidier.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { subscribe } from '../../events';
 import {
   type VoiceStatus,
   VoiceUnavailableError,
@@ -40,6 +41,8 @@ export type VoiceControlState = VoiceUiState | 'off';
 
 export interface UseVoiceOpts {
   paneId: string;
+  /** The chat's tab — the controller's `work` card hangs off it. */
+  tabId?: string;
   /** Both modes now — Agent panes answer through the server's synthesis (see
    *  server/src/spoken-answer.ts). */
   enabled: boolean;
@@ -82,7 +85,29 @@ const hasVoiceApis = () =>
   !!navigator.mediaDevices?.getUserMedia;
 
 export function useVoice(opts: UseVoiceOpts): UseVoiceResult {
-  const { paneId, enabled, agent, mode } = opts;
+  const { paneId, tabId, enabled, agent, mode } = opts;
+  // THE BOARD. The controller (server/src/controller.ts) keeps one `work` card
+  // listing its executors; the voice model reads it as context so progress is
+  // answered from the controller's own account, without a turn.
+  const board = useRef<string | null>(null);
+  useEffect(() => {
+    if (!tabId) return;
+    const url = `/api/tabs/${encodeURIComponent(tabId)}/cards/work`;
+    const load = () =>
+      fetch(url)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((c: { content?: string; format?: string } | null) => {
+          const raw = c?.content ?? null;
+          board.current =
+            raw && c?.format === 'html' ? raw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ') : raw;
+        })
+        .catch(() => {});
+    load();
+    const off = subscribe((e) => {
+      if (e.type === 'cards.updated' && e.tab_id === tabId) load();
+    });
+    return off;
+  }, [tabId]);
   const [status, setStatus] = useState<VoiceStatus | null>(null);
   const [state, setState] = useState<VoiceControlState>('off');
   const [detail, setDetail] = useState<string | null>(null);
@@ -321,6 +346,7 @@ export function useVoice(opts: UseVoiceOpts): UseVoiceResult {
           transport,
           agent: stableAgent.current,
           ...(mode ? { mode } : {}),
+          readBoard: () => board.current,
           // Loud on purpose. The `text`-instead-of-`content` bug rejected every
           // append for a whole release and produced not one observable symptom
           // except a voice that never answered; a console warning would have

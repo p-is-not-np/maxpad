@@ -26,6 +26,7 @@ import {
   taskNotificationToolUseId,
 } from '@muxpad/shared';
 import { z } from 'zod';
+import { runnerDataDir } from '../../agent-files.js';
 import { readAgentInstructions } from '../../agent-instructions.js';
 import { readChatModeOverlay, wrapModeNote } from '../../agent-modes.js';
 import { findTranscript } from '../../chat/TranscriptReader.js';
@@ -39,6 +40,12 @@ import {
   assistantQuota,
   quotaBlock,
 } from '../../claude-accounts/pool.js';
+import {
+  CONTROLLER_CONTRACT,
+  CONTROLLER_ENDED,
+  controllerCallStamp,
+  controllerRefusal,
+} from '../../controller.js';
 import { bold, dim } from '../ansi.js';
 import { AuthHealPolicy, authGiveUpNotice, isAuthFailureText } from '../auth-heal.js';
 import { AutoCompactor } from '../auto-compact.js';
@@ -550,6 +557,8 @@ export function createClaudeBackend(host: RunnerHost, opts: BackendOptions): Age
   // delimited <muxpad-mode> block.
   let currentMode: AgentMode = opts.mode;
   let pendingModeNote: string | null = null;
+  /** The voice call whose controller contract this session last saw. */
+  let controllerNoted: number | null = null;
   function setMode(next: AgentMode): void {
     if (next === currentMode) return;
     currentMode = next;
@@ -1473,6 +1482,16 @@ export function createClaudeBackend(host: RunnerHost, opts: BackendOptions): Age
           content = `${pendingModeNote}\n\n${text}`;
           pendingModeNote = null;
         }
+        // CONTROLLER MODE (controller.ts): a voice call started or ended since
+        // the last real message. The contract rides the message, once per call.
+        if (!text.startsWith('/')) {
+          const stamp = controllerCallStamp(runnerDataDir(), host.paneId);
+          if (stamp !== controllerNoted) {
+            if (stamp !== null) content = `${CONTROLLER_CONTRACT}\n\n${content}`;
+            else if (controllerNoted !== null) content = `${CONTROLLER_ENDED}\n\n${content}`;
+            controllerNoted = stamp;
+          }
+        }
         yield {
           type: 'user',
           message: { role: 'user', content },
@@ -1613,66 +1632,80 @@ export function createClaudeBackend(host: RunnerHost, opts: BackendOptions): Age
     // chat that prompted this), so drawing it as a single launch would state
     // a number wrong by thirty-seven.
     disallowedTools: [...DISALLOWED_DELEGATION_TOOLS],
-    ...(gateOn
-      ? {
-          hooks: {
-            PreToolUse: [
+    hooks: {
+      PreToolUse: [
+        {
+          timeout: 604_800,
+          hooks: [
+            async (input, _toolUseId, { signal }) => {
+              const pre = input as { tool_name?: string; tool_input?: unknown };
+              if (typeof pre.tool_name !== 'string') return { continue: true };
+              // CONTROLLER MODE first: while a voice call is live this pane
+              // dispatches work rather than doing it (controller.ts).
+              if (controllerCallStamp(runnerDataDir(), host.paneId) !== null) {
+                const refusal = controllerRefusal(pre.tool_name, pre.tool_input);
+                if (refusal) {
+                  log(dim(`controller: refused ${pre.tool_name}`));
+                  return {
+                    hookSpecificOutput: {
+                      hookEventName: 'PreToolUse' as const,
+                      permissionDecision: 'deny' as const,
+                      permissionDecisionReason: refusal,
+                    },
+                  };
+                }
+              }
+              if (!gateOn) return { continue: true };
               {
-                timeout: 604_800,
-                hooks: [
-                  async (input, _toolUseId, { signal }) => {
-                    const pre = input as { tool_name?: string; tool_input?: unknown };
-                    if (typeof pre.tool_name !== 'string') return { continue: true };
-                    const action = classifyAction(pre.tool_name, pre.tool_input);
-                    // The frictionless path, and by far the common one: reads,
-                    // builds, tests, local edits, commits — no frame, no chip,
-                    // no pause. A gate that fires on those is a gate people
-                    // learn to dismiss without reading.
-                    if (!action) return { continue: true };
-                    log(
-                      `${bold('⛔ gate')} ${action.verb} — ${dim(action.detail)} ${dim('(waiting for you; this will not time out)')}`,
-                    );
-                    const answers = await Promise.race([
-                      askUser([gateQuestion(action)]),
-                      // If the SDK ever DOES abort a hook, it has stopped
-                      // waiting for our decision — so there is no decision left
-                      // to make except the safe one.
-                      new Promise<null>((resolve) => {
-                        if (signal.aborted) resolve(null);
-                        else signal.addEventListener('abort', () => resolve(null), { once: true });
-                      }),
-                    ]);
-                    if (isApproval(answers)) {
-                      log(dim(`gate: approved — ${action.detail}`));
-                      return {
-                        hookSpecificOutput: {
-                          hookEventName: 'PreToolUse' as const,
-                          permissionDecision: 'allow' as const,
-                          permissionDecisionReason: 'The user approved this.',
-                        },
-                      };
-                    }
-                    // The user's own words, when they typed instead of tapping
-                    // ("not to main — use a branch"), reach the model as the
-                    // reason. A correction is worth more than a refusal.
-                    const note = denialNote(answers);
-                    log(dim(`gate: declined — ${action.detail}${note ? ` (${note})` : ''}`));
-                    return {
-                      hookSpecificOutput: {
-                        hookEventName: 'PreToolUse' as const,
-                        permissionDecision: 'deny' as const,
-                        permissionDecisionReason: note
-                          ? `The user declined this and said: ${note}. Do not retry it as-is; follow what they said, or tell them what you need.`
-                          : 'The user declined this action. Do not retry it. Tell them it was declined and what you would do instead.',
-                      },
-                    };
+                const action = classifyAction(pre.tool_name, pre.tool_input);
+                // The frictionless path, and by far the common one: reads,
+                // builds, tests, local edits, commits — no frame, no chip,
+                // no pause. A gate that fires on those is a gate people
+                // learn to dismiss without reading.
+                if (!action) return { continue: true };
+                log(
+                  `${bold('⛔ gate')} ${action.verb} — ${dim(action.detail)} ${dim('(waiting for you; this will not time out)')}`,
+                );
+                const answers = await Promise.race([
+                  askUser([gateQuestion(action)]),
+                  // If the SDK ever DOES abort a hook, it has stopped
+                  // waiting for our decision — so there is no decision left
+                  // to make except the safe one.
+                  new Promise<null>((resolve) => {
+                    if (signal.aborted) resolve(null);
+                    else signal.addEventListener('abort', () => resolve(null), { once: true });
+                  }),
+                ]);
+                if (isApproval(answers)) {
+                  log(dim(`gate: approved — ${action.detail}`));
+                  return {
+                    hookSpecificOutput: {
+                      hookEventName: 'PreToolUse' as const,
+                      permissionDecision: 'allow' as const,
+                      permissionDecisionReason: 'The user approved this.',
+                    },
+                  };
+                }
+                // The user's own words, when they typed instead of tapping
+                // ("not to main — use a branch"), reach the model as the
+                // reason. A correction is worth more than a refusal.
+                const note = denialNote(answers);
+                log(dim(`gate: declined — ${action.detail}${note ? ` (${note})` : ''}`));
+                return {
+                  hookSpecificOutput: {
+                    hookEventName: 'PreToolUse' as const,
+                    permissionDecision: 'deny' as const,
+                    permissionDecisionReason: note
+                      ? `The user declined this and said: ${note}. Do not retry it as-is; follow what they said, or tell them what you need.`
+                      : 'The user declined this action. Do not retry it. Tell them it was declined and what you would do instead.',
                   },
-                ],
-              },
-            ],
-          },
-        }
-      : {}),
+                };
+              }
+            },
+          ],
+        },
+      ],
+    },
     // NB: the session ANCHOR (`resume` / `sessionId`) is deliberately NOT here
     // — it is the one option that differs between the boot session and a
     // self-heal re-exec, so it is applied by spawnSession() below.

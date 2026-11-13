@@ -47,6 +47,7 @@ import { ReportDelivery } from './chat/report-delivery.js';
 import { paneCarryover } from './chat/summarize.js';
 import { transcriptIsLocal } from './chat/transcript-access.js';
 import { loadConfig, voiceApiKey } from './config.js';
+import { clearControllerMarkers, setControllerMarker } from './controller.js';
 import { CronScheduler } from './cron/CronScheduler.js';
 import { EventBus } from './events.js';
 import { createTailscaleFunnel, localFunnel } from './funnel.js';
@@ -508,7 +509,10 @@ const voice = new VoiceSessionManager({
   voice: config.voice.voice,
   sessionTtlMs: config.voice.sessionTtlMs,
   dailyCapMinutes: config.voice.dailyCapMinutes,
+  // A live call turns the pane's agent into the CONTROLLER (controller.ts).
+  onLiveChange: (paneId, live) => setControllerMarker(config.dataDir, paneId, live),
 });
+clearControllerMarkers(config.dataDir);
 // A deleted pane can't hang up, so close its call immediately — no grace, there
 // is nothing to reconnect to. (The softer case, a chat socket merely dropping,
 // comes through `onChatPresence` on the ws layer below.)

@@ -91,6 +91,9 @@ function sanitizeEnv(parent: NodeJS.ProcessEnv): Record<string, string> {
     // TIOCGWINSZ (some TUI frameworks do) would render at the launching
     // terminal's old size instead of the actual pane size.
     if (k === 'COLUMNS' || k === 'LINES') continue;
+    // The voice key is the server's alone (config.ts voiceApiKey). A pane is
+    // an agent's shell; it must never inherit the secret.
+    if (k === 'MUXPAD_OPENAI_API_KEY' || k === 'OPENAI_API_KEY') continue;
     out[k] = v;
   }
   return out;

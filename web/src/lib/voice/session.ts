@@ -323,6 +323,9 @@ export interface VoiceSessionOpts {
   idleQuietMs?: number;
   /** Include the model's last line as context in the dispatched request. */
   withContext?: boolean;
+  /** The controller's `work` card — the board of executors — or null. When
+   *  present it is the status the model answers progress questions from. */
+  readBoard?: () => string | null;
   /** Diagnostics, off by default. */
   onTrace?: (line: string) => void;
   /** An `error` event from the model's wire, already summarised to one line.
@@ -559,6 +562,7 @@ export class VoiceSession {
    *  They must not arm a watch of their own when they finish, or one
    *  request's sub-agents could announce themselves forever. */
   private readonly adopted = new Set<string>();
+  private readonly readBoard: () => string | null;
   private lastCancelAt = Number.NEGATIVE_INFINITY;
   /**
    * The agent question currently waiting on the user, if any.
@@ -595,6 +599,7 @@ export class VoiceSession {
     this.sched = opts.scheduler ?? realScheduler;
     this.gate = opts.micGate ?? new MicGate();
     this.onStateCb = opts.onState;
+    this.readBoard = opts.readBoard ?? (() => null);
     this.settleQuietMs = opts.settleQuietMs ?? SETTLE_QUIET_MS;
     this.settleMaxMs = opts.settleMaxMs ?? SETTLE_MAX_MS;
     this.cancelProbeQuietMs = opts.cancelProbeQuietMs ?? CANCEL_PROBE_QUIET_MS;
@@ -910,7 +915,20 @@ export class VoiceSession {
    * WITHOUT touching the agent — which is the entire point of the change.
    */
   private describePipeline(): string {
-    if (this.pipeline.length === 0) return 'Nothing is running for the agent right now.';
+    const board = this.readBoard()?.trim();
+    const boardText = board
+      ? [
+          '',
+          'THE BOARD — the controller’s live list of executors and what each is doing.',
+          'This is the truth about progress; answer “how’s it going” from it, briefly:',
+          board.length > 1500 ? `${board.slice(0, 1497)}…` : board,
+        ].join('\n')
+      : '';
+    return this.describeQueue() + boardText;
+  }
+
+  private describeQueue(): string {
+    if (this.pipeline.length === 0) return 'Nothing is queued for the controller right now.';
     const lines = this.pipeline.map((t, i) => {
       const what = t.request.length > 100 ? `${t.request.slice(0, 97)}…` : t.request;
       return `${i + 1}. [${t.status}] ${what}`;

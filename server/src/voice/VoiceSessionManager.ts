@@ -154,6 +154,9 @@ export interface VoiceSessionManagerDeps {
   voice?: string | undefined;
   sessionTtlMs?: number | undefined;
   dailyCapMinutes?: number | undefined;
+  /** A call on a pane went live (true) or ended (false). Drives controller
+   *  mode — see controller.ts. */
+  onLiveChange?: ((paneId: string, live: boolean) => void) | undefined;
   /** Test seams. */
   now?: (() => number) | undefined;
   log?: ((line: string) => void) | undefined;
@@ -175,6 +178,7 @@ export class VoiceSessionManager {
   private readonly paneExists: (paneId: string) => boolean;
   private readonly now: () => number;
   private readonly log: (line: string) => void;
+  private readonly onLiveChange: (paneId: string, live: boolean) => void;
   readonly voice: string;
   readonly sessionTtlMs: number;
   readonly capMinutes: number;
@@ -198,6 +202,7 @@ export class VoiceSessionManager {
     this.closeRemote = deps.closeRemote ?? null;
     this.instructions = deps.instructions;
     this.paneExists = deps.paneExists ?? (() => true);
+    this.onLiveChange = deps.onLiveChange ?? (() => {});
     this.now = deps.now ?? Date.now;
     this.log = deps.log ?? ((line: string) => console.warn(line));
     this.voice = deps.voice ?? DEFAULT_VOICE;
@@ -419,6 +424,7 @@ export class VoiceSessionManager {
     this.session = { id: answer.sessionId, paneId, startedAt, deadline, ttlTimer };
     this.starting = false;
     this.cancelDisconnect(paneId);
+    this.onLiveChange(paneId, true);
 
     return {
       sessionId: answer.sessionId,
@@ -465,6 +471,7 @@ export class VoiceSessionManager {
     clearTimeout(s.ttlTimer);
     this.session = null;
     this.cancelDisconnect(s.paneId);
+    this.onLiveChange(s.paneId, false);
 
     const endedAt = Math.min(this.now(), s.deadline);
     const charged = secondsOnDayOf(s.startedAt, endedAt);
