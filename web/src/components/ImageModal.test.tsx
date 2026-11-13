@@ -71,17 +71,16 @@ describe('the lightbox', () => {
     expect(onClose).toHaveBeenCalledTimes(2);
   });
 
-  it('puts the image INSIDE the stage that gets measured', () => {
-    // The fit bug in structural form: ZoomableImage measures
-    // `imgRef.parentElement`, so the image being a child of the stage — and
-    // the stage being the padded box — is the contract. An image reparented
-    // out of it silently goes back to being fitted against the window.
+  it('puts the image inside a zoom surface that fills the measured frame', () => {
+    // The surface measures ITSELF and is pinned to the frame (the box with a
+    // size of its own). An image reparented out of it goes back to being
+    // fitted against whatever box it lands in.
     const { host } = mount([IMG(1)]);
     const img = host.querySelector('img.chat-img-full');
     expect(img).toBeTruthy();
-    // The FRAME, specifically — the box with a size of its own. Measuring the
-    // stage instead let the image define its own limit (see .chat-img-frame).
-    expect(img?.parentElement?.className).toContain('chat-img-frame');
+    const surface = img?.parentElement;
+    expect(surface?.className).toContain('chat-img-zoomer');
+    expect(surface?.parentElement?.className).toContain('chat-img-frame');
   });
 
   it('shows no navigation for a lone image', () => {
@@ -293,94 +292,32 @@ describe('a zoomed image overflows the frame EVENLY', () => {
   });
 });
 
-describe('double-tap zooms once', () => {
-  it('ignores the dblclick the browser synthesizes from the same two taps', () => {
-    // Mobile Chrome fires touchstart/touchend ×2 and THEN a dblclick. Both
-    // paths toggled the zoom, so the second undid the first: measured 342px →
-    // 855px at the second touchend, back to 342px at the dblclick.
-    mount([IMG(1)]);
-    const img = document.querySelector('.chat-img-zoom') as HTMLImageElement;
-    const tap = () =>
-      act(() => {
-        const t = new Event('touchstart', { bubbles: true });
-        Object.defineProperty(t, 'touches', { value: [{ clientX: 10, clientY: 10 }] });
-        img.dispatchEvent(t);
-        const e = new Event('touchend', { bubbles: true });
-        Object.defineProperty(e, 'touches', { value: [] });
-        img.dispatchEvent(e);
-      });
-    tap();
-    tap();
-    expect(img.classList.contains('-zoomed')).toBe(true);
-    act(() => {
-      img.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
-    });
-    expect(img.classList.contains('-zoomed')).toBe(true);
+/**
+ * The gestures themselves — pinch, pan, double-tap, swipe gating — are driven
+ * end to end in zoom-surface.test.ts, where the geometry jsdom cannot lay out
+ * is stubbed in. What belongs here is the CSS contract they rely on.
+ */
+describe('the lightbox owns every touch', () => {
+  const css = readFileSync(join(__dirname, 'ChatPane.css'), 'utf-8');
+  const rule = (sel: string) => {
+    const block = css.slice(css.indexOf(`${sel} {`));
+    return block.slice(0, block.indexOf('}'));
+  };
+
+  it('the backdrop and the surface both refuse the browser its own pan and zoom', () => {
+    // Without it on the BACKDROP, a pinch with one finger beside a narrow
+    // screenshot zoomed the whole page on iOS instead of the picture.
+    expect(rule('.chat-img-backdrop')).toMatch(/touch-action:\s*none/);
+    expect(rule('.chat-img-zoomer')).toMatch(/touch-action:\s*none/);
   });
 
-  it('a real double-click with no touch still zooms', () => {
-    mount([IMG(1)]);
-    const img = document.querySelector('.chat-img-zoom') as HTMLImageElement;
-    act(() => {
-      img.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
-    });
-    expect(img.classList.contains('-zoomed')).toBe(true);
-  });
-});
-
-describe('swipe down closes', () => {
-  const drag = (img: Element, dx: number, dy: number) =>
-    act(() => {
-      const ev = (type: string, touches: { clientX: number; clientY: number }[]) => {
-        const e = new Event(type, { bubbles: true });
-        Object.defineProperty(e, 'touches', { value: touches });
-        img.dispatchEvent(e);
-      };
-      ev('touchstart', [{ clientX: 100, clientY: 100 }]);
-      ev('touchmove', [{ clientX: 100 + dx, clientY: 100 + dy }]);
-      ev('touchend', []);
-    });
-
-  it('a long downward drag dismisses the lightbox', () => {
-    const { onClose } = mount([IMG(1)]);
-    drag(document.querySelector('.chat-img-zoom')!, 4, 140);
-    expect(onClose).toHaveBeenCalledTimes(1);
-  });
-
-  it('a short one snaps back instead', () => {
-    const { onClose } = mount([IMG(1)]);
-    const img = document.querySelector('.chat-img-zoom') as HTMLImageElement;
-    drag(img, 0, 40);
-    expect(onClose).not.toHaveBeenCalled();
-    expect(img.style.transform).toBe('translate(0px, 0px)');
-  });
-
-  it('an upward drag does not close', () => {
-    const { onClose } = mount([IMG(1)]);
-    drag(document.querySelector('.chat-img-zoom')!, 0, -160);
-    expect(onClose).not.toHaveBeenCalled();
-  });
-
-  it('a sideways drag steps the gallery and does not close', () => {
-    // Separate mounts: two drags inside 300ms would read as a double-tap.
-    const { onClose, onIndex } = mount([IMG(1), IMG(2)]);
-    drag(document.querySelector('.chat-img-zoom')!, -150, 30);
-    expect(onClose).not.toHaveBeenCalled();
-    expect(onIndex).toHaveBeenCalledWith(1);
-  });
-
-  it('the image follows the finger while it is pulled', () => {
-    mount([IMG(1)]);
-    const img = document.querySelector('.chat-img-zoom') as HTMLImageElement;
-    act(() => {
-      const e = new Event('touchstart', { bubbles: true });
-      Object.defineProperty(e, 'touches', { value: [{ clientX: 0, clientY: 0 }] });
-      img.dispatchEvent(e);
-      const m = new Event('touchmove', { bubbles: true });
-      Object.defineProperty(m, 'touches', { value: [{ clientX: 0, clientY: 50 }] });
-      img.dispatchEvent(m);
-    });
-    expect(img.style.transform).toBe('translate(0px, 50px)');
+  it('the picture is placed by a transform from its top-left, at natural size', () => {
+    const r = rule('.chat-img-zoom');
+    expect(r).toMatch(/transform-origin:\s*0 0/);
+    expect(r).toMatch(/max-width:\s*none/);
+    // A permanent layer is rasterized once and scaled — blurry when zoomed.
+    expect(r).not.toMatch(/will-change/);
+    expect(rule('.chat-img-zoom.-moving')).toMatch(/will-change:\s*transform/);
   });
 });
 

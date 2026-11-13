@@ -2440,6 +2440,12 @@ button.chat-filechip {
 /* Lightbox: reuse the modal backdrop/scrim but center a bare full-size image. */
 .chat-img-backdrop {
   align-items: center;
+  /* Thins as a picture is pulled down to close (set per frame by the zoom
+     surface); the controls fade with it. */
+  background: rgba(0, 0, 0, calc(0.45 * var(--chat-img-fade, 1)));
+  /* Every touch in the lightbox is the lightbox's. Without this a pinch with
+     a finger on the backdrop zoomed the PAGE — iOS ignores user-scalable=no. */
+  touch-action: none;
   /* The padding moved to `.chat-img-stage`, which is what gets measured — with
      it here too the image would be fitted to a box 48px wider than its own. */
   /* A zoomed image is bigger than the viewport — clip the overflow instead of
@@ -2516,10 +2522,16 @@ button.chat-filechip {
   place-content: center;
   min-width: 0;
   min-height: 0;
+  /* The zoom surface is pinned inside it. */
+  position: relative;
 }
 /* Nav under the picture: tappable, out of the image's way, and never over it —
    an arrow floating on top of a photo covers the part you opened it to see. */
 .chat-img-nav {
+  position: relative;
+  /* Above a zoomed picture, which is allowed to overflow its frame. */
+  z-index: 2;
+  opacity: var(--chat-img-fade, 1);
   display: flex;
   flex: 0 0 auto;
   align-items: center;
@@ -2563,25 +2575,54 @@ button.chat-filechip {
   box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.7);
   animation: chat-fade 140ms ease both;
 }
-/* Zoomable image: `touch-action: none` hands every touch gesture to the JS
-   zoom handler (native page zoom is disabled app-wide via the viewport meta,
-   so pinch would otherwise do nothing). */
-.chat-img-zoom {
+/* The zoom surface: fills the frame, so a pinch or a tap anywhere around the
+   picture belongs to it. The picture inside is laid out at its NATURAL size
+   from the top-left corner and placed by one transform (origin 0 0) — scaled
+   DOWN to fit, so zooming in shows the file's real pixels instead of
+   upscaling a fitted bitmap. It overflows the frame when zoomed, on purpose:
+   a zoomed photo fills the screen, as in Photos; the backdrop clips it. */
+.chat-img-zoomer {
+  position: absolute;
+  inset: 0;
   touch-action: none;
-  transform-origin: center center;
-  will-change: transform;
+  cursor: default;
+}
+.chat-img-zoom {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: none;
+  max-height: none;
+  transform-origin: 0 0;
+  /* The shadow is drawn at natural size and scaled with it; on a 4000px photo
+     that is a lot of blur to repaint for nothing. */
+  box-shadow: none;
   cursor: zoom-in;
   user-select: none;
   -webkit-user-select: none;
   -webkit-user-drag: none;
 }
+/* Before the natural size is known there is no transform to fit it with. */
+.chat-img-zoom.-pending {
+  visibility: hidden;
+}
+/* Only WHILE it moves: a permanent layer is rasterized once and then scaled,
+   which is the blur this is avoiding. Dropped at rest so the browser redraws
+   the picture sharp at its final scale. */
+.chat-img-zoom.-moving {
+  will-change: transform;
+}
 .chat-img-zoom.-zoomed {
   cursor: grab;
+}
+.chat-img-zoom.-zoomed.-moving {
+  cursor: grabbing;
 }
 /* Explicit close — the scrim gets thin behind a large/zoomed image, so give a
    reliable tap target (also nicer on touch than hunting for the backdrop). */
 .chat-img-close {
   position: absolute;
+  opacity: var(--chat-img-fade, 1);
   top: calc(env(safe-area-inset-top, 0px) + 10px);
   right: calc(env(safe-area-inset-right, 0px) + 14px);
   z-index: 2;
