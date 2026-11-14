@@ -37,10 +37,10 @@ describe('the composer is actually wired to it', () => {
   const SRC = readFileSync(join(__dirname, '..', 'components', 'ChatPane.tsx'), 'utf8');
 
   it('checks the guard before the frame leaves, not after', () => {
-    const send = SRC.slice(SRC.indexOf('const sendMessage = () => {'));
+    const send = SRC.slice(SRC.indexOf('const submitDraft = (interrupt: boolean) => {'));
     const body = send.slice(0, send.indexOf('\n  const stop ='));
     const guard = body.indexOf('isDoubleFire(');
-    const fire = body.indexOf('deliver(outgoing)');
+    const fire = body.indexOf('deliver(outgoing, interrupt)');
     expect(guard).toBeGreaterThan(-1);
     expect(guard).toBeLessThan(fire);
     // …and arms it, or the second click of the gesture sees nothing.

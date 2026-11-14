@@ -990,6 +990,111 @@ describe('agent-runner relay', () => {
     chat.close();
   });
 
+  it('an interrupting send stops the turn and runs NEXT, ahead of the queue', async () => {
+    const { port, paneId } = await boot();
+    const { sock: runner, rx: fromRunner } = await openSock(
+      `ws://127.0.0.1:${port}/ws/agent-runner/${paneId}`,
+    );
+    runner.send(JSON.stringify({ t: 'hello', sid: SID, cwd: '/tmp', pid: 1, turnActive: false }));
+    const { sock: chat, rx: fromChat } = await openSock(`ws://127.0.0.1:${port}/ws/chat/${paneId}`);
+    await fromChat.next((f) => f.t === 'session');
+
+    chat.send(JSON.stringify({ t: 'send', text: 'long turn' }));
+    await fromRunner.next((f) => f.t === 'send');
+    runner.send(JSON.stringify({ t: 'turn-start' }));
+    await fromChat.next((f) => f.t === 'turn-start');
+    chat.send(JSON.stringify({ t: 'send', text: 'queued' }));
+    await fromChat.next((f) => f.t === 'queue' && (f.items as unknown[]).length === 1);
+
+    // ONE frame: front of the queue, then Stop.
+    chat.send(JSON.stringify({ t: 'send', text: 'now', interrupt: true }));
+    const q = await fromChat.next(
+      (f) =>
+        f.t === 'queue' &&
+        (f.items as { text: string }[]).map((i) => i.text).join() === 'now,queued',
+    );
+    expect(q.started).toBeUndefined();
+    await fromRunner.next((f) => f.t === 'stop');
+    // The sender is told it was parked, so it drops its optimistic echo.
+    await fromChat.next((f) => f.t === 'queued' && f.text === 'now');
+    // Stop has not produced a send of its own.
+    expect(fromRunner.frames.filter((f) => f.t === 'send')).toHaveLength(1);
+
+    // The stopped turn ends → the INTERRUPTING message drains first…
+    runner.send(JSON.stringify({ t: 'turn-done', ok: true }));
+    await fromRunner.next((f) => f.t === 'send' && f.text === 'now');
+    expect(fromRunner.frames.filter((f) => f.t === 'send').map((f) => f.text)).toEqual([
+      'long turn',
+      'now',
+    ]);
+    runner.send(JSON.stringify({ t: 'turn-start' }));
+    runner.send(JSON.stringify({ t: 'turn-done', ok: true }));
+    // …and the one that was already waiting runs after it.
+    await fromRunner.next((f) => f.t === 'send' && f.text === 'queued');
+    // Exactly one Stop: the interrupt never stops the turn it started.
+    expect(fromRunner.frames.filter((f) => f.t === 'stop')).toHaveLength(1);
+    runner.close();
+    chat.close();
+  });
+
+  it("a queued message's send-now promotes it past the others and interrupts", async () => {
+    const { port, paneId } = await boot();
+    const { sock: runner, rx: fromRunner } = await openSock(
+      `ws://127.0.0.1:${port}/ws/agent-runner/${paneId}`,
+    );
+    runner.send(JSON.stringify({ t: 'hello', sid: SID, cwd: '/tmp', pid: 1, turnActive: false }));
+    const { sock: chat, rx: fromChat } = await openSock(`ws://127.0.0.1:${port}/ws/chat/${paneId}`);
+    await fromChat.next((f) => f.t === 'session');
+
+    chat.send(JSON.stringify({ t: 'send', text: 'long turn' }));
+    await fromRunner.next((f) => f.t === 'send');
+    runner.send(JSON.stringify({ t: 'turn-start' }));
+    await fromChat.next((f) => f.t === 'turn-start');
+    chat.send(JSON.stringify({ t: 'send', text: 'a' }));
+    chat.send(JSON.stringify({ t: 'send', text: 'b' }));
+    const q = await fromChat.next((f) => f.t === 'queue' && (f.items as unknown[]).length === 2);
+    const b = (q.items as { id: string; text: string }[]).find((i) => i.text === 'b')?.id;
+
+    chat.send(JSON.stringify({ t: 'queue-send-now', id: b }));
+    await fromChat.next(
+      (f) => f.t === 'queue' && (f.items as { text: string }[]).map((i) => i.text).join() === 'b,a',
+    );
+    await fromRunner.next((f) => f.t === 'stop');
+    runner.send(JSON.stringify({ t: 'turn-done', ok: true }));
+    await fromRunner.next((f) => f.t === 'send' && f.text === 'b');
+    runner.send(JSON.stringify({ t: 'turn-start' }));
+    runner.send(JSON.stringify({ t: 'turn-done', ok: true }));
+    await fromRunner.next((f) => f.t === 'send' && f.text === 'a');
+
+    // A send-now for something that already ran is a notice, not a crash.
+    chat.send(JSON.stringify({ t: 'queue-send-now', id: b }));
+    expect((await fromChat.next((f) => f.t === 'notice')).message).toMatch(/no longer queued/);
+    runner.close();
+    chat.close();
+  });
+
+  it('an interrupting send to an IDLE agent just sends — no Stop', async () => {
+    const { port, paneId } = await boot();
+    const { sock: runner, rx: fromRunner } = await openSock(
+      `ws://127.0.0.1:${port}/ws/agent-runner/${paneId}`,
+    );
+    runner.send(JSON.stringify({ t: 'hello', sid: SID, cwd: '/tmp', pid: 1, turnActive: false }));
+    const { sock: chat, rx: fromChat } = await openSock(`ws://127.0.0.1:${port}/ws/chat/${paneId}`);
+    await fromChat.next((f) => f.t === 'session');
+
+    chat.send(JSON.stringify({ t: 'send', text: 'hi', interrupt: true }));
+    await fromRunner.next((f) => f.t === 'send' && f.text === 'hi');
+    const drained = await fromChat.next(
+      (f) => f.t === 'queue' && (f.items as unknown[]).length === 0 && !!f.started,
+    );
+    expect((drained.started as { text: string }).text).toBe('hi');
+    await new Promise((r) => setTimeout(r, 50));
+    expect(fromRunner.frames.filter((f) => f.t === 'stop')).toHaveLength(0);
+    expect(fromChat.frames.filter((f) => f.t === 'queued')).toHaveLength(0);
+    runner.close();
+    chat.close();
+  });
+
   it('re-broadcasts turn-start when a runner reconnects mid-turn', async () => {
     const { port, paneId } = await boot();
     const { sock: chat, rx: fromChat } = await openSock(`ws://127.0.0.1:${port}/ws/chat/${paneId}`);

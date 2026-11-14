@@ -231,6 +231,8 @@ import {
   workingRowDetail,
   workingRowLabel,
 } from '../lib/live-status';
+import { composerKeyAction, composerPlaceholder, interruptModLabel } from '../lib/composer-keys';
+import { useLongPress } from '../lib/long-press';
 import { isMobileLayout } from '../lib/mobile-layout';
 import { MOBILE_BREAKPOINT } from '../lib/mobile-layout';
 import { useDismissable } from '../lib/use-dismissable';
@@ -361,6 +363,21 @@ function SvgQueue() {
         strokeLinejoin="round"
       />
       <path d="M5 19h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Interrupt glyph — a bolt: "now, not later". Drawn at the queue glyph's
+ *  weight so the pair reads as two faces of one action. */
+function SvgInterrupt({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" fill="none">
+      <path
+        d="M13 3 5.5 13.5H12L11 21l7.5-10.5H12L13 3Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -2584,6 +2601,19 @@ export function ChatPane({
     return true;
   };
 
+  // "Send now" on a queued message: the server moves it to the front and stops
+  // the running turn, in one step (ws.ts `interruptSend`). Its `queue`
+  // broadcast reorders the rows; nothing optimistic here.
+  const sendQueuedNow = (id: string) => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      setNotice({ text: 'Reconnecting — try again in a moment.', tone: 'info' });
+      reconnectNow.current();
+      return;
+    }
+    ws.send(JSON.stringify({ t: 'queue-send-now', id }));
+  };
+
   // Edit a queued message: cancel it and pull its text + attachments back into
   // the composer. Attachment thumbnails are re-derived from their served URLs
   // (the bytes live on the server), so this works even on a fresh reload where
@@ -2643,7 +2673,7 @@ export function ChatPane({
    * way a typed message goes). Returns false when nothing was sent, so the
    * caller can keep whatever it was holding.
    */
-  const deliver = (outgoing: string): boolean => {
+  const deliver = (outgoing: string, interrupt = false): boolean => {
     const ws = wsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       // Don't fire into a dead socket (the browser would drop it silently).
@@ -2662,7 +2692,11 @@ export function ChatPane({
       // before `send-ack` drops the message silently (onclose reads pendingText).
       // send-ack (fired for queued sends too) clears both on a live socket.
       pendingText.current = outgoing;
-      ws.send(JSON.stringify({ t: 'send', text: outgoing }));
+      // `interrupt`: the server stops the running turn and runs this one
+      // NEXT, ahead of the queue — one frame, so it cannot race the drain
+      // (ws.ts `interruptSend`). Idle there is nothing to interrupt, and the
+      // branch below is the plain send.
+      ws.send(JSON.stringify({ t: 'send', text: outgoing, ...(interrupt ? { interrupt } : {}) }));
       // The queued bubble renders at the end too — same reason as `dispatchSend`.
       scroll.current?.dispatch({ t: 'sent' });
       armSendWatchdog(outgoing);
@@ -2674,7 +2708,13 @@ export function ChatPane({
     return true;
   };
 
-  const sendMessage = () => {
+  const sendMessage = () => submitDraft(false);
+  /** Cmd/Ctrl+Enter, the bolt beside Queue, a long-press on Queue, and the
+   *  `+` sheet's "Interrupt & send": stop the running turn, send this now. */
+  const interruptAndSend = () => submitDraft(true);
+  // Touch has no Cmd: a hold on Queue interrupts instead.
+  const queueLongPress = useLongPress(() => interruptAndSend());
+  const submitDraft = (interrupt: boolean) => {
     const text = input.trim();
     // Sending retires a search highlight: it is the clearest possible statement
     // that you are done reading the result you were brought here for. Covers
@@ -2727,7 +2767,7 @@ export function ChatPane({
     // this draft is already gone, and the composer has not been edited since.
     if (isDoubleFire(sendGuard.current, outgoing, Date.now())) return;
     sendGuard.current = { text: outgoing, at: Date.now() };
-    if (!deliver(outgoing)) {
+    if (!deliver(outgoing, interrupt)) {
       // Nothing left; the draft is still the user's to re-send.
       releaseSendGuard();
       return;
@@ -5402,21 +5442,52 @@ export function ChatPane({
       </button>
     ) : sending && !question ? (
       /* Busy + composed text → Queue: the server holds it and
-         feeds it when the agent frees up. */
-      <button
-        type="button"
-        className="chat-send is-queue"
-        onClick={sendMessage}
-        disabled={!canSend}
-        aria-label="Queue message — sends when the agent is free"
-        title={
-          uploadsInFlight
-            ? 'Waiting for uploads to finish — cancel one to queue now'
-            : 'Queue — sends when the agent is free'
-        }
-      >
-        <SvgQueue />
-      </button>
+         feeds it when the agent frees up.
+
+         ── AND A SMALL BOLT BESIDE IT: INTERRUPT & SEND NOW ─────
+         Not a second circle (see Stop above for why that is the
+         defect): a bare glyph, no fill, before the slot. Queue
+         keeps the edge and Enter, because waiting is the answer
+         that loses nothing. Desktop only; a phone long-presses
+         Queue or uses the `+` sheet. */
+      <>
+        {touchLayout ? null : (
+          <button
+            type="button"
+            className="chat-send-now"
+            onClick={interruptAndSend}
+            disabled={!canSend}
+            aria-label="Interrupt and send now"
+            title={`Interrupt & send now — stops this turn (${interruptModLabel()}↵)`}
+          >
+            <SvgInterrupt />
+          </button>
+        )}
+        <button
+          type="button"
+          className="chat-send is-queue"
+          onClick={(e) => {
+            // The click that ends a long-press already interrupted.
+            if (queueLongPress.consume()) {
+              e.preventDefault();
+              return;
+            }
+            sendMessage();
+          }}
+          {...queueLongPress.handlers}
+          disabled={!canSend}
+          aria-label="Queue message — sends when the agent is free"
+          title={
+            uploadsInFlight
+              ? 'Waiting for uploads to finish — cancel one to queue now'
+              : touchLayout
+                ? 'Queue — sends when the agent is free. Hold to interrupt & send now'
+                : `Queue — sends when the agent is free (${interruptModLabel()}↵ interrupts)`
+          }
+        >
+          <SvgQueue />
+        </button>
+      </>
     ) : micInsteadOfSend ? (
       /* ── MIC → SEND → QUEUE, ONE SLOT ──────────────────────────
          With nothing typed there is nothing to send, so the slot
@@ -5489,6 +5560,22 @@ export function ChatPane({
       </button>
       {toolsOpen ? (
         <div className="chat-tools-sheet" role="menu">
+          {/* A phone has no Cmd+Enter, so the interrupt is offered here (and
+              on a hold of Queue) while a turn runs and a draft is ready. */}
+          {sending && !question && canSend ? (
+            <button
+              type="button"
+              role="menuitem"
+              className="chat-tools-item"
+              onClick={() => {
+                setToolsOpen(false);
+                interruptAndSend();
+              }}
+            >
+              <SvgInterrupt size={18} />
+              Interrupt &amp; send
+            </button>
+          ) : null}
           <button
             type="button"
             role="menuitem"
@@ -6032,6 +6119,14 @@ export function ChatPane({
                         <button
                           type="button"
                           className="chat-sysnote-action"
+                          onClick={() => sendQueuedNow(q.id)}
+                          title="Run it now — stops the running turn"
+                        >
+                          Run now
+                        </button>
+                        <button
+                          type="button"
+                          className="chat-sysnote-action"
                           onClick={() => cancelQueued(q.id)}
                           title="Skip this run — the schedule itself is unchanged"
                         >
@@ -6044,6 +6139,15 @@ export function ChatPane({
                 return (
                   <div key={q.id} className="chat-turn chat-turn-user chat-turn-queued">
                     <div className="chat-queued-actions">
+                      <button
+                        type="button"
+                        className="chat-queued-now"
+                        onClick={() => sendQueuedNow(q.id)}
+                        aria-label="Send now — interrupt the running turn"
+                        title="Send now — stops the running turn and sends this next"
+                      >
+                        <SvgInterrupt size={14} />
+                      </button>
                       <button
                         type="button"
                         className="chat-queued-edit"
@@ -6338,27 +6442,32 @@ export function ChatPane({
                         return;
                       }
                     }
-                    // Desktop: Enter sends, Shift+Enter = newline. Mobile: the
-                    // on-screen Return key inserts a newline (send is the button) —
-                    // otherwise every line break fires off a message.
-                    if (e.key === 'Enter' && !e.shiftKey && !isMobileLayout()) {
+                    // Desktop: Enter sends (queues, mid-turn), Cmd/Ctrl+Enter
+                    // interrupts and sends now, Shift+Enter = newline. Mobile:
+                    // the on-screen Return key inserts a newline (send is the
+                    // button) — otherwise every line break fires off a message.
+                    const action = composerKeyAction(e, {
+                      mobile: isMobileLayout(),
+                      busy: sending && !question,
+                    });
+                    if (action) {
                       e.preventDefault();
-                      sendMessage();
+                      if (action === 'interrupt') interruptAndSend();
+                      else sendMessage();
                     }
                   }}
-                  placeholder={
-                    question
-                      ? 'Type an answer, or tap an option…'
-                      : // D carries the keys in the placeholder, as the Claude
-                        // app does — desktop only: a phone's Return is a newline.
-                        composer === 'd' && !touchLayout
-                        ? '↵ to send, ⇧↵ for new line'
-                        : // Chat is addressed as Chat. Naming the harness here was
-                          // the same slip as the greeting: "Message Claude…" under a
-                          // pane that calls itself Chat, in the one mode where the
-                          // harness is not a thing the user chose.
-                          `Message ${mode === 'chat' ? 'Chat' : assistantLabel(session?.assistant)}…`
-                  }
+                  // D carries the keys in the placeholder, as the Claude app
+                  // does; the rest name them only mid-turn, when Enter queues.
+                  // Desktop only: a phone's Return is a newline. Chat is
+                  // addressed as Chat — naming the harness under a pane that
+                  // calls itself Chat was the same slip as the greeting.
+                  placeholder={composerPlaceholder({
+                    question: !!question,
+                    composer,
+                    touch: touchLayout,
+                    busy: sending,
+                    target: mode === 'chat' ? 'Chat' : assistantLabel(session?.assistant),
+                  })}
                 />
                 {/* C rides the commands and the session INSIDE the pill, after
                     the field; B keeps the session as a chip in its one line. */}
@@ -6562,9 +6671,21 @@ export function ChatPane({
                   say. */}
               {composer === 'b' && !touchLayout ? (
                 <div className="chat-composer-hint" aria-hidden="true">
-                  <span>
-                    <kbd>↵</kbd> send
-                  </span>
+                  {sending && !question ? (
+                    <>
+                      <span>
+                        <kbd>↵</kbd> queue
+                      </span>
+                      <span>
+                        <kbd>{interruptModLabel().replace('+', '')}</kbd>
+                        <kbd>↵</kbd> interrupt
+                      </span>
+                    </>
+                  ) : (
+                    <span>
+                      <kbd>↵</kbd> send
+                    </span>
+                  )}
                   <span>
                     <kbd>⇧</kbd>
                     <kbd>↵</kbd> new line

@@ -56,7 +56,10 @@ describe('the prompt box setting', () => {
     expect(SRC).toMatch(/voiceMic && voice\.supported && !barMic \? \(/);
     expect(SRC).toMatch(/\{barMic \? \(\s*<button[\s\S]{0,120}className="chat-mic chat-bar-mic"/);
     // The keys live in the placeholder on a desktop.
-    expect(SRC).toMatch(/composer === 'd' && !touchLayout\s*\? '↵ to send, ⇧↵ for new line'/);
+    // (composerPlaceholder; its words are pinned in lib/composer-keys.test.)
+    expect(SRC).toMatch(
+      /placeholder=\{composerPlaceholder\(\{[\s\S]{0,80}composer,\s*touch: touchLayout,/,
+    );
     // The session: a meta row OUTSIDE the bar on a desktop, the sheet on touch.
     expect(SRC).toMatch(
       /\{composer === 'd' && !touchLayout \? \(\s*<div className="chat-composer-meta">\{sessionStrip\}<\/div>/,
