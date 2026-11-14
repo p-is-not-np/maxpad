@@ -72,7 +72,7 @@
   margin: 12px 0 6px;
 }
 .doc-chat-assistant code {
-  font-family: var(--chrome-font);
+  font-family: var(--term-font);
   font-size: 0.9em;
   background: var(--bg);
   border: 1px solid var(--border);
@@ -180,7 +180,9 @@
   font-size: 0.9375rem;
   line-height: 1.5;
   padding: 9px 40px 9px 12px;
-  transition: border-color 0.12s ease, background 0.12s ease;
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease;
 }
 .doc-chat-composer::placeholder {
   color: var(--fg-faint);

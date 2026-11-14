@@ -44,7 +44,7 @@ export interface BootPayload {
   /**
    * The install's own settings (the theme). Optional here, not on the server:
    * this payload is parsed from whatever answered, which may be a server from
-   * before prefs existed — and `bootTheme` reads an absent value as "nothing
+   * before prefs existed — and `bootPrefs` reads an absent value as "nothing
    * stored", which is the same thing a fresh install means.
    */
   prefs?: Record<string, string> | undefined;
@@ -124,7 +124,7 @@ async function payload(): Promise<BootPayload | null> {
 }
 
 /**
- * PAINT THE INSTALL'S THEME, as early as this payload can be read.
+ * PAINT THE INSTALL'S THEME (AND STYLE), as early as this payload can be read.
  *
  * The theme is a document-level fact and it lives on the server now (one for
  * the whole install, pushed to every window). Anything that waited for React
@@ -132,14 +132,19 @@ async function payload(): Promise<BootPayload | null> {
  * where somebody is watching the window appear.
  *
  * Deliberately NOT one of the `used*` single-shot readers: those exist so a
- * few hundred KB of parsed JSON can be released, and this is one string that
+ * few hundred KB of parsed JSON can be released, and this is a few strings that
  * several callers may want. It also must not race them — reading the payload
  * does not consume it.
  */
-export async function bootTheme(): Promise<string | null> {
+/* The theme AND the style, which are applied together under one ordering
+ * mark (lib/app-theme). Null when there is no payload or nothing stored. */
+export async function bootPrefs(): Promise<Record<string, string> | null> {
   const got = await payload();
-  const theme = got?.prefs?.theme;
-  return typeof theme === 'string' && theme ? theme : null;
+  const prefs = got?.prefs;
+  if (!prefs) return null;
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(prefs)) if (typeof v === 'string' && v) out[k] = v;
+  return Object.keys(out).length ? out : null;
 }
 
 /** Is a prefetch still worth waiting for? Readers ask BEFORE opening their own

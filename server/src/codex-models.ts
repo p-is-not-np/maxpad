@@ -45,11 +45,7 @@ export const CODEX_FAST_TIER = 'priority';
  *  - `supported_in_api !== false` — a model the CLI cannot actually be pointed
  *    at is worse than absent: it is a chip that fails at spawn time.
  */
-function pickable(m: {
-  slug?: string;
-  visibility?: string;
-  supported_in_api?: boolean;
-}): boolean {
+function pickable(m: { slug?: string; visibility?: string; supported_in_api?: boolean }): boolean {
   return m.visibility === 'list' && m.supported_in_api !== false && typeof m.slug === 'string';
 }
 

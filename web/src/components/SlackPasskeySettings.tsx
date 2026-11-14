@@ -1,3 +1,4 @@
+import type { SettingsSection } from './SettingsSections';
 import { useEffect, useRef, useState } from 'react';
 import { passkeyAPI, passkeyCeremony } from '../lib/slack-passkey';
 import { SlackLogo } from './SlackLogo';
@@ -11,7 +12,7 @@ export function SlackPasskeySettings({
    * this component only ever compares it to 'integrations', so a new section
    * is none of its business — but the union has to admit one.
    */
-  section?: 'general' | 'notifications' | 'integrations' | 'machines';
+  section?: SettingsSection;
   active?: boolean;
 }) {
   const setupEpoch = useRef(0);
@@ -306,11 +307,12 @@ export function SlackPasskeySettings({
         </div>
         <p className="settings-note">Slack requests in any workspace use this passkey.</p>
       </section>
-      {section !== 'general' && error && (
-        <p className="settings-error" role="alert">
-          {error}
-        </p>
-      )}
+      {(section === 'notifications' || section === 'integrations' || section === 'machines') &&
+        error && (
+          <p className="settings-error" role="alert">
+            {error}
+          </p>
+        )}
     </>
   );
 }

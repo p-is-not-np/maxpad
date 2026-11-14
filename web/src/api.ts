@@ -254,6 +254,21 @@ export const api = {
       body: JSON.stringify({ value }),
     }),
 
+  /** The user's standing notes (agent-notes.md) — Settings → Agents. */
+  agentNotes: () => req<{ text: string; path: string }>('/api/install/agent-notes'),
+
+  setAgentNotes: (text: string) =>
+    req<{ text: string; path: string }>('/api/install/agent-notes', {
+      method: 'PUT',
+      body: JSON.stringify({ text }),
+    }),
+
+  /** The data dir and what is in it, largest first — Settings → Data. */
+  installUsage: () =>
+    req<{ dataDir: string; total: number; entries: Array<{ name: string; bytes: number }> }>(
+      '/api/install/usage',
+    ),
+
   listAllTabs: () => req<{ workspaces: WorkspaceTabs[] }>('/api/tabs/all'),
 
   /**
@@ -296,6 +311,10 @@ export const api = {
       /** Agent mode for an 'agent' bootstrap. Omitted → the server's
        *  DEFAULT_AGENT_MODE, which is 'chat'. */
       mode?: AgentMode;
+      /** Model and reasoning effort for an 'agent' bootstrap — Settings →
+       *  Agents' new-chat defaults. Omitted → the harness's own. */
+      model?: string;
+      effort?: EffortLevel;
     } = {},
   ) =>
     req<Tab & { panes?: TabWithPanes['panes'] }>('/api/tabs', {

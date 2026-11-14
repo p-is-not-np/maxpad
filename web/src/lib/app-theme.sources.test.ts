@@ -20,6 +20,8 @@ const getPrefs = vi.fn<() => Promise<{ prefs: Record<string, string> }>>();
 vi.mock('../api', () => ({ api: { prefs: () => getPrefs() } }));
 
 let applied: (string | null)[] = [];
+let styled: (string | null)[] = [];
+let composed: (string | null)[] = [];
 vi.mock('../settings', async (orig) => {
   const real = await orig<typeof import('../settings')>();
   return {
@@ -28,12 +30,22 @@ vi.mock('../settings', async (orig) => {
       applied.push(c);
       real.setServerTheme(c as never);
     },
+    setServerStyle: (c: string | null) => {
+      styled.push(c);
+      real.setServerStyle(c as never);
+    },
+    setServerComposer: (c: string | null) => {
+      composed.push(c);
+      real.setServerComposer(c as never);
+    },
   };
 });
 
 async function load() {
   vi.resetModules();
   applied = [];
+  styled = [];
+  composed = [];
   return await import('./app-theme');
 }
 
@@ -44,7 +56,7 @@ beforeEach(() => {
 describe('the theme’s sources are applied in issue order', () => {
   it('takes the boot snapshot when it is the only thing that has arrived', async () => {
     const t = await load();
-    t.applyBootTheme('memphis');
+    t.applyBootPrefs({ theme: 'memphis' });
     expect(applied).toEqual(['memphis']);
   });
 
@@ -53,7 +65,7 @@ describe('the theme’s sources are applied in issue order', () => {
     getPrefs.mockResolvedValue({ prefs: { theme: 'riso' } });
     await t.refreshAppTheme();
     // The prefetch finally answers — with what the server said before the pick.
-    t.applyBootTheme('memphis');
+    t.applyBootPrefs({ theme: 'memphis' });
     expect(applied).toEqual(['riso']);
   });
 
@@ -67,7 +79,7 @@ describe('the theme’s sources are applied in issue order', () => {
     );
     const inFlight = t.refreshAppTheme();
     // The pick lands while the refetch is still out.
-    t.applyPushedTheme('riso');
+    t.applyPushedPrefs({ theme: 'riso' });
     answer({ prefs: { theme: 'memphis' } });
     await inFlight;
     expect(applied).toEqual(['riso']);
@@ -75,16 +87,16 @@ describe('the theme’s sources are applied in issue order', () => {
 
   it('lets a push win however many have come before it', async () => {
     const t = await load();
-    t.applyBootTheme('memphis');
-    t.applyPushedTheme('riso');
-    t.applyPushedTheme('tokyo-night');
-    t.applyPushedTheme('memphis');
+    t.applyBootPrefs({ theme: 'memphis' });
+    t.applyPushedPrefs({ theme: 'riso' });
+    t.applyPushedPrefs({ theme: 'tokyo-night' });
+    t.applyPushedPrefs({ theme: 'memphis' });
     expect(applied).toEqual(['memphis', 'riso', 'tokyo-night', 'memphis']);
   });
 
   it('keeps the palette on screen when the refetch fails', async () => {
     const t = await load();
-    t.applyBootTheme('memphis');
+    t.applyBootPrefs({ theme: 'memphis' });
     getPrefs.mockRejectedValue(new Error('offline'));
     await t.refreshAppTheme();
     expect(applied).toEqual(['memphis']);
@@ -92,10 +104,56 @@ describe('the theme’s sources are applied in issue order', () => {
 
   it('applies the refetch when nothing newer has landed — the recovery case', async () => {
     const t = await load();
-    t.applyBootTheme('memphis');
+    t.applyBootPrefs({ theme: 'memphis' });
     getPrefs.mockResolvedValue({ prefs: { theme: 'riso' } });
     await t.refreshAppTheme();
     expect(applied).toEqual(['memphis', 'riso']);
+  });
+});
+
+describe('the style rides the same order', () => {
+  it('is applied with the theme from the same prefs set', async () => {
+    const t = await load();
+    t.applyBootPrefs({ theme: 'memphis', style: 'minimal' });
+    expect(applied).toEqual(['memphis']);
+    expect(styled).toEqual(['minimal']);
+  });
+
+  it('reads an unknown or absent style as nothing chosen', async () => {
+    const t = await load();
+    t.applyPushedPrefs({ style: 'brutalist' });
+    t.applyPushedPrefs({ theme: 'riso' });
+    expect(styled).toEqual([null, null]);
+  });
+
+  it('DROPS a boot style that answers after a pushed one', async () => {
+    const t = await load();
+    t.applyPushedPrefs({ style: 'floating' });
+    t.applyBootPrefs({ style: 'combo' });
+    expect(styled).toEqual(['floating']);
+  });
+});
+
+describe('the prompt box rides it too', () => {
+  it('is applied from the same prefs set, unknown values as nothing chosen', async () => {
+    const t = await load();
+    t.applyBootPrefs({ theme: 'memphis', style: 'combo', composer: 'a' });
+    t.applyPushedPrefs({ composer: 'nope' });
+    expect(composed).toEqual(['a', null]);
+  });
+
+  it('DROPS a boot value that answers after a pushed one', async () => {
+    const t = await load();
+    t.applyPushedPrefs({ composer: 'c' });
+    t.applyBootPrefs({ composer: 'b' });
+    expect(composed).toEqual(['c']);
+  });
+
+  it('is recovered by the reconnect refetch', async () => {
+    const t = await load();
+    getPrefs.mockResolvedValue({ prefs: { composer: 'b' } });
+    await t.refreshAppTheme();
+    expect(composed).toEqual(['b']);
   });
 });
 
@@ -112,7 +170,7 @@ describe('a reconnect recovers the theme it missed', () => {
     const { readFileSync } = await import('node:fs');
     const { join } = await import('node:path');
     const src = readFileSync(join(import.meta.dirname, '..', 'main.tsx'), 'utf8');
-    expect(src).toContain('applyBootTheme');
+    expect(src).toContain('applyBootPrefs');
     // `setServerTheme` is the unguarded door: boot calling it directly is the
     // late-overwrite bug, whatever the ordering code says.
     expect(src).not.toMatch(/setServerTheme\(/);

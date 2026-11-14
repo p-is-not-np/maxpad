@@ -22,8 +22,9 @@ describe('the composer tools', () => {
     // LABELLED buttons on the tool row — not bare icons, which is what "I see
     // multiple buttons on the left, doesn't feel like anything changed" was
     // looking at, and which really is indistinguishable from what it replaced.
-    expect(SRC).toMatch(/const collapsedTools = toolsIdle && touchLayout;/);
-    expect(SRC).toMatch(/const labelledTools = toolsIdle && !touchLayout;/);
+    // (Prompt box B, the command bar, keeps the `+` on a desktop too.)
+    expect(SRC).toMatch(/const collapsedTools = toolsIdle && \(touchLayout \|\| plusOnly\);/);
+    expect(SRC).toMatch(/const labelledTools = toolsIdle && !touchLayout && !plusOnly;/);
     const labelled = SRC.slice(SRC.indexOf(') : labelledTools ? ('));
     expect(labelled.slice(0, labelled.lastIndexOf(') : ('))).toMatch(/chat-tool-btn/);
   });
@@ -60,12 +61,15 @@ describe('the composer tools', () => {
     // do to this chat, so on touch the tools AND the session chip live in
     // that sheet — on screen while you use it, gone the rest of the time.
     expect(SRC).toMatch(
-      /\{labelledTools \? \(\s*<div className="chat-composer-tools">\s*\{composerTools\}\s*\{sessionStrip\}/,
+      /\{labelledTools && composer !== 'c' \? \(\s*<div className="chat-composer-tools">\s*\{composerTools\}\s*\{sessionStrip\}/,
     );
     // …and the `+` is beside the input when there is no row to hold it.
     expect(SRC).toMatch(/\{!labelledTools \? composerTools : null\}/);
     // The sheet carries the chip, which is what makes the row unnecessary.
     expect(SRC).toMatch(/<div className="chat-tools-session">\{sessionStrip\}<\/div>/);
+    expect(SRC).toMatch(
+      /plusOnly && !touchLayout \? null : \(\s*<div className="chat-tools-session">/,
+    );
   });
 
   it('keeps btw with the commands, not on the session strip', () => {

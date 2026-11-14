@@ -19,7 +19,10 @@
   display: grid;
   place-items: center;
   cursor: pointer;
-  transition: color 120ms ease, background 120ms ease, transform 120ms ease;
+  transition:
+    color 120ms ease,
+    background 120ms ease,
+    transform 120ms ease;
 }
 
 .review-btn:hover:not(:disabled) {
@@ -171,7 +174,9 @@
   font: inherit;
   font-weight: 600;
   cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease;
 }
 
 .review-stop {

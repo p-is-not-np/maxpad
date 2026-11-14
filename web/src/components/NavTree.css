@@ -567,10 +567,6 @@
 }
 /* …and the other side of the brand row, so the wordmark stays optically
    centred rather than shifted half a button to the right. */
-.sidenav-brand-spacer {
-  flex: 0 0 auto;
-  width: 34px;
-}
 
 /* Desktop has no section header (dropped as redundant under the brand),
    so the list sits directly below the brand hairline — give it a little
@@ -803,8 +799,15 @@
    different KIND of thing at a glance, and the tracking is what keeps it
    legible after the case change. */
 .navtree-ws-row .navtree-name-text {
-  font-size: 0.6875rem;
-  font-weight: 700;
+  /* ── SENTENCE CASE, 12px, SEMIBOLD ─────────────────────────────────────
+     The header was 11px bold caps tracked at 0.12em, which read as the
+     loudest text in the rail. The disclosure chevron, the air above each
+     group and the dimmer ink already make it a different KIND of row, so the
+     caps and the tracking were spending weight on a job that was done.
+     The paragraph below is the history of the tracking number, kept because
+     it explains why the old caps needed it. */
+  font-size: 0.75rem;
+  font-weight: 600;
   /* ── TRACKING, AND WHY IT IS THIS NUMBER ───────────────────────────────
      Bold caps at 11px need air between the letters or they read as one dark
      block: the counters close up, the word loses its shape, and what you see
@@ -815,8 +818,7 @@
      recently-active heading). Two caps labels in one list that are tracked
      differently read as two kinds of thing, and there is only one kind of
      thing here — a section name. */
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  letter-spacing: 0.005em;
   color: var(--fg-dim);
 }
 /* The active workspace steps to full ink — one channel, no fill. The accent
@@ -1180,6 +1182,10 @@
   border-radius: var(--nt-pill);
   color: var(--nt-ink-read);
   font-weight: 500;
+  /* Colour only — nothing in the rail moves (see NavTree.spacing.test). */
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
 }
 /* Renaming collapses the row to icon + input: the meta, controls and status
    all stand down, and a 5-track template would strand the input in one narrow
@@ -1259,7 +1265,17 @@
    to read the ACTIVE PANE's background rather than the theme's. */
 .navtree-tab-row[data-active="true"] {
   background-color: var(--bg-pane-face);
-  border-radius: var(--nt-pill) 0 0 var(--nt-pill);
+  /* ── AN INSET PILL, NOT A TAB ──────────────────────────────────────────
+     The row used to run out to the rail's edge and flare into the pane
+     through two concave fillets (the funnel, below) — a browser tab turned on
+     its side. It read as dated and, on a rail that is darker than the pane,
+     as a notch cut out of the sidebar. Now it is a rounded pill sitting
+     INSIDE the rail with the rail's own padding on every side. It keeps the
+     pane's face and the pane's ink (the island rebinding below), so it still
+     says "this is the one open on the right" by colour rather than by shape.
+     The long notes that follow describe the old tab silhouette; the ring
+     still draws its edge, only around a whole pill now. */
+  border-radius: var(--radius);
   /* ── THE SILHOUETTE GETS A HAIRLINE, AS ONE CONTINUOUS PATH ─────────────
      The note below is the record of this being tried and abandoned, and it is
      still right about WHY: three inset hairlines on the row's rectangle ran
@@ -1277,13 +1293,9 @@
      Keyed to the row's own --fg, which is the PANE's ink here (see the island
      rebinding below), so it reads against the pane face on every theme rather
      than being a colour picked for one. */
-  box-shadow: inset 0 0 0 1px var(--nt-carve-edge);
-  /* Out past the GROUP's own right padding, so the row genuinely touches the
-     pane instead of stopping a hair short of it. Measured: without this the tab
-     ended at 277 against a rail edge of 279, and two pixels of rail showing
-     through is enough to read as a seam rather than a join. */
-  margin-right: calc(var(--nt-pad) * -1);
-  padding-right: calc(var(--nt-air) + var(--nt-pad));
+  box-shadow:
+    inset 0 0 0 1px var(--nt-carve-edge),
+    var(--shadow-sm);
   /* AND NO EDGE, which is a REVERSAL, and the reversal is the point.
 
      What was here: three inset hairlines, top, bottom and left, added because
@@ -1341,6 +1353,10 @@
    were given one pseudo-element. Rather than write a third qualifier, the
    funnel is a node: `.navtree-tab-funnel`, rendered only on the active row. */
 .navtree-tab-funnel {
+  /* Retired with the tab silhouette: the selected row is an inset pill now
+     (see .navtree-tab-row[data-active="true"]), so there is no join to flare.
+     The node is still rendered; it simply paints nothing. */
+  display: none;
   position: absolute;
   right: calc(var(--nt-pad) * -1);
   left: auto;
@@ -1356,7 +1372,8 @@
      also has to COVER the row's inset ring across the 14px where the flare
      begins. Without it the straight line would run on under the fillet and
      out the other side, which is the failure the row's note describes. */
-  background-image: radial-gradient(
+  background-image:
+    radial-gradient(
       circle at 0% 0%,
       transparent 17px,
       var(--nt-carve-edge) 17px 18px,
@@ -1367,9 +1384,16 @@
       transparent 17px,
       var(--nt-carve-edge) 17px 18px,
       var(--bg-pane-face) 18px
-    ), linear-gradient(var(--bg-pane-face), var(--bg-pane-face));
-  background-size: 18px 18px, 18px 18px, 18px calc(100% - 36px);
-  background-position: right top, right bottom, right center;
+    ),
+    linear-gradient(var(--bg-pane-face), var(--bg-pane-face));
+  background-size:
+    18px 18px,
+    18px 18px,
+    18px calc(100% - 36px);
+  background-position:
+    right top,
+    right bottom,
+    right center;
   background-repeat: no-repeat;
   pointer-events: none;
 }
@@ -1800,7 +1824,8 @@
    two that can disagree tomorrow. */
 [data-theme="riso"] .navtree-mark[data-state="working"] {
   border: 0;
-  background: radial-gradient(circle at 50% 17%, var(--status-working) 0 2.1px, transparent 2.3px),
+  background:
+    radial-gradient(circle at 50% 17%, var(--status-working) 0 2.1px, transparent 2.3px),
     radial-gradient(
       circle at 50% 83%,
       color-mix(in srgb, var(--status-working) 55%, transparent) 0 2.1px,
@@ -1991,7 +2016,7 @@
    whose only remaining state was the PARENT's: a chat with two running
    sub-agents expanded under it wore a green tick and nothing else. The caret
    says open; the hue says what the workers are doing. */
-  .navtree-subs-pill[data-state="idle"] {
+.navtree-subs-pill[data-state="idle"] {
   background: color-mix(in srgb, var(--fg) 11%, transparent);
   color: var(--fg-dim);
 }
@@ -2153,7 +2178,7 @@
   display: inline-flex;
   align-items: baseline;
   gap: 5px;
-  font-family: var(--chrome-font);
+  font-family: var(--term-font);
   font-size: 0.65625rem;
   line-height: 1.2;
   letter-spacing: 0.02em;
@@ -2731,7 +2756,7 @@
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  box-shadow: var(--shadow-lg);
   font-family: var(--ui-font);
   font-size: 0.8125rem;
 }
@@ -2820,7 +2845,7 @@
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  box-shadow: var(--shadow-lg);
 }
 .navtree-submenu.-left {
   left: auto;
@@ -2920,7 +2945,7 @@
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  box-shadow: var(--shadow-lg);
   color: var(--fg-dim);
   font-family: var(--ui-font);
   font-size: 0.8125rem;
@@ -3210,24 +3235,6 @@ body.sidenav-resizing iframe {
   pointer-events: none;
 }
 
-.sidenav-brand {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: stretch;
-  /* Match the pane tab-strip height (--chrome-h) so the brand's bottom
-     hairline lines up exactly with the tab strip's bottom line at the top
-     of the workspace, in both split and tabbed views. */
-  height: var(--chrome-h);
-  border-bottom: 1px solid var(--border);
-}
-.sidenav-brand .brand {
-  flex: 1;
-  height: var(--chrome-h);
-  border-right: none;
-  /* Center the wordmark+mark so the brand reads as a title plate, set apart
-     from the left-aligned workspace/tab rows below it. */
-  justify-content: center;
-}
 
 .sidenav-footer {
   position: relative;
@@ -3235,27 +3242,7 @@ body.sidenav-resizing iframe {
   display: flex;
   align-items: stretch;
   height: var(--chrome-h);
-  border-top: 1px solid var(--border);
-}
-.sidenav-build {
-  flex: 1;
-  /* Gives way first in a narrow rail, so the controls beside it never wrap. */
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  display: inline-flex;
-  align-items: center;
-  padding: 0 12px;
-  color: var(--fg-dim);
-  font-family: var(--chrome-font);
-  font-size: 0.6875rem;
-  text-decoration: none;
-  transition: background 80ms ease, color 80ms ease;
-}
-.sidenav-build:hover {
-  background: var(--bg-hover);
-  color: var(--fg);
-  text-decoration: none;
+  border-top: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
 }
 /* Settings popover normally drops DOWN from the top bar; anchored to
    the sidebar's foot it must open UP, with the sharp corner meeting
@@ -3270,8 +3257,8 @@ body.sidenav-resizing iframe {
   left: 0;
   border: 1px solid var(--border);
   border-bottom: none;
-  border-radius: 6px 6px 6px 0;
-  box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.22);
+  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) 0;
+  box-shadow: var(--shadow-lg);
 }
 
 /* ─── Foot: Hosted ───────────────────────────────────────────────────── */
@@ -3284,7 +3271,9 @@ body.sidenav-resizing iframe {
 .navtree-foot {
   margin: 14px 8px 0 4px;
   padding-top: 10px;
-  border-top: 1px solid var(--border);
+  /* A whisper, not a rule: derived from the ink so it shows on every rail,
+     at a strength that separates without drawing a wall across the list. */
+  border-top: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
 }
 .navtree-foot-link {
   display: flex;
@@ -4031,10 +4020,11 @@ body.sidenav-resizing iframe {
      gap that separates it from its own first row is the one that must not be
      the tighter of the two. */
   padding: 8px calc(var(--nt-pad) + var(--nt-indent)) 10px;
-  font-size: 0.625rem;
+  /* Sentence case, like the workspace headers — see .navtree-ws-row
+     .navtree-name-text for why the caps went. */
+  font-size: 0.71875rem;
   font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  letter-spacing: 0.005em;
   /* ── THE DOT IS GONE ──────────────────────────────────────────────────
      There was a 5px accent square in front of this label. In a rail whose
      ONLY other coloured marks are status — a dot for wants-you, a tick for
@@ -4287,4 +4277,134 @@ body.sidenav-resizing iframe {
    them through. */
 .navtree .navtree-tab-row[data-worker="true"] .navtree-name-text {
   color: var(--nt-ink-read);
+}
+
+/* ═══ MINIMAL STYLE (and the combo) ═══════════════════════════════════════════════
+   The rail is the page (see the theme blocks in styles.css): same surface,
+   a hairline seam, and every state drawn as a wash of the row's own ink —
+   no rings, no shadows, no accent bars. Rows are tighter and the leading
+   icon loses its tile, so the eye runs down names, not a column of boxes.
+   Declared last so it reads as one layer over the rules above. */
+:where([data-style="minimal"]) .navtree:not([data-variant="sheet"]),
+:where([data-style="combo"]) .navtree:not([data-variant="sheet"]) {
+  --nt-chip: 18px;
+  --nt-air: 10px;
+  --nt-row-tab: 30px;
+  --nt-row-ws: 28px;
+  --nt-pill: 6px;
+}
+:where([data-style="minimal"]) .navtree:not([data-variant="sheet"]) .navtree-tab-row,
+:where([data-style="combo"]) .navtree:not([data-variant="sheet"]) .navtree-tab-row {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+:where([data-style="minimal"]) .navtree-tab-icon::before,
+:where([data-style="combo"]) .navtree-tab-icon::before {
+  background: transparent;
+}
+/* The ring stays — it is what tells the selected row from a hovered one —
+   but the drop shadow under it goes: nothing in the rail floats. */
+:where([data-style="minimal"]) .navtree-tab-row[data-active="true"],
+:where([data-style="combo"]) .navtree-tab-row[data-active="true"] {
+  box-shadow: inset 0 0 0 1px var(--nt-carve-edge);
+}
+:where([data-style="minimal"]) .navtree-workingset,
+:where([data-style="combo"]) .navtree-workingset {
+  background: transparent;
+  border: 0;
+  padding-inline-start: var(--nt-pad);
+  padding-bottom: 4px;
+}
+:where([data-style="minimal"]) .navtree-workingset-head,
+:where([data-style="combo"]) .navtree-workingset-head {
+  padding-top: 10px;
+  padding-bottom: 4px;
+  font-weight: 500;
+  color: var(--fg-faint);
+}
+:where([data-style="minimal"]) .navtree-workingset .navtree-tab-row[data-active="true"],
+:where([data-style="combo"]) .navtree-workingset .navtree-tab-row[data-active="true"] {
+  background-color: color-mix(in srgb, var(--band-ink) 5%, transparent);
+}
+:where([data-style="minimal"]) .sidenav,
+:where([data-style="combo"]) .sidenav {
+  box-shadow: inset -1px 0 0 0 var(--rail-seam);
+}
+:where([data-style="minimal"]) .sidenav-footer,
+:where([data-style="combo"]) .sidenav-footer {
+  border-color: var(--rail-border);
+}
+:where([data-style="minimal"]) .navtree:not([data-variant="sheet"]) .navtree-tab-row .chatchip,
+:where([data-style="combo"]) .navtree:not([data-variant="sheet"]) .navtree-tab-row .chatchip {
+  --chatchip-size: 18px;
+  --chatchip-glyph: 15px;
+  --chatchip-glyph-last: 14px;
+}
+
+/* ═══ FLOATING STYLE (the frame is shared with the combo) ═════════════════
+   The rail is a CARD ON THE CANVAS, like the content beside it (see the
+   STYLES note at the foot of styles.css). Not clipped: the theme popover
+   opens upward out of the footer and must not be cut by the card. Its edge is
+   the card's own (--shadow-float), so the seam goes. Declared after the
+   minimal layer, so the combo's rail is a card too. */
+:where([data-style="floating"]) .sidenav,
+:where([data-style="combo"]) .sidenav {
+  border-radius: var(--float-radius);
+  box-shadow: var(--shadow-float);
+}
+/* The handle sits in the canvas gap between the two cards. */
+:where([data-style="floating"]) .sidenav-resize-handle,
+:where([data-style="combo"]) .sidenav-resize-handle {
+  right: calc(-1 * var(--float-gap));
+  width: var(--float-gap);
+}
+:where([data-style="floating"]) .sidenav-resize-handle::after,
+:where([data-style="combo"]) .sidenav-resize-handle::after {
+  top: 18px;
+  bottom: 18px;
+  right: calc(50% - 1px);
+  border-radius: 1px;
+}
+/* No rules across the card: on a card the brand is a title and the footer a
+   foot, not plates. */
+:where([data-style="floating"]) .sidenav-footer,
+:where([data-style="combo"]) .sidenav-footer {
+  border-top: 0;
+}
+/* Floating gives the brand a little air so it clears the card's rounded top,
+   and insets the footer from the rounded foot. */
+:where([data-style="floating"]) .sidenav-footer {
+  margin: 0 6px 6px;
+}
+:where([data-style="floating"]) .sidenav-footer .icon-btn {
+  align-self: center;
+  width: 32px;
+  height: 32px;
+}
+/* FLOATING: the recently-active band is a rounded tile inside the rail card,
+   not an edge-to-edge shelf. On a rounded tile a 3px leading border draws a
+   crescent, so the bracket becomes a hairline ring in SOLID accent — still an
+   edge (which is what survives riso and demoscene, where a wash cannot), now
+   one that follows the tile, and drawn as a shadow so it costs the rows no
+   width. With no 3px to pay back, the leading padding is the plain inset
+   again. No seam below it: the floating rail draws no rules. */
+:where([data-style="floating"]) .navtree-workingset {
+  padding-inline-start: var(--nt-pad);
+  margin: 2px 0 10px;
+  border-radius: 12px;
+  border-inline-start: 0;
+  border-bottom: 0;
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* ═══ COMBO STYLE ═════════════════════════════════════════════════════════
+   The frame above, a little tighter; the rail's insides stay minimal. */
+:where([data-style="combo"]) .sidenav-resize-handle::after {
+  top: 14px;
+  bottom: 14px;
+}
+/* The footer's icon buttons lose their plate dividers: quiet hit areas. */
+:where([data-style="combo"]) .sidenav-footer .icon-btn {
+  border-left: 0;
+  border-radius: 6px;
 }

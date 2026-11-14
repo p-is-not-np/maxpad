@@ -177,7 +177,7 @@
 /* URLs are read character-by-character (is that 4322 or 4323?), so they get
    the mono face and tabular figures the rest of the chrome uses. */
 .hosted-row-mono {
-  font-family: var(--chrome-font);
+  font-family: var(--term-font);
   font-size: 0.71875rem;
   color: var(--fg-faint);
   overflow-wrap: anywhere;
@@ -242,7 +242,9 @@
   white-space: nowrap;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  transition: background 0.12s ease, border-color 0.12s ease;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease;
 }
 .hosted-btn:hover {
   background: var(--bg-hover);
@@ -338,7 +340,7 @@
   flex-wrap: wrap;
 }
 .hosted-version-n {
-  font-family: var(--chrome-font);
+  font-family: var(--term-font);
   font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
   color: var(--fg);
@@ -489,7 +491,7 @@
    stopped answering. */
 .hosted-base {
   margin-left: auto;
-  font-family: var(--chrome-font);
+  font-family: var(--term-font);
   font-size: 0.65625rem;
   color: var(--fg-faint);
   overflow: hidden;

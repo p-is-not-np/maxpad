@@ -1,5 +1,6 @@
 import { Outlet, useRouterState } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
+import { useAppToggle } from '../lib/app-prefs';
 import { useAppTheme } from '../lib/app-theme';
 import { MOBILE_BREAKPOINT } from '../lib/mobile-layout';
 import { trackStatusBarCap } from '../lib/status-bar-cap';
@@ -13,23 +14,21 @@ import { CommandPalette } from './CommandPalette';
 import { MemoryGauge } from './MemoryGauge';
 import { MobileNavSwitcher } from './MobileNavSwitcher';
 import { MoveUndoToast } from './MoveUndoToast';
-import { NavTree, RailSearchButton } from './NavTree';
+import { NavTree } from './NavTree';
 import { NoticeToast } from './NoticeToast';
 import { SettingsMenu } from './SettingsMenu';
 import { ThemeSwitch } from './ThemeSwitch';
 import { UpdateBanner } from './UpdateBanner';
 import { WorkspaceShell } from './WorkspaceLayout';
 
-const REPO_URL = 'https://github.com/ohadpr/muxpad';
-
 /**
  * Persistent application chrome. Popout routes are mounted outside this layout.
  *
  * Desktop, inside a workspace: a persistent left NavTree sidebar is the only
- * navigator; it absorbs the top bar entirely (brand at its head, build +
- * settings at its foot). Mobile gets the MobileNavSwitcher breadcrumb +
+ * navigator; it absorbs the top bar entirely (memory, theme and settings at
+ * its foot). Mobile gets the MobileNavSwitcher breadcrumb +
  * drop-down panel in a top bar. The workspace picker ('/') has no workspace to
- * host a sidebar, so it keeps a slim brand + build + settings top bar.
+ * host a sidebar, so it keeps a slim brand + settings top bar.
  */
 export function AppLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -64,6 +63,8 @@ export function AppLayout() {
   const activeTabId = activeTabs.find((t) => t.slug === activeTabSlug)?.id ?? null;
   const isMobile = useMediaQuery(MOBILE_BREAKPOINT);
   const settings = useSettings();
+  // Settings → Chats can hide the memory gauge; absent means shown.
+  const showGauge = useAppToggle('memory_gauge', true);
   // Desktop always uses the persistent left sidebar; mobile never can.
   const sidebarMode = !isMobile;
   const sidenavRef = useRef<HTMLElement>(null);
@@ -79,7 +80,7 @@ export function AppLayout() {
   }, [wsSlug]);
 
   // Sidebar mode absorbs the whole top bar while inside a workspace:
-  // brand moves to the sidebar's head, build + settings to its foot.
+  // settings move to the sidebar's foot.
   // The bar still renders on the workspace picker ('/'), where there is
   // no sidebar to host them.
   const showTopBar = !(sidebarMode && wsSlug);
@@ -94,7 +95,14 @@ export function AppLayout() {
       <CommandPalette />
       {showTopBar && (
         <header className="ws-tabbar">
-          <Brand asLink={true} responsive={true} markOnly={!!activeWorkspace} />
+          <Brand
+            asLink={true}
+            responsive={true}
+            markOnly={!!activeWorkspace}
+            // On a phone the mark is the Home button: the way back from a
+            // chat to the list of what needs you.
+            home={isMobile}
+          />
           {activeWorkspace && isMobile && (
             // Single merged trigger on mobile: workspace + tab breadcrumb
             // opening the drop-down NavTree panel. The top bar only ever hosts
@@ -109,16 +117,7 @@ export function AppLayout() {
             <div className="mobile-pane-chrome" id="mobile-pane-chrome" />
           )}
           {!activeWorkspace && <span className="ws-tabbar-spacer" />}
-          <a
-            className="brand-text-side"
-            href={REPO_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            title={`muxpad — build ${__MUXPAD_VERSION__}`}
-          >
-            muxpad <span className="brand-text-side-version">{__MUXPAD_VERSION__}</span>
-          </a>
-          <MemoryGauge placement="down" tabId={activeTabId} />
+          {showGauge && <MemoryGauge placement="down" tabId={activeTabId} />}
           <SettingsMenu />
         </header>
       )}
@@ -130,14 +129,6 @@ export function AppLayout() {
               ref={sidenavRef}
               style={{ flexBasis: `${settings.sidebarWidth}px` }}
             >
-              <div className="sidenav-brand">
-                {/* Search rides the brand row rather than owning one of its
-                    own — see RailSearchButton. The spacer on the other side
-                    keeps the wordmark optically centred. */}
-                <RailSearchButton />
-                <Brand asLink={true} responsive={false} />
-                <span className="sidenav-brand-spacer" aria-hidden="true" />
-              </div>
               <NavTree
                 variant="sidebar"
                 activeWorkspaceSlug={wsSlug}
@@ -145,16 +136,7 @@ export function AppLayout() {
               />
               <SidenavResizeHandle asideRef={sidenavRef} />
               <div className="sidenav-footer">
-                <a
-                  className="sidenav-build"
-                  href={REPO_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={`muxpad — build ${__MUXPAD_VERSION__}`}
-                >
-                  {__MUXPAD_VERSION__}
-                </a>
-                <MemoryGauge tabId={activeTabId} />
+                {showGauge && <MemoryGauge tabId={activeTabId} />}
                 <ThemeSwitch />
                 <SettingsMenu />
               </div>
@@ -215,7 +197,7 @@ export function AppLayout() {
  * status/close icon. Dragging left narrows down to SIDENAV_MIN_WIDTH. The
  * final width persists via settings.
  */
-function SidenavResizeHandle({ asideRef }: { asideRef: React.RefObject<HTMLElement> }) {
+function SidenavResizeHandle({ asideRef }: { asideRef: React.RefObject<HTMLElement | null> }) {
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     // Only a primary-button drag; let other buttons through.
     if (e.button !== 0) return;
@@ -283,6 +265,7 @@ function SidenavResizeHandle({ asideRef }: { asideRef: React.RefObject<HTMLEleme
       onPointerDown={onPointerDown}
       onDoubleClick={snapToFit}
       onKeyDown={onKeyDown}
+      // biome-ignore lint/a11y/useAriaPropsForRole: the handle has no meaningful value to report; arrow keys resize relative to the current width.
       role="separator"
       aria-orientation="vertical"
       aria-label="Resize sidebar"

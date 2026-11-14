@@ -230,7 +230,7 @@ describe('a send follows the reader to the end', () => {
     const sends = code.match(/ws\.send\(JSON\.stringify\(\{ t: 'send'/g) ?? [];
     const followed =
       code.match(
-        /ws\.send\(JSON\.stringify\(\{ t: 'send', text: outgoing \}\)\);\s*scroll\.current\?\.dispatch\(\{ t: 'sent' \}\);/g,
+        /ws\.send\(JSON\.stringify\(\{ t: 'send', text: outgoing[^;]*\}\)\);\s*scroll\.current\?\.dispatch\(\{ t: 'sent' \}\);/g,
       ) ?? [];
     expect(sends.length).toBe(2);
     expect(followed.length).toBe(sends.length);

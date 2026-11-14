@@ -6,7 +6,7 @@ import './CopyablePre.css';
  * outside the pre so they neither scroll with the code nor enter the copy. */
 export function CopyablePre({ children, ...props }: ComponentPropsWithoutRef<'pre'>) {
   const content = useRef<HTMLPreElement>(null);
-  const reset = useRef<ReturnType<typeof setTimeout>>();
+  const reset = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [status, setStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
   /**
    * ── WRAPPED BY DEFAULT. THE TEXT IS THE POINT ──────────────────────────

@@ -99,10 +99,7 @@ export interface SessionMcpPlan {
 }
 
 /** What to run, given a resolved browser (or none). */
-export function sessionMcpPlan(opts: {
-  cdpUrl: string | null;
-  jarPath: string;
-}): SessionMcpPlan {
+export function sessionMcpPlan(opts: { cdpUrl: string | null; jarPath: string }): SessionMcpPlan {
   if (opts.cdpUrl) {
     return {
       args: [`--cdp-endpoint=${opts.cdpUrl}`],

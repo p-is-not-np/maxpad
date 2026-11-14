@@ -115,7 +115,7 @@ export function appsRoutes(deps: {
       })
       .safeParse(await c.req.json().catch(() => ({})));
     if (!parsed.success)
-      return c.json(bad(parsed.error.errors[0]?.message ?? 'invalid request'), 400);
+      return c.json(bad(parsed.error.issues[0]?.message ?? 'invalid request'), 400);
     const body = parsed.data;
 
     const urlErr = badUrl(body.url);
@@ -170,7 +170,7 @@ export function appsRoutes(deps: {
       })
       .safeParse(await c.req.json().catch(() => ({})));
     if (!parsed.success)
-      return c.json(bad(parsed.error.errors[0]?.message ?? 'invalid request'), 400);
+      return c.json(bad(parsed.error.issues[0]?.message ?? 'invalid request'), 400);
     const patch = parsed.data;
     if (patch.url !== undefined) {
       const err = badUrl(patch.url);

@@ -17,7 +17,9 @@
   font-family: var(--chrome-font);
   font-size: var(--chrome-size-sm);
   cursor: pointer;
-  transition: color 80ms ease, background 80ms ease;
+  transition:
+    color 80ms ease,
+    background 80ms ease;
 }
 .pane-web-switch-main:hover {
   color: var(--fg);
@@ -87,8 +89,8 @@
   padding: 4px;
   background: var(--bg-elev);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
 }
 /* Measured-from-trigger placement (viewport coords set inline) — overflow
    hosts (tab strip, mobile bar, mosaic chrome) can't clip it. */

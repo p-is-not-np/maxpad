@@ -195,10 +195,13 @@
   margin: 0;
 }
 .chat-empty-title {
-  color: var(--chat-dim);
-  font-size: 1.0625rem;
-  font-weight: 550;
-  letter-spacing: -0.01em;
+  /* The one headline on an empty screen: full ink, display size, tight
+     tracking. At 17px dim it read as a caption under an icon. */
+  color: var(--chat-fg, var(--fg));
+  font-size: 1.5rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 .chat-empty-hint {
   font-size: 0.84375rem;
@@ -213,11 +216,11 @@
   color: var(--chat-dim);
 }
 .chat-empty-mark {
-  width: 46px;
-  height: 46px;
+  width: 60px;
+  height: 60px;
   display: grid;
   place-items: center;
-  border-radius: 13px;
+  border-radius: 18px;
   font-size: 1.375rem;
   color: var(--chat-accent-fg);
   background: linear-gradient(
@@ -226,7 +229,7 @@
     color-mix(in srgb, var(--chat-accent) 60%, #000)
   );
   box-shadow: 0 6px 20px -8px color-mix(in srgb, var(--chat-accent) 70%, transparent);
-  margin-bottom: 4px;
+  margin-bottom: 8px;
 }
 .chat-empty-spinner {
   width: 22px;
@@ -780,12 +783,14 @@
   border: 0;
   background: transparent;
   color: var(--chat-faint);
-  font-family: var(--chrome-font, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-family: var(--chrome-font);
   font-size: 0.78125rem;
   text-align: left;
   cursor: pointer;
-  border-radius: 7px;
-  transition: color 120ms ease, background 120ms ease;
+  border-radius: var(--radius);
+  transition:
+    color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease);
 }
 .chat-toolrow:hover {
   color: var(--chat-dim);
@@ -802,6 +807,10 @@
 .chat-toolrow-arg {
   flex: 1 1 auto;
   min-width: 0;
+  /* The verb is a label ("Ran"); the argument is a command or a path, which
+     is the part that wants columns. */
+  font-family: var(--term-font);
+  font-size: 0.75rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -843,7 +852,7 @@
   font-size: 1.125rem;
   line-height: 1;
   cursor: pointer;
-  box-shadow: 0 6px 20px -6px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--shadow-md);
   animation: chat-fade 160ms ease both;
 }
 .chat-scroll-down:hover {
@@ -914,7 +923,7 @@
     max-height: 80%;
     border-bottom: 1px solid var(--chat-border);
     border-radius: 16px;
-    box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.6);
+    box-shadow: var(--shadow-xl);
   }
 }
 .chat-modal-head {
@@ -1354,7 +1363,10 @@
      one of two vertical lines. */
   padding: 8px 12px;
   background: color-mix(in srgb, var(--chat-elev) 92%, var(--chat-fg));
-  border: 1px solid color-mix(in srgb, var(--chat-fg) 12%, var(--chat-border));
+  /* A hairline drawn from the ink alone, so it is the same weight on every
+     theme instead of inheriting each palette's --border (invisible on some
+     light rails, heavy on some dark ones). */
+  border: 1px solid color-mix(in srgb, var(--chat-fg) 11%, transparent);
   /* 26px was the radius of a ONE-ROW pill, where a deep curve is the shape of
      the object. With a tool row under the input the pill is twice as tall and
      a near-capsule corner starts eating the ends of that row — the first icon
@@ -1363,8 +1375,10 @@
   border-radius: 20px;
   /* Floats over the conversation (the wrap behind it is transparent) — a real
      drop shadow so the pill reads as lifted above the content directly behind it. */
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.45), 0 2px 8px -4px rgba(0, 0, 0, 0.35);
-  transition: border-color 140ms ease, box-shadow 140ms ease;
+  box-shadow: var(--shadow-lg);
+  transition:
+    border-color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease);
 }
 /* The input line (attach · textarea · send). The composer itself is a column
    so the attachment row can sit beneath it inside the pill. */
@@ -1374,10 +1388,13 @@
   gap: 8px;
 }
 .chat-composer:focus-within {
-  border-color: color-mix(in srgb, var(--chat-accent) 65%, var(--chat-border));
+  border-color: color-mix(in srgb, var(--chat-accent) 55%, transparent);
   /* Keep the float shadow AND add the accent focus ring (don't replace it). */
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--chat-accent) 22%, transparent), 0 10px 30px -10px
-    rgba(0, 0, 0, 0.45), 0 2px 8px -4px rgba(0, 0, 0, 0.35);
+  /* A wide, faint halo rather than a tight bright ring: 4px at 12% reads as
+     a glow around the pill, not as a second border drawn outside it. */
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--chat-accent) 12%, transparent),
+    var(--shadow-lg);
 }
 
 /* A file is being dragged over the composer: say it will be taken. */
@@ -1400,7 +1417,7 @@
 .chat-composer-tools {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 6px;
   min-height: 26px;
   padding: 0;
   /* A QUERY CONTAINER, because the thing that runs out of room is this ROW and
@@ -1447,9 +1464,9 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 8px;
+  padding: 4px 8px;
   border: 0;
-  border-radius: 7px;
+  border-radius: 999px;
   background: transparent;
   /* --chat-dim, NOT --chat-faint. Measured across the ten themes that ship,
      the faint token sits at 2.1–3.3:1 on the composer's own surface — under
@@ -1463,11 +1480,13 @@
   letter-spacing: 0;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 120ms ease, color 120ms ease;
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
 }
 .chat-tool-btn:hover:not(:disabled),
 .chat-tool-btn:focus-visible {
-  background: color-mix(in srgb, var(--chat-fg) 9%, transparent);
+  background: color-mix(in srgb, var(--chat-fg) 8%, transparent);
   color: var(--chat-fg);
 }
 .chat-tool-btn svg {
@@ -1504,7 +1523,7 @@
   border: 1px solid var(--chat-border-strong);
   border-radius: 14px;
   background: var(--chat-elev);
-  box-shadow: 0 18px 44px -12px rgb(0 0 0 / 55%);
+  box-shadow: var(--shadow-xl);
 }
 /* THE SESSION CHIP, AS THE SHEET'S LAST ROW. A phone gets no tool row — see
    ChatPane.tsx — so the chip rides the sheet the `+` already opens. A seam
@@ -1577,7 +1596,10 @@
   background: transparent;
   color: var(--chat-dim);
   cursor: pointer;
-  transition: background 120ms ease, color 120ms ease, transform 120ms ease;
+  transition:
+    background 120ms ease,
+    color 120ms ease,
+    transform 120ms ease;
 }
 .chat-attach:focus:not(:focus-visible),
 .chat-send:focus:not(:focus-visible) {
@@ -1658,7 +1680,11 @@
   color: var(--chat-accent-fg);
   cursor: pointer;
   box-shadow: 0 2px 10px -4px color-mix(in srgb, var(--chat-accent) 70%, transparent);
-  transition: transform 120ms ease, background 120ms ease, box-shadow 120ms ease, color 120ms ease;
+  transition:
+    transform 120ms ease,
+    background 120ms ease,
+    box-shadow 120ms ease,
+    color 120ms ease;
 }
 .chat-send:hover:not(:disabled) {
   transform: scale(1.06);
@@ -1766,7 +1792,9 @@
   background: transparent;
   color: var(--chat-dim);
   cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
 }
 .chat-mic:hover,
 .chat-mic:focus-visible {
@@ -1849,6 +1877,7 @@
      line, not enough to be a separate thought. */
   gap: 6px;
 }
+.chat-queued-now,
 .chat-queued-edit,
 .chat-queued-cancel {
   flex: 0 0 auto;
@@ -1865,15 +1894,54 @@
   cursor: pointer;
   font-size: 0.8125rem;
   line-height: 1;
-  transition: background 100ms ease, color 100ms ease;
+  transition:
+    background 100ms ease,
+    color 100ms ease;
 }
 .chat-queued-edit:hover {
   background: color-mix(in srgb, var(--chat-fg) 8%, transparent);
   color: var(--chat-fg);
 }
+.chat-queued-now:hover {
+  background: color-mix(in srgb, var(--chat-accent) 14%, transparent);
+  color: var(--chat-accent);
+}
 .chat-queued-cancel:hover {
   background: color-mix(in srgb, var(--chat-danger) 14%, transparent);
   color: var(--chat-danger);
+}
+
+/* ── INTERRUPT & SEND NOW, BESIDE QUEUE ─────────────────────────────────────
+   A bare glyph, NOT a second `.chat-send` circle — two filled circles on the
+   composer's edge is the defect `.chat-send.is-stop` records. Faint until
+   hovered, so Queue stays the obvious default and this the deliberate one. */
+.chat-send-now {
+  flex: 0 0 auto;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  margin-right: 2px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--chat-faint);
+  cursor: pointer;
+  transition:
+    background 100ms ease,
+    color 100ms ease;
+}
+.chat-send-now:hover:not(:disabled),
+.chat-send-now:focus-visible {
+  background: color-mix(in srgb, var(--chat-accent) 14%, transparent);
+  color: var(--chat-accent);
+}
+.chat-send-now:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2016,7 +2084,9 @@
   color: var(--chat-fg);
   text-align: left;
   cursor: pointer;
-  transition: border-color 120ms ease, background 120ms ease;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease;
 }
 .chat-question-option:hover {
   border-color: var(--chat-border-strong);
@@ -2429,6 +2499,12 @@ button.chat-filechip {
 /* Lightbox: reuse the modal backdrop/scrim but center a bare full-size image. */
 .chat-img-backdrop {
   align-items: center;
+  /* Thins as a picture is pulled down to close (set per frame by the zoom
+     surface); the controls fade with it. */
+  background: rgba(0, 0, 0, calc(0.45 * var(--chat-img-fade, 1)));
+  /* Every touch in the lightbox is the lightbox's. Without this a pinch with
+     a finger on the backdrop zoomed the PAGE — iOS ignores user-scalable=no. */
+  touch-action: none;
   /* The padding moved to `.chat-img-stage`, which is what gets measured — with
      it here too the image would be fitted to a box 48px wider than its own. */
   /* A zoomed image is bigger than the viewport — clip the overflow instead of
@@ -2505,10 +2581,16 @@ button.chat-filechip {
   place-content: center;
   min-width: 0;
   min-height: 0;
+  /* The zoom surface is pinned inside it. */
+  position: relative;
 }
 /* Nav under the picture: tappable, out of the image's way, and never over it —
    an arrow floating on top of a photo covers the part you opened it to see. */
 .chat-img-nav {
+  position: relative;
+  /* Above a zoomed picture, which is allowed to overflow its frame. */
+  z-index: 2;
+  opacity: var(--chat-img-fade, 1);
   display: flex;
   flex: 0 0 auto;
   align-items: center;
@@ -2552,25 +2634,76 @@ button.chat-filechip {
   box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.7);
   animation: chat-fade 140ms ease both;
 }
-/* Zoomable image: `touch-action: none` hands every touch gesture to the JS
-   zoom handler (native page zoom is disabled app-wide via the viewport meta,
-   so pinch would otherwise do nothing). */
-.chat-img-zoom {
+/* The zoom surface: fills the frame, so a pinch or a tap anywhere around the
+   picture belongs to it. The picture inside is laid out at the size it is
+   shown (re-laid out each time it comes to rest) from the top-left corner,
+   and placed by one transform (origin 0 0) that also carries the zoom while a
+   gesture is moving. The browser draws it from the full-resolution file at
+   whatever size it is laid out, so zooming in stays sharp. It overflows the frame when zoomed, on purpose:
+   a zoomed photo fills the screen, as in Photos; the backdrop clips it. */
+.chat-img-zoomer {
+  position: absolute;
+  inset: 0;
   touch-action: none;
-  transform-origin: center center;
-  will-change: transform;
+  cursor: default;
+}
+.chat-img-zoom {
+  position: absolute;
+  /* NOT the shared fade-in. Its fill mode is `both`, which keeps a finished
+     opacity animation in effect for good — and Chrome (measured) composites
+     the picture as an "active opacity animation" layer for as long as the
+     lightbox stays open. The backdrop already fades in around it. */
+  animation: none;
+  top: 0;
+  left: 0;
+  max-width: none;
+  max-height: none;
+  transform-origin: 0 0;
+  /* No shadow: a 60px blur repainted around a picture that moves every frame
+     is a lot of work for nothing. */
+  box-shadow: none;
   cursor: zoom-in;
   user-select: none;
   -webkit-user-select: none;
   -webkit-user-drag: none;
 }
+/* Before the natural size is known there is no transform to fit it with. */
+.chat-img-zoom.-pending {
+  visibility: hidden;
+}
+/* Only WHILE it moves: a permanent layer is rasterized once and then scaled,
+   which is the blur this is avoiding. Dropped at rest so the browser redraws
+   the picture sharp at its final scale. */
+.chat-img-zoom.-moving {
+  will-change: transform;
+}
 .chat-img-zoom.-zoomed {
   cursor: grab;
+}
+.chat-img-zoom.-zoomed.-moving {
+  cursor: grabbing;
+}
+/* ON A PHONE THE LIGHTBOX IS THE SCREEN. Scoped to the chat pane (as on a
+   desktop, where the sidebar stays visible) it started BELOW the app's top
+   bar — which already clears the notch — and the stage then cleared the notch
+   a second time. Measured at 390×844 with iPhone insets (62 top, 34 bottom):
+   the frame began at y=182, and a 1179×2556 screenshot fitted to 284×616, 73%
+   of the screen's width, under a 45% scrim with the chat showing through.
+   Fixed to the viewport, the stage's safe-area padding is counted once, and
+   the same screenshot fits to 342×741 on black, as in Photos. The pull-down
+   fade still reveals the chat behind it. */
+@media (max-width: 720px) {
+  .chat-img-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, var(--chat-img-fade, 1));
+  }
 }
 /* Explicit close — the scrim gets thin behind a large/zoomed image, so give a
    reliable tap target (also nicer on touch than hunting for the backdrop). */
 .chat-img-close {
   position: absolute;
+  opacity: var(--chat-img-fade, 1);
   top: calc(env(safe-area-inset-top, 0px) + 10px);
   right: calc(env(safe-area-inset-right, 0px) + 14px);
   z-index: 2;
@@ -2607,18 +2740,17 @@ button.chat-filechip {
 }
 .chat-open-instead-lbl {
   color: var(--fg-faint, #6f7488);
-  font-family: var(--chrome-font, inherit);
-  font-size: 0.6875rem;
-  letter-spacing: 0.04em;
-  text-transform: lowercase;
+  font-family: var(--ui-font, inherit);
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 .chat-open-instead-row {
   display: flex;
   align-items: center;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 8px;
-  max-width: 420px;
+  gap: 10px;
+  max-width: 460px;
 }
 .chat-open-instead-btn {
   display: inline-flex;
@@ -2627,18 +2759,27 @@ button.chat-filechip {
   /* ≥44px tall including the border — Apple's minimum comfortable touch
      target, which the old 20px text links were less than half of. */
   min-height: 44px;
-  padding: 10px 14px;
-  border: 1px solid color-mix(in srgb, var(--border-strong, #3b4261) 65%, transparent);
-  border-radius: 10px;
-  background: transparent;
+  padding: 10px 16px;
+  /* A raised card: the elevated surface, a hairline drawn from the ink so it
+     holds on every theme, and the small shadow. Hover lifts it a step. */
+  border: 1px solid color-mix(in srgb, var(--fg, #d7dae0) 10%, transparent);
+  border-radius: var(--radius-lg);
+  background: var(--chat-elev, var(--bg-elev));
+  box-shadow: var(--shadow-sm);
   color: var(--fg-dim, #a9b1d6);
   font-family: var(--chrome-font, inherit);
   font-size: 0.8125rem;
+  font-weight: 500;
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
+  transition:
+    color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
 }
 .chat-open-instead-btn svg {
   flex: 0 0 auto;
@@ -2649,15 +2790,23 @@ button.chat-filechip {
 .chat-open-instead-btn:hover:not(:disabled),
 .chat-open-instead-btn:active:not(:disabled) {
   color: var(--fg, #d7dae0);
-  background: color-mix(in srgb, var(--fg, #d7dae0) 6%, transparent);
-  border-color: color-mix(in srgb, var(--border-strong, #3b4261) 100%, transparent);
+  background: color-mix(in srgb, var(--fg, #d7dae0) 4%, var(--chat-elev, var(--bg-elev)));
+  border-color: color-mix(in srgb, var(--accent, #7aa2f7) 45%, transparent);
+  box-shadow: var(--shadow-md);
+}
+.chat-open-instead-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+.chat-open-instead-btn:active:not(:disabled) {
+  transform: translateY(0.5px);
+  box-shadow: none;
 }
 .chat-open-instead-btn:hover:not(:disabled) svg {
   opacity: 1;
 }
 .chat-open-instead-btn:focus-visible {
-  outline: 1px solid var(--accent, #7aa2f7);
-  outline-offset: 1px;
+  outline: 2px solid color-mix(in srgb, var(--accent, #7aa2f7) 75%, transparent);
+  outline-offset: 2px;
 }
 /* One conversion at a time — the rest dim while a respawn is in flight. */
 .chat-open-instead-btn:disabled {
@@ -2828,7 +2977,9 @@ button.chat-filechip {
   white-space: nowrap;
   overflow: hidden;
   -webkit-tap-highlight-color: transparent;
-  transition: color 120ms ease, background 120ms ease;
+  transition:
+    color 120ms ease,
+    background 120ms ease;
 }
 .chat-status-seg:hover,
 .chat-status-seg.is-open {
@@ -3063,7 +3214,7 @@ button.chat-filechip {
   border: 1px solid var(--border-strong, #3b4261);
   border-radius: 8px;
   background: var(--bg-elev, #1a1b26);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow-lg);
 }
 .chat-roster-list {
   display: flex;
@@ -3155,7 +3306,7 @@ button.chat-filechip {
   border: 1px solid var(--border-strong, #3b4261);
   border-radius: 8px;
   background: var(--bg-elev, #1a1b26);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow-lg);
 }
 .chat-session-head {
   padding: 5px 10px 4px;
@@ -3220,7 +3371,7 @@ button.chat-filechip {
 /* The mode chip too: it is one short word, and half a clipped word beside an
    icon reads as a rendering fault rather than as a chip running out of room.
    With the count absorbing all the shrink there is room for both. */
-  .chat-status-seg-wrap:has(> .chat-status-seg.-mode) {
+.chat-status-seg-wrap:has(> .chat-status-seg.-mode) {
   flex: 0 0 auto;
 }
 .chat-status-seg.-bg svg {
@@ -3351,7 +3502,7 @@ button.chat-filechip {
 /* Concrete resolved model id under an alias (e.g. Opus → claude-opus-4-8):
    monospace so the exact version reads unambiguously. */
 .chat-model-id {
-  font-family: var(--chrome-font, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-family: var(--term-font);
   font-size: 0.625rem;
   letter-spacing: -0.01em;
 }
@@ -3381,7 +3532,9 @@ button.chat-filechip {
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
-  transition: border-color 120ms ease, background 120ms ease;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease;
 }
 .chat-harness-btn:hover:not(:disabled) {
   border-color: var(--accent);
@@ -3418,7 +3571,10 @@ button.chat-filechip {
   font-size: 0.8125rem;
   font-weight: 550;
   cursor: pointer;
-  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease,
+    color 120ms ease;
 }
 .chat-harness-quiet svg {
   flex: 0 0 auto;
@@ -3479,7 +3635,7 @@ button.chat-filechip {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--bg-elev);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+  box-shadow: var(--shadow-lg);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -3546,10 +3702,25 @@ button.chat-filechip {
 /* The mark carrying a brand logo drops the accent gradient: Claude's orange
    and Codex's green are the point, and they cannot be read on top of it. */
 .chat-empty-mark.-logo {
-  background: var(--chat-elev, var(--bg-elev));
-  border: 1px solid var(--chat-border, var(--border));
-  box-shadow: none;
-  color: var(--chat-dim, var(--fg-dim));
+  /* A soft raised tile: the elevated surface with a faint wash of the accent
+     from the top, a hairline and the small shadow — so the mark reads as an
+     object rather than as an outline drawn on the page. */
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--chat-accent, var(--accent)) 10%, transparent),
+      transparent 70%
+    ),
+    var(--chat-elev, var(--bg-elev));
+  border: 1px solid color-mix(in srgb, var(--chat-fg, var(--fg)) 10%, transparent);
+  box-shadow: var(--shadow-md);
+  color: var(--chat-accent, var(--accent));
+}
+/* The glyph is drawn at 12px for its inline uses; in the tile it wants to be
+   a real icon. Sized here so the component's API does not change. */
+.chat-empty-mark.-logo > svg {
+  width: 26px;
+  height: 26px;
 }
 
 .chat-empty-ident {
@@ -3558,13 +3729,18 @@ button.chat-filechip {
   justify-content: center;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: -4px;
+  margin-top: 0;
   font-family: var(--chrome-font, inherit);
-  font-size: 0.78125rem;
+  font-size: 0.75rem;
 }
 .chat-empty-ident-name {
+  /* A small chip rather than a bare word, so the mode reads as a label of
+     the screen and not as a stray line of text. */
   color: var(--fg-dim, #a9b1d6);
   font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--fg, #d7dae0) 7%, transparent);
 }
 .chat-empty-ident-cwd {
   font-family: var(--mono-font, monospace);
@@ -3725,7 +3901,10 @@ button.chat-filechip {
   white-space: nowrap;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
+  transition:
+    color 120ms ease,
+    background 120ms ease,
+    border-color 120ms ease;
 }
 .chat-launch-model:hover:not(:disabled) {
   color: var(--fg, #d7dae0);
@@ -3791,7 +3970,10 @@ button.chat-filechip {
   background: transparent;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
+  transition:
+    color 120ms ease,
+    background 120ms ease,
+    border-color 120ms ease;
 }
 .chat-folder-chip-name {
   font-family: var(--chrome-font, inherit);
@@ -3960,7 +4142,7 @@ button.chat-filechip {
   background: var(--chat-elev);
   color: var(--chat-fg);
   border: 1px solid var(--chat-border-strong);
-  box-shadow: 0 6px 20px rgb(0 0 0 / 28%);
+  box-shadow: var(--shadow-md);
   font-size: 0.8125rem;
   line-height: 1.4;
 }
@@ -4019,6 +4201,164 @@ button.chat-filechip {
   background: currentColor;
 }
 
+/* ═══ MINIMAL STYLE (and the combo) ═══════════════════════════════════════════════
+   One flat surface. Nothing in the conversation floats: the composer, the
+   user bubble and code blocks are marked by a hairline or a whisper of ink,
+   never by a shadow. Shadows are kept for things that genuinely sit ABOVE
+   the page — popovers, menus, sheets, the tool modal. Declared last so it
+   reads as one layer over the rules above rather than forty scattered edits. */
+:where([data-style="minimal"]) .chat-composer,
+:where([data-style="combo"]) .chat-composer {
+  padding: 6px 12px;
+  background: var(--chat-bg);
+  border: 1px solid color-mix(in srgb, var(--chat-fg) 12%, transparent);
+  border-radius: 12px;
+  box-shadow: none;
+  transition: border-color var(--dur) var(--ease);
+}
+:where([data-style="minimal"]) .chat-composer:focus-within,
+:where([data-style="combo"]) .chat-composer:focus-within {
+  border-color: color-mix(in srgb, var(--chat-fg) 28%, transparent);
+  box-shadow: none;
+}
+:where([data-style="minimal"]) .chat-tool-btn,
+:where([data-style="combo"]) .chat-tool-btn {
+  padding: 3px 7px;
+  border-radius: 6px;
+  color: var(--chat-dim);
+}
+:where([data-style="minimal"]) .chat-tool-btn svg,
+:where([data-style="combo"]) .chat-tool-btn svg {
+  opacity: 0.65;
+}
+:where([data-style="minimal"]) .chat-bubble,
+:where([data-style="combo"]) .chat-bubble {
+  background: color-mix(in srgb, var(--chat-fg) 6%, var(--chat-bg));
+  border: 0;
+  border-radius: 10px;
+  padding: 8px 14px;
+}
+:where([data-style="minimal"]) .chat-md pre,
+:where([data-style="combo"]) .chat-md pre {
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--chat-fg) 3%, var(--chat-bg));
+  border-color: color-mix(in srgb, var(--chat-fg) 9%, transparent);
+  border-radius: 8px;
+}
+:where([data-style="minimal"]) .chat-md :not(pre) > code,
+:where([data-style="combo"]) .chat-md :not(pre) > code {
+  border: 0;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--chat-fg) 7%, var(--chat-bg));
+}
+:where([data-style="minimal"]) .chat-toolrow,
+:where([data-style="combo"]) .chat-toolrow {
+  border-radius: 6px;
+}
+:where([data-style="minimal"]) .chat-scroll-down,
+:where([data-style="combo"]) .chat-scroll-down {
+  width: 32px;
+  height: 32px;
+  font-size: 0.9375rem;
+  background: var(--chat-bg);
+  border-color: color-mix(in srgb, var(--chat-fg) 14%, transparent);
+  box-shadow: none;
+}
+
+/* The empty state: a title, a line, a row of quiet text buttons. No tile,
+   no glow, no lift on hover. */
+:where([data-style="minimal"]) .chat-empty,
+:where([data-style="combo"]) .chat-empty {
+  gap: 8px;
+}
+:where([data-style="minimal"]) .chat-empty-title,
+:where([data-style="combo"]) .chat-empty-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.011em;
+}
+:where([data-style="minimal"]) .chat-empty-mark,
+:where([data-style="combo"]) .chat-empty-mark {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  font-size: 1rem;
+  box-shadow: none;
+  margin-bottom: 4px;
+}
+:where([data-style="minimal"]) .chat-open-instead,
+:where([data-style="combo"]) .chat-open-instead {
+  margin-top: 18px;
+  gap: 8px;
+}
+:where([data-style="minimal"]) .chat-open-instead-row,
+:where([data-style="combo"]) .chat-open-instead-row {
+  gap: 6px;
+}
+:where([data-style="minimal"]) .chat-open-instead-btn,
+:where([data-style="combo"]) .chat-open-instead-btn {
+  min-height: 32px;
+  padding: 6px 11px;
+  gap: 6px;
+  border-color: color-mix(in srgb, var(--fg, #d7dae0) 11%, transparent);
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  font-size: 0.78125rem;
+}
+:where([data-style="minimal"]) .chat-open-instead-btn svg,
+:where([data-style="combo"]) .chat-open-instead-btn svg {
+  opacity: 0.6;
+}
+:where([data-style="minimal"]) .chat-open-instead-btn:hover:not(:disabled),
+:where([data-style="combo"]) .chat-open-instead-btn:hover:not(:disabled),
+:where([data-style="minimal"]) .chat-open-instead-btn:active:not(:disabled),
+:where([data-style="combo"]) .chat-open-instead-btn:active:not(:disabled) {
+  background: color-mix(in srgb, var(--fg, #d7dae0) 5%, transparent);
+  border-color: color-mix(in srgb, var(--fg, #d7dae0) 18%, transparent);
+  box-shadow: none;
+}
+:where([data-style="minimal"]) .chat-open-instead-btn:hover:not(:disabled),
+:where([data-style="combo"]) .chat-open-instead-btn:hover:not(:disabled) {
+  transform: none;
+}
+
+/* ═══ FLOATING STYLE ══════════════════════════════════════════════════════
+   The pill is the lightest, most lifted thing on the card: it takes the
+   elevated surface nearly as-is and lets a bigger shadow do the lift. 26px is
+   as round as two rows allow before the curve starts eating the first tool
+   icon. Scoped with `:where`, so `.-dropping` still outranks it. */
+:where([data-style="floating"]) .chat-composer {
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--chat-elev) 97%, var(--chat-fg));
+  border-radius: 26px;
+  box-shadow: var(--shadow-xl);
+}
+:where([data-style="floating"]) .chat-composer:focus-within {
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--chat-accent) 12%, transparent),
+    var(--shadow-xl);
+}
+
+/* ═══ COMBO STYLE ═════════════════════════════════════════════════════════
+   Over the minimal layer above: the composer is Floating's PILL — the one
+   thing in the conversation that rests above it — kept quiet: a hairline, the
+   card's own face, and a single soft shadow rather than a heavy lift. 22px is
+   as round as two rows allow before the curve eats the first tool icon. */
+:where([data-style="combo"]) .chat-composer {
+  padding: 8px 14px;
+  border-radius: 22px;
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--shadow-ink) 6%, transparent),
+    0 8px 24px -12px color-mix(in srgb, var(--shadow-ink) 28%, transparent);
+}
+:where([data-style="combo"]) .chat-composer:focus-within {
+  border-color: color-mix(in srgb, var(--chat-fg) 26%, transparent);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--shadow-ink) 6%, transparent),
+    0 8px 24px -12px color-mix(in srgb, var(--shadow-ink) 28%, transparent);
+}
+
 /* ── THE DIALS (model / effort / fast) in the session menu ─────────────────
    The launch card's pills, a size smaller: a menu is a denser surface than a
    card, and seven effort levels must wrap rather than widen the menu past a
@@ -4038,4 +4378,564 @@ button.chat-filechip {
    model still reads first; it truncates with the label, never wraps it. */
 .chat-status-seg-sub {
   color: var(--fg-faint, #6f7488);
+}
+
+/* ── COMPOSER OPTION A — one rounded box, a quiet icon row under it ─────────
+   The ChatGPT / Claude.ai arrangement. The field takes the whole width of the
+   box and grows upward (the wrap is anchored at the bottom); under it sits ONE
+   row: icon-only commands on the left — the name lives in the tooltip and in
+   aria-label — the session chip, and the round send slot at the far right.
+   The slot is still mic → send → queue → stop; only its address moved. */
+:where([data-composer="a"]) .chat-composer {
+  gap: 2px;
+  padding: 10px 10px 8px 14px;
+  border-radius: 26px;
+  border-color: color-mix(in srgb, var(--chat-fg) 13%, transparent);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--shadow-ink) 5%, transparent),
+    0 10px 32px -16px color-mix(in srgb, var(--shadow-ink) 34%, transparent);
+}
+:where([data-composer="a"]) .chat-composer:focus-within {
+  border-color: color-mix(in srgb, var(--chat-fg) 24%, transparent);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--shadow-ink) 5%, transparent),
+    0 10px 32px -16px color-mix(in srgb, var(--shadow-ink) 34%, transparent);
+}
+:where([data-composer="a"]) .chat-composer-main .chat-input {
+  padding: 0.375rem 4px 0.25rem;
+}
+:where([data-composer="a"]) .chat-composer-tools {
+  gap: 2px;
+  min-height: 34px;
+  margin: 0 0 0 -6px;
+}
+:where([data-composer="a"]) .chat-composer-tools > .chat-status-bar {
+  margin-right: 6px;
+}
+:where([data-composer="a"]) .chat-tool-btn {
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  color: var(--chat-dim);
+}
+:where([data-composer="a"]) .chat-tool-btn svg {
+  width: 18px;
+  height: 18px;
+  opacity: 0.8;
+}
+:where([data-composer="a"]) .chat-tool-btn:hover:not(:disabled),
+:where([data-composer="a"]) .chat-tool-btn:focus-visible {
+  background: color-mix(in srgb, var(--chat-fg) 8%, transparent);
+  color: var(--chat-fg);
+}
+:where([data-composer="a"]) .chat-tool-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+:where([data-composer="a"]) .chat-composer-tools .chat-send,
+:where([data-composer="a"]) .chat-composer-tools .chat-mic {
+  width: 32px;
+  height: 32px;
+}
+:where([data-composer="a"]) .chat-composer-tools .chat-send {
+  box-shadow: none;
+}
+:where([data-composer="a"]) .chat-composer-tools .chat-send:hover:not(:disabled) {
+  transform: none;
+  background: color-mix(in srgb, var(--chat-accent) 88%, var(--chat-fg));
+}
+/* Empty and not sendable (uploads in flight, no voice): an outline, not a
+   greyed-out fill — "filled when there is something to send". */
+:where([data-composer="a"]) .chat-composer-tools .chat-send:disabled {
+  opacity: 1;
+  filter: none;
+  background: color-mix(in srgb, var(--chat-fg) 9%, transparent);
+  color: var(--chat-faint);
+}
+:where([data-composer="a"]) .chat-composer-tools .chat-mic {
+  background: color-mix(in srgb, var(--chat-fg) 7%, transparent);
+  color: var(--chat-fg);
+}
+:where([data-composer="a"]) .chat-composer-tools .chat-mic:hover,
+:where([data-composer="a"]) .chat-composer-tools .chat-mic:focus-visible {
+  background: color-mix(in srgb, var(--chat-fg) 13%, transparent);
+}
+@media (max-width: 720px) {
+  :where([data-composer="a"]) .chat-composer {
+    padding: 4px 5px 4px 4px;
+    border-radius: 26px;
+  }
+  :where([data-composer="a"]) .chat-composer-main .chat-input {
+    padding: 0.5625rem 4px;
+  }
+  :where([data-composer="a"]) .chat-composer-main .chat-mic {
+    background: color-mix(in srgb, var(--chat-fg) 7%, transparent);
+  }
+}
+
+/* ── COMPOSER OPTION B — the command bar ─────────────────────────────────────
+   Linear / Raycast. At rest it is ONE slim line: a `+` that holds every
+   command, the field, the session as a small chip, and the send slot. Focus
+   opens it up — a little more room around the text and a quiet line of key
+   hints under it — and blurring folds it back. Nothing moves sideways: the
+   expansion is all vertical, so the controls stay where your hand left them. */
+:where([data-composer="b"]) .chat-composer {
+  gap: 0;
+  max-width: 720px;
+  padding: 3px 5px 3px 4px;
+  border-radius: 14px;
+  border-color: color-mix(in srgb, var(--chat-fg) 12%, transparent);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--shadow-ink) 6%, transparent),
+    0 6px 20px -12px color-mix(in srgb, var(--shadow-ink) 30%, transparent);
+  transition:
+    padding var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    max-width var(--dur) var(--ease);
+}
+:where([data-composer="b"]) .chat-composer:focus-within {
+  max-width: 768px;
+  padding: 7px 7px 6px 6px;
+  border-color: color-mix(in srgb, var(--chat-accent) 50%, transparent);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--chat-accent) 14%, transparent),
+    0 12px 32px -14px color-mix(in srgb, var(--shadow-ink) 40%, transparent);
+}
+:where([data-composer="b"]) .chat-composer-main {
+  align-items: flex-end;
+  gap: 4px;
+}
+:where([data-composer="b"]) .chat-composer-main > .chat-tools,
+:where([data-composer="b"]) .chat-composer-main > .chat-attach,
+:where([data-composer="b"]) .chat-composer-main > .chat-send,
+:where([data-composer="b"]) .chat-composer-main > .chat-mic,
+:where([data-composer="b"]) .chat-composer-main > .chat-composer-tools {
+  align-self: flex-end;
+  margin-bottom: 2px;
+}
+:where([data-composer="b"]) .chat-composer .chat-input {
+  height: 2.25rem;
+  min-height: 2.25rem;
+  padding: 0.4375rem 4px;
+  font-size: 0.9375rem;
+}
+:where([data-composer="b"]) .chat-composer .chat-attach,
+:where([data-composer="b"]) .chat-composer .chat-mic,
+:where([data-composer="b"]) .chat-composer .chat-send {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+}
+:where([data-composer="b"]) .chat-composer .chat-attach svg {
+  width: 18px;
+  height: 18px;
+}
+:where([data-composer="b"]) .chat-composer .chat-send {
+  box-shadow: none;
+}
+:where([data-composer="b"]) .chat-composer .chat-send:hover:not(:disabled) {
+  transform: none;
+  background: color-mix(in srgb, var(--chat-accent) 88%, var(--chat-fg));
+}
+:where([data-composer="b"]) .chat-composer .chat-send:disabled {
+  opacity: 1;
+  filter: none;
+  background: color-mix(in srgb, var(--chat-fg) 8%, transparent);
+  color: var(--chat-faint);
+}
+:where([data-composer="b"]) .chat-composer .chat-tools-sheet {
+  bottom: calc(100% + 10px);
+  left: -4px;
+  min-width: 220px;
+  border-radius: 12px;
+}
+:where([data-composer="b"]) .chat-composer .chat-tools-item {
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+/* The session, as a chip: the mode and model read at a glance, and it is still
+   the same SessionBar with the same menus behind it. */
+:where([data-composer="b"]) .chat-composer-main > .chat-composer-tools {
+  flex: 0 0 auto;
+  min-height: 0;
+  margin: 0 0 5px;
+  /* Sized by the chip now, so it cannot be a size container. */
+  container-type: normal;
+}
+:where([data-composer="b"]) .chat-composer-tools > .chat-status-bar {
+  flex: 0 0 auto;
+  height: 26px;
+  margin: 0;
+  padding: 0 2px;
+  border: 1px solid color-mix(in srgb, var(--chat-fg) 11%, transparent);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--chat-fg) 4%, transparent);
+}
+:where([data-composer="b"]) .chat-composer-tools > .chat-status-bar .chat-status-seg {
+  padding: 2px 6px;
+  font-size: 0.71875rem;
+}
+:where([data-composer="b"]) .chat-composer-hint {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-height: 0;
+  overflow: hidden;
+  padding: 0 8px;
+  opacity: 0;
+  color: var(--chat-faint);
+  font-family: var(--ui-font, inherit);
+  font-size: 0.6875rem;
+  line-height: 1;
+  transition:
+    max-height var(--dur) var(--ease),
+    opacity var(--dur) var(--ease),
+    padding var(--dur) var(--ease);
+}
+:where([data-composer="b"]) .chat-composer:focus-within .chat-composer-hint {
+  max-height: 24px;
+  padding: 6px 8px 2px;
+  opacity: 1;
+}
+:where([data-composer="b"]) .chat-composer-hint span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+:where([data-composer="b"]) .chat-composer-hint kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border: 1px solid color-mix(in srgb, var(--chat-fg) 14%, transparent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--chat-fg) 4%, transparent);
+  color: var(--chat-dim);
+  font: inherit;
+  font-size: 0.625rem;
+}
+@media (max-width: 720px) {
+  :where([data-composer="b"]) .chat-composer,
+  :where([data-composer="b"]) .chat-composer:focus-within {
+    max-width: none;
+    padding: 4px 5px 4px 4px;
+    border-radius: 16px;
+  }
+  :where([data-composer="b"]) .chat-composer .chat-input {
+    height: 2.5rem;
+    min-height: 2.5rem;
+    padding: 0.5625rem 4px;
+    font-size: 1.0625rem;
+  }
+  :where([data-composer="b"]) .chat-composer .chat-attach,
+  :where([data-composer="b"]) .chat-composer .chat-mic,
+  :where([data-composer="b"]) .chat-composer .chat-send {
+    width: 36px;
+    height: 36px;
+    border-radius: 11px;
+  }
+}
+
+/* ── COMPOSER OPTION C — the floating pill ───────────────────────────────────
+   Arc / Perplexity. One pill hovering over the conversation: translucent, with
+   the log blurred through it, and a long soft shadow that lifts it off the
+   page. The commands live INSIDE it, after the field, as icons; their names
+   open out on hover or focus, and stay open when the pane is wide enough to
+   spend the room (the container query below). The pill is fully round at one
+   line and keeps the same corners as the field grows. */
+:where([data-composer="c"]) .chat-composer-wrap {
+  container-type: inline-size;
+  container-name: composer-wrap;
+}
+:where([data-composer="c"]) .chat-composer {
+  gap: 4px;
+  max-width: 860px;
+  padding: 6px 6px 6px 18px;
+  border-radius: 28px;
+  border: 1px solid color-mix(in srgb, var(--chat-fg) 10%, transparent);
+  background: color-mix(in srgb, var(--chat-bg) 70%, transparent);
+  -webkit-backdrop-filter: blur(22px) saturate(1.6);
+  backdrop-filter: blur(22px) saturate(1.6);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, #fff 6%, transparent) inset,
+    0 2px 6px color-mix(in srgb, var(--shadow-ink) 8%, transparent),
+    0 22px 48px -18px color-mix(in srgb, var(--shadow-ink) 45%, transparent);
+}
+:where([data-composer="c"]) .chat-composer:focus-within {
+  border-color: color-mix(in srgb, var(--chat-fg) 20%, transparent);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, #fff 6%, transparent) inset,
+    0 2px 6px color-mix(in srgb, var(--shadow-ink) 8%, transparent),
+    0 26px 56px -18px color-mix(in srgb, var(--shadow-ink) 52%, transparent);
+}
+:where([data-composer="c"]) .chat-composer-main {
+  align-items: flex-end;
+  gap: 6px;
+}
+:where([data-composer="c"]) .chat-composer-main > .chat-tools,
+:where([data-composer="c"]) .chat-composer-main > .chat-attach,
+:where([data-composer="c"]) .chat-composer-main > .chat-send,
+:where([data-composer="c"]) .chat-composer-main > .chat-mic {
+  align-self: flex-end;
+}
+:where([data-composer="c"]) .chat-composer-tools {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 40px;
+  min-height: 40px;
+  margin: 0;
+  /* Sized by its buttons now, so it cannot be a size container. */
+  container-type: normal;
+}
+:where([data-composer="c"]) .chat-composer-tools > .chat-status-bar {
+  flex: 0 0 auto;
+  margin-left: 2px;
+  padding-left: 6px;
+  border-left: 1px solid color-mix(in srgb, var(--chat-fg) 11%, transparent);
+  height: 22px;
+}
+:where([data-composer="c"]) .chat-tool-btn {
+  height: 32px;
+  gap: 0;
+  padding: 0 8px;
+  border-radius: 999px;
+  color: var(--chat-dim);
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    gap var(--dur) var(--ease);
+}
+:where([data-composer="c"]) .chat-tool-btn svg {
+  width: 18px;
+  height: 18px;
+  opacity: 0.8;
+}
+:where([data-composer="c"]) .chat-tool-btn:hover:not(:disabled),
+:where([data-composer="c"]) .chat-tool-btn:focus-visible {
+  gap: 6px;
+  background: color-mix(in srgb, var(--chat-fg) 9%, transparent);
+  color: var(--chat-fg);
+}
+:where([data-composer="c"]) .chat-tool-label {
+  display: inline-block;
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  white-space: nowrap;
+  transition:
+    max-width var(--dur) var(--ease),
+    opacity var(--dur) var(--ease);
+}
+:where([data-composer="c"]) .chat-tool-btn:hover .chat-tool-label,
+:where([data-composer="c"]) .chat-tool-btn:focus-visible .chat-tool-label {
+  max-width: 140px;
+  opacity: 1;
+}
+/* A wide pane spends the room on words. */
+@container composer-wrap (min-width: 1100px) {
+  :where([data-composer="c"]) .chat-tool-btn {
+    gap: 6px;
+  }
+  :where([data-composer="c"]) .chat-tool-label {
+    max-width: 140px;
+    opacity: 1;
+  }
+}
+:where([data-composer="c"]) .chat-composer .chat-send,
+:where([data-composer="c"]) .chat-composer .chat-mic {
+  width: 40px;
+  height: 40px;
+}
+:where([data-composer="c"]) .chat-composer .chat-send {
+  box-shadow: 0 4px 14px -6px color-mix(in srgb, var(--chat-accent) 80%, transparent);
+}
+:where([data-composer="c"]) .chat-composer .chat-send:disabled {
+  opacity: 1;
+  filter: none;
+  box-shadow: none;
+  background: color-mix(in srgb, var(--chat-fg) 9%, transparent);
+  color: var(--chat-faint);
+}
+:where([data-composer="c"]) .chat-composer .chat-mic {
+  background: color-mix(in srgb, var(--chat-fg) 8%, transparent);
+  color: var(--chat-fg);
+}
+:where([data-composer="c"]) .chat-composer .chat-mic:hover,
+:where([data-composer="c"]) .chat-composer .chat-mic:focus-visible {
+  background: color-mix(in srgb, var(--chat-fg) 14%, transparent);
+}
+@media (max-width: 720px) {
+  :where([data-composer="c"]) .chat-composer {
+    padding: 5px;
+    border-radius: 26px;
+  }
+  :where([data-composer="c"]) .chat-composer .chat-send,
+  :where([data-composer="c"]) .chat-composer .chat-mic {
+    width: 38px;
+    height: 38px;
+  }
+}
+
+/* ── COMPOSER OPTION D — the Claude desktop bar ──────────────────────────────
+   One rounded line with a faint fill and a hairline, growing upward as the
+   text wraps: a `+` at the far left that opens a roomy menu above the bar,
+   the field (its placeholder carries the keys), and on the right two quiet
+   icons — the send slot (send, queue or stop) and the mic. No shadow, no tool
+   row: the session sits UNDER the bar, outside it, as a muted meta line. */
+:where([data-composer="d"]) .chat-composer {
+  gap: 0;
+  padding: 5px 6px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--chat-fg) 12%, transparent);
+  background: color-mix(in srgb, var(--chat-fg) 5%, var(--chat-bg));
+  box-shadow: none;
+}
+:where([data-composer="d"]) .chat-composer:focus-within {
+  border-color: color-mix(in srgb, var(--chat-fg) 22%, transparent);
+  box-shadow: none;
+}
+:where([data-composer="d"]) .chat-composer-main {
+  align-items: flex-end;
+  gap: 4px;
+}
+:where([data-composer="d"]) .chat-composer-main > .chat-tools,
+:where([data-composer="d"]) .chat-composer-main > .chat-attach,
+:where([data-composer="d"]) .chat-composer-main > .chat-send,
+:where([data-composer="d"]) .chat-composer-main > .chat-mic {
+  align-self: flex-end;
+}
+:where([data-composer="d"]) .chat-composer .chat-input {
+  height: 2.25rem;
+  min-height: 2.25rem;
+  padding: 0.4375rem 6px;
+  font-size: 0.9375rem;
+}
+:where([data-composer="d"]) .chat-composer .chat-input::placeholder {
+  color: var(--chat-faint);
+}
+/* Every button on the bar is the same quiet 36px square: an icon in the ink,
+   a faint square under it on hover (and, for the `+`, while its menu is open). */
+:where([data-composer="d"]) .chat-composer .chat-attach,
+:where([data-composer="d"]) .chat-composer .chat-mic,
+:where([data-composer="d"]) .chat-composer .chat-send {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--chat-fg);
+  box-shadow: none;
+}
+:where([data-composer="d"]) .chat-composer .chat-attach svg,
+:where([data-composer="d"]) .chat-composer .chat-mic svg {
+  width: 20px;
+  height: 20px;
+}
+:where([data-composer="d"]) .chat-composer .chat-attach:hover,
+:where([data-composer="d"]) .chat-composer .chat-attach[aria-expanded="true"],
+:where([data-composer="d"]) .chat-composer .chat-mic:hover,
+:where([data-composer="d"]) .chat-composer .chat-mic:focus-visible,
+:where([data-composer="d"]) .chat-composer .chat-send:hover:not(:disabled),
+:where([data-composer="d"]) .chat-composer .chat-send:focus-visible {
+  transform: none;
+  background: color-mix(in srgb, var(--chat-fg) 9%, transparent);
+  color: var(--chat-fg);
+}
+:where([data-composer="d"]) .chat-composer .chat-send:disabled {
+  opacity: 1;
+  filter: none;
+  color: var(--chat-faint);
+}
+/* Stop is a solid rounded square in the ink, as Claude draws it. */
+:where([data-composer="d"]) .chat-composer .chat-send.is-stop .chat-stop-glyph {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background: var(--chat-fg);
+}
+/* The `+` menu: a rounded surface with a soft shadow, roomy rows of icon and
+   label in the ink. */
+:where([data-composer="d"]) .chat-composer .chat-tools-sheet {
+  bottom: calc(100% + 10px);
+  left: -2px;
+  min-width: 260px;
+  padding: 6px;
+  border: 1px solid color-mix(in srgb, var(--chat-fg) 12%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--chat-fg) 4%, var(--chat-elev));
+  box-shadow:
+    0 2px 6px color-mix(in srgb, var(--shadow-ink) 10%, transparent),
+    0 18px 40px -14px color-mix(in srgb, var(--shadow-ink) 45%, transparent);
+}
+:where([data-composer="d"]) .chat-composer .chat-tools-item {
+  gap: 12px;
+  min-height: 0;
+  padding: 6px 12px;
+  border-radius: 9px;
+  color: var(--chat-fg);
+  font-size: 0.9375rem;
+}
+:where([data-composer="d"]) .chat-composer .chat-tools-item svg {
+  width: 18px;
+  height: 18px;
+  color: var(--chat-dim);
+}
+:where([data-composer="d"]) .chat-composer .chat-tools-item:hover,
+:where([data-composer="d"]) .chat-composer .chat-tools-item:focus-visible {
+  background: color-mix(in srgb, var(--chat-fg) 8%, transparent);
+}
+/* The meta row: under the bar, right-aligned, muted, no surface of its own. */
+:where([data-composer="d"]) .chat-composer-meta {
+  display: flex;
+  justify-content: flex-end;
+  max-width: 768px;
+  height: 26px;
+  margin: 4px auto 0;
+  padding: 0 6px;
+}
+:where([data-composer="d"]) .chat-composer-meta > .chat-status-bar {
+  flex: 0 1 auto;
+  height: 26px;
+}
+:where([data-composer="d"]) .chat-composer-meta .chat-status-seg {
+  padding: 2px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--chat-dim);
+  font-family: var(--ui-font, inherit);
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
+:where([data-composer="d"]) .chat-composer-meta .chat-status-seg.-mode .chat-status-seg-label {
+  font-weight: 400;
+}
+:where([data-composer="d"]) .chat-composer-meta .chat-status-seg:hover {
+  color: var(--chat-fg);
+}
+@media (max-width: 720px) {
+  :where([data-composer="d"]) .chat-composer {
+    padding: 4px 5px;
+    border-radius: 18px;
+  }
+  :where([data-composer="d"]) .chat-composer .chat-input {
+    height: 2.5rem;
+    min-height: 2.5rem;
+    padding: 0.5625rem 4px;
+    font-size: 1.0625rem;
+  }
+  :where([data-composer="d"]) .chat-composer .chat-attach,
+  :where([data-composer="d"]) .chat-composer .chat-mic,
+  :where([data-composer="d"]) .chat-composer .chat-send {
+    width: 38px;
+    height: 38px;
+  }
 }

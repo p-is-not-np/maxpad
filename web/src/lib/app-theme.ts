@@ -1,7 +1,16 @@
+import { setAppPrefs } from './app-prefs';
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { subscribe } from '../events';
-import { THEME_CHOICES, type ThemeChoice, setServerTheme } from '../settings';
+import {
+  THEME_CHOICES,
+  type ThemeChoice,
+  readComposer,
+  readStyle,
+  setServerComposer,
+  setServerStyle,
+  setServerTheme,
+} from '../settings';
 
 /**
  * ONE THEME, FOR THE WHOLE INSTALL.
@@ -34,10 +43,16 @@ import { THEME_CHOICES, type ThemeChoice, setServerTheme } from '../settings';
  * that landed while it was in flight; and a window that was asleep during the
  * push never hears about it at all, because the bus replays nothing.
  *
- * So every source goes through `applyTheme` with a mark taken when its value
+ * So every source goes through `applyPrefs` with a mark taken when its value
  * was ASKED FOR, and an older ask can never overwrite a newer one. Issue
  * order, not arrival order — arrival order is precisely what is unreliable
  * here.
+ *
+ * THE STYLE RIDES THE SAME ORDER. It is the theme's twin (how the chrome is
+ * built rather than what colour it is), it arrives in the same `prefs` set
+ * from the same three sources, and so it is applied with the theme under one
+ * mark: a snapshot that loses for the theme loses for the style too. The
+ * prompt box (`composer`) is the third of the set and rides the same mark.
  *
  * A COUNTER, NOT A CLOCK. `performance.now()` would do the job and then fail
  * on the one case that must never fail: two values read inside the same
@@ -59,10 +74,15 @@ function mark(): number {
   return marks;
 }
 
-function applyTheme(raw: string | null | undefined, asOf: number): void {
+type Prefs = Record<string, string> | null | undefined;
+
+function applyPrefs(prefs: Prefs, asOf: number): void {
   if (asOf < appliedAsOf) return;
   appliedAsOf = asOf;
-  setServerTheme(readTheme(raw));
+  setServerTheme(readTheme(prefs?.theme));
+  setServerStyle(readStyle(prefs?.style));
+  setServerComposer(readComposer(prefs?.composer));
+  setAppPrefs(prefs);
 }
 
 /**
@@ -73,14 +93,14 @@ function applyTheme(raw: string | null | undefined, asOf: number): void {
  * the two bugs this guards against are both about which asynchronous reader
  * lands last, and neither needs React to reproduce.
  */
-export function applyPushedTheme(raw: string | null | undefined): void {
-  applyTheme(raw, mark());
+export function applyPushedPrefs(prefs: Prefs): void {
+  applyPrefs(prefs, mark());
 }
 
 /** The first paint's value, from the boot prefetch. Ignored if a push or a
  *  refetch has already landed — see the note above. */
-export function applyBootTheme(raw: string | null | undefined): void {
-  applyTheme(raw, 0);
+export function applyBootPrefs(prefs: Prefs): void {
+  applyPrefs(prefs, 0);
 }
 
 /**
@@ -99,7 +119,7 @@ export async function refreshAppTheme(): Promise<void> {
   const asOf = mark();
   try {
     const { prefs } = await api.prefs();
-    applyTheme(prefs.theme, asOf);
+    applyPrefs(prefs, asOf);
   } catch {
     // The palette on screen stays; see above.
   }
@@ -128,7 +148,7 @@ export function useAppTheme(): void {
     () =>
       subscribe((e) => {
         if (e.type !== 'prefs.updated') return;
-        applyPushedTheme(e.prefs.theme);
+        applyPushedPrefs(e.prefs);
       }),
     [],
   );

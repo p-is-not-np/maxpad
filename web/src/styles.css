@@ -13,7 +13,13 @@
      dropdown rows, pane headers). Separate from the terminal font (which
      follows the browser font size) so the chrome reads as a unified machined
      surface regardless of what's running inside the panes. */
-  --chrome-font: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
+  /* WAS MONOSPACE, AND THAT IS WHAT MADE THE CHROME READ AS DATED. Labels,
+     buttons and titles in a mono face look like terminal output bolted onto
+     an app. The chrome now follows the UI sans (four themes already set their
+     own proportional chrome face, so nothing here had to be mono); anything
+     with COLUMNS — code, ids, paths, URLs, the cron clock — names
+     --term-font instead, which every theme keeps monospace. */
+  --chrome-font: var(--ui-font);
   --chrome-size: 0.8125rem;
   --chrome-size-sm: 0.75rem;
 
@@ -45,7 +51,11 @@
      tab, the sidebar's selected row (it runs into the pane as a tab), and the
      wash itself. The first two were written out by hand and the third is where
      the 5% comes from — three copies of one number is exactly how they drift. */
-  --bg-pane-face: color-mix(in srgb, var(--accent) 5%, var(--bg));
+  --pane-wash: 5%;
+  /* The top bars (mobile header, desktop tab strip). Their own recessed tone
+     by default; a style that wants one flat page points this at --bg. */
+  --bar-surface: var(--bg-tabbar);
+  --bg-pane-face: color-mix(in srgb, var(--accent) var(--pane-wash), var(--bg));
 
   /* ─── THE RAIL IS ITS OWN SURFACE ─────────────────────────────────────────
      The sidebar and the pane used to be two shades of the same near-white —
@@ -138,6 +148,35 @@
      and "this pane has keyboard focus". 3px reads decisively at a
      glance without dominating the chrome plate. */
   --chrome-rail: 3px;
+
+  /* ─── Shape, elevation and motion ───────────────────────────────────────
+     One small scale each, so a control, a card and a popover agree on how
+     round they are and how far they float.
+
+     The shadows are built from ONE ink, --shadow-ink, mixed down to each
+     layer's alpha. Dark themes leave it pure black — there is nothing darker
+     than the surface to cast onto it, so the shadow has to be strong to read
+     at all. Light themes re-point it at a soft, slightly cool tint (see the
+     light theme blocks): the same black at the same alpha reads as a smudge
+     on white, which is what the popovers looked like before this. */
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --shadow-ink: rgb(0 0 0);
+  --shadow-sm: 0 1px 2px color-mix(in srgb, var(--shadow-ink) 18%, transparent);
+  --shadow-md:
+    0 1px 2px color-mix(in srgb, var(--shadow-ink) 12%, transparent),
+    0 6px 16px -4px color-mix(in srgb, var(--shadow-ink) 30%, transparent);
+  --shadow-lg:
+    0 2px 6px color-mix(in srgb, var(--shadow-ink) 14%, transparent),
+    0 14px 36px -8px color-mix(in srgb, var(--shadow-ink) 42%, transparent);
+  --shadow-xl:
+    0 4px 12px color-mix(in srgb, var(--shadow-ink) 16%, transparent),
+    0 28px 70px -16px color-mix(in srgb, var(--shadow-ink) 55%, transparent);
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--accent) 24%, transparent);
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --dur-fast: 120ms;
+  --dur: 180ms;
 
   /* ─── "Click again" ─────────────────────────────────────────────────────
      The fill under an ARMED destructive control — the × that is one click
@@ -317,6 +356,34 @@
   --hit-ink: #141520;
   --hit-rule: #8a5e00;
 }
+/* ── MINIMAL STYLE: ONE SURFACE ───────────────────────────────────────────
+   The rail is the page. Without a style it is its own lifted slate (#313443)
+   with its own ink; here it shares --bg and the page's ink, and the only
+   thing between the two is the hairline seam. Selection, hover and the band
+   are ink washes on that one surface (see the minimal layer in NavTree.css).
+   Same specificity as the theme block (`:where` adds none) and declared after
+   it, so it wins only where it says something. */
+:where([data-style="minimal"])[data-theme="tokyo-night"],
+:where([data-style="combo"])[data-theme="tokyo-night"] {
+  --rail-surface: #1a1b26;
+  --rail-ink: #c0caf5;
+  --rail-ink-dim: #a9b1d6;
+  --rail-ink-faint: #737aa2;
+  --rail-hover: #222433;
+  --rail-border: #24283b;
+  --rail-seam: #24283b;
+  --rail-accent: #7aa2f7;
+  --rail-status-ready: #49c07d;
+  --rail-status-working: #e8b34b;
+  /* No accent wash on the open pane either: the page is one flat colour,
+     and a split's focused pane is still marked by the pane-head rail. */
+  --pane-wash: 0%;
+  --bar-surface: var(--bg);
+  /* …which leaves the selected row nothing to "join". So the selected face
+     becomes a whisper of ink on the one surface — the same fill for the
+     sidebar's selected row and the desktop strip's open tab. */
+  --bg-pane-face: color-mix(in srgb, var(--fg) 6%, var(--bg));
+}
 
 /* Dracula — grey-purple base with vivid purple/pink accents. The standout
    colorful dark. Different both in bg tint and accent hue. */
@@ -400,6 +467,8 @@
   /* Rail: a decisive step toward the ink, so the pane reads as a separate
      surface at last (ΔL* 78 against the pane, from 2.7). */
   --bg: #f5f4fb;
+  /* Light ground: a soft cool shadow, not black — see --shadow-ink. */
+  --shadow-ink: rgb(30 36 60 / 0.55);
   --bg-elev: #ffffff;
   --bg-hover: #e2ddf5;
   --bg-chrome: #edecf7;
@@ -470,6 +539,8 @@
   --rail-status-ready: #9bc3ae;
   --rail-status-working: #d5c19d;
   --bg: #ffffff;
+  /* Light ground: a soft cool shadow, not black — see --shadow-ink. */
+  --shadow-ink: rgb(30 36 60 / 0.55);
   --bg-elev: #ffffff;
   --bg-hover: #eaeef2;
   --bg-chrome: #f6f8fa;
@@ -518,6 +589,26 @@
   --hit-ink: #1f2328;
   --hit-rule: #9a6700;
 }
+/* ── MINIMAL STYLE: ONE SURFACE ───────────────────────────────────────────
+   The rail is white like the page, in the page's own ink, separated by a
+   single hairline. The deep slate rail (#2a3c50) and its re-stepped state
+   colours go with it: on white the page's status hues already read. */
+:where([data-style="minimal"])[data-theme="github-light"],
+:where([data-style="combo"])[data-theme="github-light"] {
+  --rail-surface: #ffffff;
+  --rail-ink: #1f2328;
+  --rail-ink-dim: #59636e;
+  --rail-ink-faint: #6e7781;
+  --rail-hover: #f3f4f6;
+  --rail-border: #eaeef2;
+  --rail-seam: #e5e7eb;
+  --rail-accent: #0969da;
+  --rail-status-ready: #217a4b;
+  --rail-status-working: #96650b;
+  --pane-wash: 0%;
+  --bar-surface: var(--bg);
+  --bg-pane-face: color-mix(in srgb, var(--fg) 6%, var(--bg));
+}
 
 /* Acme — warm cream paper with a vivid violet brand accent. Inspired by
    acme.ai: buttery off-white surfaces, near-black ink, saturated purple
@@ -549,6 +640,8 @@
   --rail-status-ready: #9bc3ae;
   --rail-status-working: #d5c19d;
   --bg: #fdf6ea;
+  /* Light ground: a soft cool shadow, not black — see --shadow-ink. */
+  --shadow-ink: rgb(30 36 60 / 0.55);
   --bg-elev: #fffdf6;
   --bg-hover: #f6ecd8;
   --bg-chrome: #f9f0e0;
@@ -661,10 +754,12 @@
   /* THE WHOLE UI GOES MONOSPACE — the single biggest part of the look. The
      rail's proportional sans is what makes muxpad read as an app rather than
      as a machine, and taking it away does most of the work. */
-  --ui-font: "Px437 IBM VGA 8x16", "PxPlus IBM VGA8", "Topaz-8", Terminus, "MesloLGS NF",
-    ui-monospace, SFMono-Regular, Menlo, monospace;
-  --chrome-font: "Px437 IBM VGA 8x16", "PxPlus IBM VGA8", "Topaz-8", Terminus, "MesloLGS NF",
-    ui-monospace, SFMono-Regular, Menlo, monospace;
+  --ui-font:
+    "Px437 IBM VGA 8x16", "PxPlus IBM VGA8", "Topaz-8", Terminus, "MesloLGS NF", ui-monospace,
+    SFMono-Regular, Menlo, monospace;
+  --chrome-font:
+    "Px437 IBM VGA 8x16", "PxPlus IBM VGA8", "Topaz-8", Terminus, "MesloLGS NF", ui-monospace,
+    SFMono-Regular, Menlo, monospace;
   --term-font: "Px437 IBM VGA 8x16", "PxPlus IBM VGA8", Menlo, Monaco, monospace;
 
   /* ─── A TERMINAL GROUND, NOT A PURPLE ONE ──────────────────────────────
@@ -869,21 +964,6 @@
   background-size: 4px 4px;
 }
 
-/* ─── DOUBLE RULE ═══════════════════════════════════════════════════════════
-   The rail's seam becomes a box-drawing double line — two hairlines with a gap,
-   which is literally what ═ is. Drawn with a gradient rather than a glyph so it
-   survives at any width and costs no font. */
-[data-theme="demoscene"] .sidenav-brand {
-  border-bottom: 3px solid transparent;
-  border-image: repeating-linear-gradient(
-      to bottom,
-      var(--rail-border) 0 1px,
-      transparent 1px 2px,
-      var(--rail-border) 2px 3px
-    )
-    3;
-}
-
 /* ─── THE COPPER BAR IS A BAR, NOT A WASH ───────────────────────────────────
    The Amiga's copper changed the background colour every scanline, and in an
    intro those bands SLID. Reproducing that as a translucent gradient across
@@ -934,8 +1014,9 @@
    pixel out, on the wordmark only — enough to read as a tube, nowhere near
    enough to blur anything you have to read. */
 [data-theme="demoscene"] .brand-text {
-  text-shadow: -0.5px 0 color-mix(in srgb, #ff2fd0 65%, transparent), 0.5px 0
-    color-mix(in srgb, #22e8ff 65%, transparent);
+  text-shadow:
+    -0.5px 0 color-mix(in srgb, #ff2fd0 65%, transparent),
+    0.5px 0 color-mix(in srgb, #22e8ff 65%, transparent);
 }
 
 /* ─── A BLOCK SCROLLBAR ─────────────────────────────────────────────────────
@@ -975,13 +1056,9 @@
   inset: 0;
   z-index: 9999;
   pointer-events: none;
-  background: repeating-linear-gradient(
-      to bottom,
-      #0000 0px,
-      #0000 2px,
-      #0000002e 3px,
-      #0000002e 3px
-    ), radial-gradient(120% 120% at 50% 50%, #0000 58%, #00000059 100%);
+  background:
+    repeating-linear-gradient(to bottom, #0000 0px, #0000 2px, #0000002e 3px, #0000002e 3px),
+    radial-gradient(120% 120% at 50% 50%, #0000 58%, #00000059 100%);
 }
 @media (prefers-reduced-motion: reduce), (prefers-contrast: more) {
   [data-theme="demoscene"] body::after {
@@ -1114,9 +1191,12 @@
 [data-theme="blueprint"] .chat-pane,
 [data-theme="blueprint"] .pane-web,
 [data-theme="blueprint"] .workspace-body {
-  background-image: linear-gradient(to right, #9fe3ff1f 0 1px, transparent 1px 100%),
+  background-image:
+    linear-gradient(to right, #9fe3ff1f 0 1px, transparent 1px 100%),
     linear-gradient(to bottom, #9fe3ff1f 0 1px, transparent 1px 100%);
-  background-size: 96px 96px, 96px 96px;
+  background-size:
+    96px 96px,
+    96px 96px;
   /* FIXED, so every panel's grid is one continuous sheet rather than four
      that restart at their own top-left — which is what a sheet IS, and what
      an overlay got right for free and a per-element background does not. */
@@ -1170,7 +1250,6 @@
    short, set in caps, and not something you read a column of. That is the
    whole of the drafting hand now; see the token note above for the three
    rounds it took to get here. */
-[data-theme="blueprint"] .sidenav-brand,
 [data-theme="blueprint"] .navtree-ws-name {
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1193,20 +1272,23 @@
   letter-spacing: 0.14em;
 }
 
-/* SECTION RULES ARE DASHED, at the weight a pencil leaves. */
-[data-theme="blueprint"] .sidenav-brand {
-  border-bottom: 1px dashed color-mix(in srgb, var(--accent) 34%, transparent);
-}
-
 /* THE COMPOSER IS A TITLE BLOCK — the boxed panel in the corner of every
    drawing, with its corner ticks. Four tiny gradients, one element. */
 [data-theme="blueprint"] .chat-composer {
   border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
-  background-image: linear-gradient(var(--accent), var(--accent)),
+  background-image:
     linear-gradient(var(--accent), var(--accent)), linear-gradient(var(--accent), var(--accent)),
-    linear-gradient(var(--accent), var(--accent));
-  background-size: 7px 1px, 1px 7px, 7px 1px, 1px 7px;
-  background-position: left top, left top, right bottom, right bottom;
+    linear-gradient(var(--accent), var(--accent)), linear-gradient(var(--accent), var(--accent));
+  background-size:
+    7px 1px,
+    1px 7px,
+    7px 1px,
+    1px 7px;
+  background-position:
+    left top,
+    left top,
+    right bottom,
+    right bottom;
   background-repeat: no-repeat;
 }
 
@@ -1234,6 +1316,8 @@
   --term-font: "SF Mono", Menlo, Monaco, monospace;
 
   --bg: #f7f4ec;
+  /* Light ground: a soft cool shadow, not black — see --shadow-ink. */
+  --shadow-ink: rgb(30 36 60 / 0.55);
   --bg-elev: #fffdf7;
   --bg-hover: #ffe1ef;
   --bg-chrome: #efe9dc;
@@ -1315,13 +1399,19 @@
 }
 @keyframes riso-register {
   0% {
-    text-shadow: 1px -1px 0 #e0005f59, -1px 1px 0 #1333c452;
+    text-shadow:
+      1px -1px 0 #e0005f59,
+      -1px 1px 0 #1333c452;
   }
   33% {
-    text-shadow: -1px -1px 0 #e0005f59, 1px 1px 0 #1333c452;
+    text-shadow:
+      -1px -1px 0 #e0005f59,
+      1px 1px 0 #1333c452;
   }
   66% {
-    text-shadow: 1px 1px 0 #e0005f59, -1px -1px 0 #1333c452;
+    text-shadow:
+      1px 1px 0 #e0005f59,
+      -1px -1px 0 #1333c452;
   }
 }
 
@@ -1418,11 +1508,13 @@
      for screen reading at small sizes, with open counters and wide spacing,
      and it is on every machine. The display face carries the era. */
   --ui-font: Verdana, "DejaVu Sans", Geneva, Tahoma, sans-serif;
-  --chrome-font: "Gill Sans", "Gill Sans MT", "Trebuchet MS", "Century Gothic", system-ui,
-    sans-serif;
+  --chrome-font:
+    "Gill Sans", "Gill Sans MT", "Trebuchet MS", "Century Gothic", system-ui, sans-serif;
   --term-font: "SF Mono", Menlo, Monaco, monospace;
 
   --bg: #fbf8f1;
+  /* Light ground: a soft cool shadow, not black — see --shadow-ink. */
+  --shadow-ink: rgb(30 36 60 / 0.55);
   --bg-elev: #ffffff;
   --bg-hover: #ffe8f3;
   --bg-chrome: #f2eee4;
@@ -1531,13 +1623,20 @@
    texture you notice and one you feel. */
 [data-theme="memphis"] .chat-pane,
 [data-theme="memphis"] .workspace-body {
-  background-image: radial-gradient(5px 5px at 12% 18%, #ffd40037 98%, #0000),
+  background-image:
+    radial-gradient(5px 5px at 12% 18%, #ffd40037 98%, #0000),
     radial-gradient(4px 4px at 78% 9%, #00c2e03a 98%, #0000),
     radial-gradient(6px 6px at 43% 62%, #d6006e32 98%, #0000),
     radial-gradient(4px 4px at 91% 71%, #7b4dff35 98%, #0000),
     radial-gradient(5px 5px at 27% 88%, #00d49a3a 98%, #0000),
     repeating-linear-gradient(45deg, #12101607 0 3px, #0000 3px 17px);
-  background-size: 225px 225px, 180px 180px, 270px 270px, 205px 205px, 250px 250px, 58px 58px;
+  background-size:
+    225px 225px,
+    180px 180px,
+    270px 270px,
+    205px 205px,
+    250px 250px,
+    58px 58px;
   background-attachment: fixed;
 }
 [data-theme="memphis"] .chat-msg {
@@ -1776,6 +1875,12 @@ a:hover {
   text-decoration: underline;
 }
 
+/* Selected text takes a tint of the theme's accent rather than the OS blue,
+   which clashed with every palette that is not blue. */
+::selection {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
 /* Thin themed scrollbars. scrollbar-width / scrollbar-color INHERIT in CSS,
    so applying them to html/body cascades to every descendant — including
    xterm.js's .xterm-viewport. xterm reserves a scrollbar's worth of width
@@ -1790,20 +1895,24 @@ body {
 }
 
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+/* A slim capsule floating in a wider gutter: 4px of thumb at rest, inset by a
+   transparent border so the hit area stays generous. Faded at rest so it
+   recedes behind the content, full --fg-dim under the pointer. */
 ::-webkit-scrollbar-thumb {
-  background: var(--fg-faint);
-  border-radius: 4px;
-  border: 2px solid transparent;
+  background: color-mix(in srgb, var(--fg-faint) 70%, transparent);
+  border-radius: 999px;
+  border: 3px solid transparent;
   background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--fg-dim);
+  background-clip: padding-box;
 }
 ::-webkit-scrollbar-corner {
   background: transparent;
@@ -1842,14 +1951,30 @@ select {
   background: var(--bg-elev);
   border: 1px solid var(--border);
   padding: 6px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   color: var(--fg);
   outline: none;
-  transition: border-color 80ms ease;
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
 }
 input:focus,
 select:focus {
   border-color: var(--accent);
+}
+/* The ring only for the keyboard, where it is the whole signal; a click
+   already says where focus went. */
+input:focus-visible,
+select:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+
+/* Keyboard focus on any button: an accent outline held off the edge, so it
+   reads on a filled button as well as a ghost one. Components that draw their
+   own focus treatment override this with their own :focus-visible rule. */
+button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 75%, transparent);
+  outline-offset: 2px;
 }
 
 .btn {
@@ -1857,14 +1982,24 @@ select:focus {
   color: var(--fg);
   border: 1px solid var(--border);
   padding: 6px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   font-size: 0.8125rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 80ms ease, border-color 80ms ease;
+  box-shadow: var(--shadow-sm);
+  transition:
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
 }
 .btn:hover {
   background: var(--bg-hover);
   border-color: var(--border-strong);
+}
+.btn:active {
+  transform: translateY(0.5px);
+  box-shadow: none;
 }
 .btn-primary {
   background: var(--accent);
@@ -1872,7 +2007,9 @@ select:focus {
   border-color: var(--accent);
 }
 .btn-primary:hover {
-  filter: brightness(0.95);
+  background: var(--accent);
+  border-color: var(--accent);
+  filter: brightness(1.06) saturate(1.05);
 }
 
 /* ─── The status channel's colour rule ──────────────────────────────────
@@ -1944,8 +2081,8 @@ select:focus {
   align-items: stretch;
   gap: 0;
   padding: 0;
-  background: var(--bg-tabbar);
-  border-bottom: 1px solid var(--border);
+  background: var(--bar-surface);
+  border-bottom: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
   height: var(--chrome-h);
   font-family: var(--chrome-font);
   font-size: var(--chrome-size);
@@ -2056,12 +2193,13 @@ select:focus {
 }
 
 /* Wordmark treatment. Deliberately set apart from the workspace headers below
-   it (bold sans, near-black): the brand is a quiet mono LOGOTYPE — lighter
-   weight, tracked out, dimmed — so it reads as persistent app chrome, not as
-   another bold section header competing for the same rung of the hierarchy. */
+   it: the brand is a quiet LOGOTYPE in the UI sans — semibold, tracked
+   slightly tight, a touch dimmed — so it reads as persistent app chrome, not
+   as another section header competing for the same rung of the hierarchy.
+   (It was a tracked-out monospace, which read as a terminal prompt.) */
 .brand-text {
-  font-weight: 400;
-  letter-spacing: 0.06em;
+  font-weight: 650;
+  letter-spacing: -0.015em;
   /* Quiet, but not washed out — sit close to full fg with just a touch of dim. */
   color: color-mix(in srgb, var(--fg-dim) 20%, var(--fg));
   transition: color 120ms ease;
@@ -2082,7 +2220,9 @@ select:focus {
      hover (see below). */
   filter: grayscale(0.7);
   opacity: 0.92;
-  transition: filter 120ms ease, opacity 120ms ease;
+  transition:
+    filter 120ms ease,
+    opacity 120ms ease;
 }
 
 /* Hover brings the brand to full vibrancy: the mark's real colors and a crisp
@@ -2115,7 +2255,9 @@ select:focus {
   font-weight: 500;
   user-select: none;
   text-decoration: none;
-  transition: background 80ms ease, color 80ms ease;
+  transition:
+    background 80ms ease,
+    color 80ms ease;
 }
 .brand-text-side:hover {
   background: var(--bg-hover);
@@ -2155,4 +2297,99 @@ select:focus {
   top: -2px;
   background: #f59e0b;
   box-shadow: 0 0 0 2px var(--bg, #111827);
+}
+
+/* ═══ STYLES ══════════════════════════════════════════════════════════════
+   How the chrome is BUILT, independent of the theme's palette (settings.ts,
+   `data-style` on <html>). Every rule below is scoped under
+   `:where([data-style="…"])`, which adds NO specificity: each one cascades
+   exactly as it would have as an unscoped rule in this position, so a style
+   is a layer over the stylesheet and Default is the stylesheet alone.
+
+   Minimal's surfaces live in the theme blocks above (one surface for the
+   rail and the page) and at the foot of each component sheet. FLOATING's
+   frame is here: the rail and the content are two cards resting on a tinted
+   canvas. The combo is Minimal's flat surfaces inside Floating's frame, so it
+   shares the frame rules and only re-tunes its numbers. */
+
+/* The canvas is derived, not listed per theme: the theme's own recessed
+   chrome tone, nudged 6% toward its accent — darker than its cards on a dark
+   palette, a soft tinted grey under white cards on a light one. */
+:where([data-style="floating"]),
+:where([data-style="combo"]) {
+  --canvas: color-mix(in srgb, var(--accent) 6%, var(--bg-tabbar));
+}
+:where([data-style="floating"]) {
+  --float-gap: 10px;
+  --float-radius: 16px;
+  --shadow-float: 0 0 0 1px color-mix(in srgb, var(--shadow-ink) 7%, transparent), 0 1px 2px
+    color-mix(in srgb, var(--shadow-ink) 10%, transparent), 0 8px 28px -10px
+    color-mix(in srgb, var(--shadow-ink) 34%, transparent);
+}
+/* Combo: a tighter frame, and the card edge is a hairline from the page's own
+   ink plus one very soft drop — no real elevation, the minimal half's rule. */
+:where([data-style="combo"]) {
+  --float-gap: 8px;
+  --float-radius: 12px;
+  --shadow-float: 0 0 0 1px color-mix(in srgb, var(--fg) 9%, transparent), 0 1px 2px
+    color-mix(in srgb, var(--shadow-ink) 6%, transparent);
+}
+
+/* The top bar (phones, the picker) is part of the canvas rather than a plate
+   of its own, so it draws no rule and no dividers. */
+:where([data-style="floating"]) .status-bar-cap,
+:where([data-style="combo"]) .status-bar-cap {
+  background: var(--canvas);
+}
+:where([data-style="floating"]) .ws-tabbar,
+:where([data-style="combo"]) .ws-tabbar {
+  background: var(--canvas);
+  border-bottom: 0;
+}
+:where([data-style="floating"]) .brand,
+:where([data-style="combo"]) .brand {
+  border-right: 0;
+}
+:where([data-style="floating"]) .brand-text-side,
+:where([data-style="combo"]) .brand-text-side {
+  border-left: 0;
+}
+/* The canvas the two cards float on. Its padding and gap ARE the margins
+   around the rail and the content. */
+:where([data-style="floating"]) .app-body,
+:where([data-style="combo"]) .app-body {
+  background: var(--canvas);
+  padding: var(--float-gap);
+  gap: var(--float-gap);
+}
+/* The content card. It clips: terminals, iframes and the pane wash all run
+   to its edges, and the corners have to cut them. */
+:where([data-style="floating"]) .app-body > .workspace-column,
+:where([data-style="combo"]) .app-body > .workspace-column {
+  background: var(--bg);
+  border-radius: var(--float-radius);
+  box-shadow: var(--shadow-float);
+  overflow: hidden;
+  /* Safari drops overflow clipping on rounded corners for composited
+     children (xterm's canvas) without this. */
+  isolation: isolate;
+}
+/* Phones: one card under the top bar with a thin margin at the sides, running
+   into the bottom of the screen like a sheet — rounded only where it has an
+   edge to round. */
+@media (max-width: 720px) {
+  :where([data-style="floating"]) .app-body,
+  :where([data-style="combo"]) .app-body {
+    padding: 0 6px;
+    gap: 0;
+  }
+  :where([data-style="floating"]) .app-body > .workspace-column,
+  :where([data-style="combo"]) .app-body > .workspace-column {
+    border-radius: var(--float-radius) var(--float-radius) 0 0;
+  }
+}
+/* The combo's top-bar icon buttons are quiet hit areas on the canvas, not
+   plates. (Floating drops the divider from every .icon-btn — SettingsMenu.css.) */
+:where([data-style="combo"]) .ws-tabbar .icon-btn {
+  border-left: 0;
 }

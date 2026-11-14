@@ -129,7 +129,9 @@
   box-shadow: none !important;
   border-radius: 0 !important;
   font-family: var(--chrome-font);
-  transition: background 100ms ease, color 100ms ease;
+  transition:
+    background 100ms ease,
+    color 100ms ease;
 }
 
 /* Focused pane = vibrant toolbar + a real accent wash over the content.
@@ -159,7 +161,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  background: color-mix(in srgb, var(--accent) var(--pane-wash), transparent);
   pointer-events: none;
   z-index: 4;
 }
@@ -302,8 +304,8 @@
   /* Recessed chrome bar (same tone as the top nav .ws-tabbar) so the tabs read
      as plates sitting ON a bar. The empty area past the last tab stays this
      bar colour — distinct from the raised tab plates, which are --bg. */
-  background: var(--bg-tabbar);
-  border-bottom: 1px solid var(--border);
+  background: var(--bar-surface);
+  border-bottom: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
   height: var(--chrome-h);
   font-family: var(--chrome-font);
   font-size: var(--chrome-size);
@@ -358,7 +360,7 @@
   height: calc(100% - 1px);
   /* Rounded top corners — a browser-tab plate. The gap on the strip separates
      neighbours, so no hairline divider is needed. */
-  border-radius: 7px 7px 0 0;
+  border-radius: 8px 8px 0 0;
   /* Three levels the eye separates at a glance, in EVERY theme:
      inactive pills are tinted with the FOREGROUND color, which pushes them
      away from the bar regardless of theme polarity (darker pills on a light
@@ -366,12 +368,14 @@
      themes where --bg ≈ --bg-tabbar. The active tab stays the pane's exact
      color (fusing with the content below) and reads lighter/cleaner than
      the tinted inactive pills, plus the accent rail + bold label. */
-  background: color-mix(in srgb, var(--fg) 9%, var(--bg-tabbar));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 10%, transparent);
-  transition: background 100ms ease;
+  background: color-mix(in srgb, var(--fg) 7%, var(--bg-tabbar));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 8%, transparent);
+  transition:
+    background var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
 }
 .desktop-tab:hover {
-  background: color-mix(in srgb, var(--fg) 14%, var(--bg-tabbar));
+  background: color-mix(in srgb, var(--fg) 12%, var(--bg-tabbar));
 }
 .desktop-tab[data-active="true"],
 .desktop-tab[data-active="true"]:hover {
@@ -385,8 +389,9 @@
      line across the tab's bottom edge, exactly the seam the height
      overlap below exists to remove (the top edge is under the accent
      rail, so it needs no line either). */
-  box-shadow: inset 1px 0 0 color-mix(in srgb, var(--fg) 10%, transparent), inset -1px 0 0
-    color-mix(in srgb, var(--fg) 10%, transparent);
+  box-shadow:
+    inset 1px 0 0 color-mix(in srgb, var(--fg) 10%, transparent),
+    inset -1px 0 0 color-mix(in srgb, var(--fg) 10%, transparent);
   /* Full container height = over the strip's hairline: the open tab fuses
      seamlessly into its pane, no dividing line. */
   height: 100%;
@@ -401,7 +406,7 @@
   left: 0;
   right: 0;
   height: 2px;
-  border-radius: 7px 7px 0 0;
+  border-radius: 8px 8px 0 0;
   background: var(--accent);
 }
 /* Drag-to-reorder. The dragged plate dims; the drop target shows an inset
@@ -537,7 +542,10 @@
   color: var(--fg-faint);
   cursor: pointer;
   opacity: 0;
-  transition: opacity 100ms ease, color 100ms ease, background 100ms ease;
+  transition:
+    opacity 100ms ease,
+    color 100ms ease,
+    background 100ms ease;
 }
 /* Hover-reveal only (the active tab included) — status leads the label, so
    the trailing slot stays quiet until pointed at. Touch has no hover: keep
@@ -564,12 +572,16 @@
   padding: 0 10px;
   background: transparent;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   color: var(--fg-dim);
   font-size: var(--chrome-size-sm, 0.75rem);
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
+  transition:
+    color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
 }
 .desktop-tab-add:hover {
   color: var(--accent);
@@ -616,7 +628,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  background: color-mix(in srgb, var(--accent) var(--pane-wash), transparent);
   pointer-events: none;
   z-index: 4;
 }
@@ -646,7 +658,9 @@
   min-width: 0;
   max-width: 70%;
   padding: 0 6px;
-  transition: background 80ms ease, color 80ms ease;
+  transition:
+    background 80ms ease,
+    color 80ms ease;
 }
 .pane-chrome-title-link:hover {
   background: var(--bg-hover);
@@ -716,7 +730,10 @@
   color: var(--fg-faint);
   cursor: pointer;
   opacity: 0.6;
-  transition: opacity 80ms ease, color 80ms ease, background 80ms ease;
+  transition:
+    opacity 80ms ease,
+    color 80ms ease,
+    background 80ms ease;
 }
 .pane-surface-trigger:hover,
 .pane-surface-trigger:focus-visible {
@@ -780,7 +797,9 @@
   border: none;
   color: var(--fg-faint);
   cursor: pointer;
-  transition: color 80ms ease, background 80ms ease;
+  transition:
+    color 80ms ease,
+    background 80ms ease;
 }
 .pane-chrome-btn svg {
   width: 18px;
@@ -842,4 +861,77 @@
   justify-content: center;
   border-radius: 4px;
   color: var(--fg-faint);
+}
+
+/* ═══ FLOATING STYLE — SEGMENTED TABS ════════════════════════════════════
+   Scoped with `:where`, so each rule cascades exactly as an unscoped one in
+   this position would (see the STYLES note at the foot of styles.css). The
+   strip is part of the content card (its face, no rule), and the tabs are a
+   SEGMENTED CONTROL on a rounded track inside it. */
+:where([data-style="floating"]) .desktop-tab-strip {
+  background: var(--bg-pane-face);
+  border-bottom: 0;
+  height: calc(var(--chrome-h) + 12px);
+  padding: 8px 8px 4px;
+}
+:where([data-style="floating"]) .desktop-tab-strip-tabs {
+  gap: 2px;
+  padding: 3px;
+  margin-bottom: 0;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--fg) 7%, var(--bg));
+}
+/* A segment: fully rounded, sitting inside the track. */
+:where([data-style="floating"]) .desktop-tab {
+  height: 100%;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+}
+:where([data-style="floating"]) .desktop-tab:hover {
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+}
+/* The chosen segment: a raised chip on the track. */
+:where([data-style="floating"]) .desktop-tab[data-active="true"],
+:where([data-style="floating"]) .desktop-tab[data-active="true"]:hover {
+  background: var(--bg-elev);
+  box-shadow: var(--shadow-sm), 0 0 0 1px color-mix(in srgb, var(--fg) 8%, transparent);
+}
+/* The accent top rail retires: the raised segment carries "open" on its own. */
+:where([data-style="floating"]) .desktop-tab[data-active="true"]::before {
+  display: none;
+}
+
+/* ═══ COMBO STYLE — SEGMENTED TABS, DRAWN MINIMALLY ══════════════════════
+   Floating's shape with Minimal's surfaces: a quiet track, and the chosen
+   segment is the card's own face with a hairline, not a lifted chip. */
+:where([data-style="combo"]) .desktop-tab-strip {
+  background: var(--bg);
+  border-bottom: 0;
+  height: calc(var(--chrome-h) + 10px);
+  padding: 6px 8px 4px;
+}
+:where([data-style="combo"]) .desktop-tab-strip-tabs {
+  gap: 2px;
+  padding: 2px;
+  margin-bottom: 0;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--fg) 5%, var(--bg));
+}
+:where([data-style="combo"]) .desktop-tab {
+  height: 100%;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
+}
+:where([data-style="combo"]) .desktop-tab:hover {
+  background: color-mix(in srgb, var(--fg) 5%, transparent);
+}
+:where([data-style="combo"]) .desktop-tab[data-active="true"],
+:where([data-style="combo"]) .desktop-tab[data-active="true"]:hover {
+  background: var(--bg);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--fg) 11%, transparent);
+}
+:where([data-style="combo"]) .desktop-tab[data-active="true"]::before {
+  display: none;
 }

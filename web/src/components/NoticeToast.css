@@ -27,8 +27,8 @@
      message is text to read, not an alarm to survive. */
   border: 1px solid var(--border-strong);
   border-left: 3px solid var(--danger);
-  border-radius: 8px;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
   max-width: 420px;
   font-size: 0.8125rem;
   line-height: 1.35;

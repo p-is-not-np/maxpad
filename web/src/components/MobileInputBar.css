@@ -56,7 +56,7 @@
   color: var(--fg-dim);
   border: 1px solid var(--border);
   border-radius: 6px;
-  font-family: var(--chrome-font);
+  font-family: var(--term-font);
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
@@ -100,7 +100,7 @@
      focus — anything smaller and Safari "helps" by zooming in. */
   font-size: 1rem;
   line-height: 1.4;
-  font-family: var(--chrome-font);
+  font-family: var(--term-font);
   outline: none;
   white-space: pre-wrap;
   word-break: break-word;

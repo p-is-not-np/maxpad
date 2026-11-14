@@ -31,12 +31,13 @@ describe('the composer holds one button, and Stop is one of its faces', () => {
     // The branches are mutually exclusive by construction: Stop is the
     // `!canSend` arm of the busy branch and Queue is the other, so no state
     // can render both.
-    expect(SRC).toMatch(/\{sending && !question && !canSend \? \(/);
+    expect(SRC).toContain('const stopInSlot = sending && !question && !canSend;');
+    expect(SRC).toMatch(/const sendSlot =\s*stopInSlot \? \(/);
     expect(SRC).toMatch(/\) : sending && !question \? \(/);
   });
 
   it('stops the turn when a turn is running and nothing is typed', () => {
-    const busy = SRC.slice(SRC.indexOf('{sending && !question && !canSend ? ('));
+    const busy = SRC.slice(SRC.indexOf('const sendSlot ='));
     const stop = busy.slice(0, busy.indexOf(') : sending && !question ? ('));
     expect(stop).toMatch(/className="chat-send is-stop"/);
     expect(stop).toMatch(/onClick=\{stop\}/);
@@ -66,5 +67,35 @@ describe('the composer holds one button, and Stop is one of its faces', () => {
     // that acts on a live turn lives where your thumb already is.
     expect(SRC).not.toMatch(/chat-turn-stop/);
     expect(CSS).not.toMatch(/\.chat-turn-stop\b/);
+  });
+});
+
+describe('every prompt box shows Stop while a turn runs', () => {
+  it('D draws Stop BESIDE its bar mic instead of hiding the slot', () => {
+    // The bar mic used to take the slot whenever the draft was empty — which
+    // is exactly the state the slot is Stop — so D had no visible Stop.
+    expect(SRC).toMatch(
+      /\(composer === 'a' && labelledTools\) \|\| \(barMic && micInsteadOfSend && !stopInSlot\)\s*\? null\s*: sendSlot/,
+    );
+    // Stop comes before the mic, as in Claude's bar.
+    const slot = SRC.indexOf('&& !stopInSlot)');
+    const mic = SRC.indexOf('className="chat-mic chat-bar-mic"');
+    expect(slot).toBeGreaterThan(0);
+    expect(mic).toBeGreaterThan(slot);
+  });
+
+  it('A, B and C never hide the slot for the mic: Stop wins inside it', () => {
+    // The only other null is A's labelled row, which renders the same slot
+    // at the end of its tool row instead.
+    expect(SRC).toMatch(/\{composer === 'a' \? sendSlot : null\}/);
+    // Stop is the FIRST arm, ahead of the mic arm.
+    const slot = SRC.slice(SRC.indexOf('const sendSlot ='));
+    expect(slot.indexOf('is-stop')).toBeLessThan(slot.indexOf(') : micInsteadOfSend ? ('));
+  });
+
+  it('D draws Stop as a square in the ink', () => {
+    expect(CSS).toMatch(
+      /:where\(\[data-composer="d"\]\) \.chat-composer \.chat-send\.is-stop \.chat-stop-glyph \{[^}]*border-radius: 3px/,
+    );
   });
 });

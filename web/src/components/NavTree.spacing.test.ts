@@ -1201,12 +1201,11 @@ describe('nothing in the rail scrolls sideways', () => {
     expect(all).toEqual(['hidden', 'clip']);
   });
 
-  it('still bleeds the active row out to the rail edge — the clip is flush', () => {
+  it('the active row is an inset pill — it no longer bleeds past the rail padding', () => {
+    // It used to reach out to the rail edge to join the pane; it is a
+    // rounded pill inside the rail now, so nothing reaches for the clip.
     const active = ruleBody(NAV_CSS, '.navtree-tab-row[data-active="true"]');
-    const group = ruleBody(NAV_CSS, '.navtree-group');
-    expect(resolve(decl(active, 'margin-right'), BASE)).toBe(
-      -resolve(side(decl(group, 'padding'), 'right'), BASE),
-    );
+    expect(active).not.toMatch(/margin-right/);
   });
 });
 
@@ -1392,6 +1391,17 @@ describe('the at-hand band lines up with the groups', () => {
     expect(rule('.navtree-workingset')).not.toMatch(/margin:/);
   });
 
+  it('is a tile under the Floating style: vertical margin only, never sideways', () => {
+    // Floating WANTS the band to read as a card inside the rail card, so it is
+    // rounded and spaced vertically. A SIDE margin would still move its rows
+    // off the columns every other row keeps — and with no 3px bracket to pay
+    // back, the leading padding is the plain inset again.
+    const band = rule(':where([data-style="floating"]) .navtree-workingset');
+    expect(band).toMatch(/margin:\s*\S+\s+0\s+\S+\s*;/);
+    expect(band).toMatch(/border-radius:/);
+    expect(band).toMatch(/padding-inline-start:\s*var\(--nt-pad\)\s*;/);
+  });
+
   it('carries no status-coloured mark on its heading', () => {
     // The only coloured marks in this rail are status — a dot for wants-you, a
     // tick for ready, an amber ring for working. A 5px accent square beside a
@@ -1425,6 +1435,16 @@ describe('the recently-active band draws one line', () => {
     expect(band).toMatch(/border-bottom:/);
     expect(band).not.toMatch(/border-top:/);
     expect(band).not.toMatch(/box-shadow:/);
+  });
+
+  it('under the Floating style draws no rule across the rail: its one edge rings the tile', () => {
+    // No brand hairline and no seam below the band. The only stroke is the
+    // 1px accent ring that follows the tile's corners.
+    const band = body(':where([data-style="floating"]) .navtree-workingset');
+    expect(band).toMatch(/border-bottom:\s*0\s*;/);
+    expect(band).toMatch(/border-inline-start:\s*0\s*;/);
+    expect(band).not.toMatch(/border-top:/);
+    expect(band).toMatch(/box-shadow:\s*inset 0 0 0 1px var\(--accent\)/);
   });
 
   it('has a ground instead of a rule after the heading', () => {
@@ -1499,8 +1519,13 @@ describe('section labels share their tracking', () => {
     );
   });
 
-  it('tracks them enough for bold caps at 11px to hold their shape', () => {
-    // Below about 0.1em the counters close at this size and weight.
-    expect(tracking('.navtree-workingset-head')).toBeGreaterThanOrEqual(0.1);
+  it('sets them in sentence case, so they need no caps tracking', () => {
+    // The 0.12em this used to require was for bold CAPS at 11px. Sentence
+    // case at 12px semibold holds its shape untracked; wide tracking on
+    // lowercase reads as a typo.
+    expect(tracking('.navtree-workingset-head')).toBeLessThanOrEqual(0.02);
+    expect(NAV_CSS.replace(/\/\*[\s\S]*?\*\//g, '')).not.toMatch(
+      /\.navtree-ws-row \.navtree-name-text \{[^}]*text-transform:\s*uppercase/,
+    );
   });
 });

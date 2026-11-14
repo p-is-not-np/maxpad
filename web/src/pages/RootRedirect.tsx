@@ -1,7 +1,8 @@
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef } from 'react';
 import { api } from '../api';
-import { HOUSE_CHAT_CREATE } from '../lib/agent-backend';
+import { houseChatCreate } from '../lib/agent-backend';
+import { isMobileLayout } from '../lib/mobile-layout';
 import { useDocumentTitle } from '../use-document-title';
 import { refreshWorkspaces, visibleWorkspaces } from '../workspaces';
 
@@ -44,6 +45,17 @@ export function RootRedirect() {
       const workspaces = visibleWorkspaces(await refreshWorkspaces());
       if (cancelled) return;
       if (workspaces.length > 0) {
+        // A PHONE LANDS ON HOME. The installed app cold-launches at `/`
+        // (manifest start_url), and going on into the first workspace's
+        // last-visited tab put you in whichever chat happened to be open last
+        // — which reads as random. Home says what needs you instead. A deep
+        // link or a notification tap never comes through here: those arrive
+        // on their own /w/…/t/… URL (or are routed by the push sink, which
+        // supersedes this navigation — see `cancelled`).
+        if (isMobileLayout()) {
+          void navigate({ to: '/home', search, replace: true });
+          return;
+        }
         const first = workspaces[0]!;
         void navigate({
           to: '/w/$wsSlug',
@@ -64,7 +76,7 @@ export function RootRedirect() {
       // rather than being the silent default.
       try {
         const w = await api.createWorkspace();
-        const t = await api.createTab(w.id, { ...HOUSE_CHAT_CREATE });
+        const t = await api.createTab(w.id, houseChatCreate());
         await refreshWorkspaces();
         if (cancelled) return;
         void navigate({

@@ -62,6 +62,11 @@ const NO_FILES = /No test files found/;
 function runPhase(args) {
   return new Promise((resolve) => {
     const env = { ...process.env };
+    // Tests run as tests. Vitest only fills NODE_ENV when it is unset, so a
+    // shell that exports NODE_ENV=production (every pane muxpad spawns does)
+    // loaded React's production build, which has no `act` — and every test
+    // that renders failed with "act is not a function".
+    env.NODE_ENV = 'test';
     // Piping costs vitest its colours; give them back when a person is watching.
     if (process.stdout.isTTY && env.FORCE_COLOR === undefined) env.FORCE_COLOR = '1';
     const child = spawn('vitest', args, { stdio: ['inherit', 'pipe', 'pipe'], env });

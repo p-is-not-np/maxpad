@@ -51,9 +51,9 @@ export async function createTestApp(opts: {
      * accident is not a suite.
      */
     tunnel?: {
-      ensure(opts?: { start?: boolean }): Promise<
-        import('../tunnel/TunnelApp.js').TunnelEnsureResult
-      >;
+      ensure(opts?: {
+        start?: boolean;
+      }): Promise<import('../tunnel/TunnelApp.js').TunnelEnsureResult>;
       firstUrlWaitMs?: number;
     };
   };

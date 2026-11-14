@@ -130,7 +130,9 @@
   /* No `overflow: hidden`. It existed only to clip the descending fill to these
      corners, and it is now a clip waiting to cut a glyph that deliberately fills
      more of its box than the box has. */
-  transition: border-color 0.3s, border-style 0.3s;
+  transition:
+    border-color 0.3s,
+    border-style 0.3s;
 }
 
 /* No `position`/`z-index` any more: both existed to put the glyph UNDER the fill
@@ -142,7 +144,10 @@
   /* opacity is the clock; filter rides along; font-size steps once, at the end.
      Quicker than the fade so the mark has settled into the outline by the time
      the outline has finished arriving. */
-  transition: opacity 0.45s, filter 0.45s, font-size 0.35s;
+  transition:
+    opacity 0.45s,
+    filter 0.45s,
+    font-size 0.35s;
 }
 
 /* ─── The clock: TWO RUNGS, and the alphas are the theme's ───────────────── */
@@ -219,7 +224,9 @@
   border-radius: 50%;
   background: var(--clock);
   opacity: 0.85;
-  transition: box-shadow 0.3s, background 0.3s;
+  transition:
+    box-shadow 0.3s,
+    background 0.3s;
 }
 /* Delivered. The dot's equivalent of the tile's dashed outline — the same
    "this is finished, not gone" reading, at 6px. */

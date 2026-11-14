@@ -98,6 +98,10 @@ export interface WsServerHandle {
 // backed by a tens-of-MB transcript stays instant.
 const CHAT_HISTORY_TAIL_BYTES = 128 * 1024;
 
+/** /ws/events app-level heartbeat; the client reconnects after ~2.5 missed. */
+const EVENTS_HEARTBEAT_MS = 20_000;
+const EVENTS_HEARTBEAT = JSON.stringify({ _hb: 1 });
+
 // A turn completing within this window of the user's own chat send is an
 // interactive conversation — its turn-done must not push-notify (the user
 // is right there). Longer turns and autonomous wakeup/cron turns do push.
@@ -1814,6 +1818,84 @@ export function attachWsServer(deps: {
     return { status: 'queued', id: row.id };
   };
 
+  /**
+   * INTERRUPT AND SEND NOW.
+   *
+   * There is no steering into a running turn on any backend, so "send this
+   * now" is Stop plus a send — and the send has to be the VERY NEXT turn, ahead
+   * of anything already queued. Doing it as two client frames (stop, then
+   * send) races the drain: the stopped turn's `turn-done` drains the OLDEST
+   * queued message before the second frame lands, and the interrupting one
+   * waits behind it — the opposite of what was asked.
+   *
+   * So it is one server step, and the ordering rides the queue itself: the
+   * message goes to the FRONT (a new one via `enqueueFront`, a queued one via
+   * `promote`) and only then is the turn stopped. Whatever ends that turn —
+   * the runner's `turn-done`, a reconnect's hello — drains the front, which is
+   * this message. Nothing has to be remembered across the round trip, and the
+   * same `drainQueue` that feeds every other message feeds this one, so it
+   * works for every backend that honours Stop.
+   *
+   * `turnActive` alone decides whether to stop, NOT the socket Stop's
+   * "or a send in the last 15s" widening: that rule exists to catch a send
+   * whose turn has not echoed yet, which `turnActive` already covers here
+   * (every relay sets it optimistically). Relaying a Stop to an idle runner
+   * may never produce a `turn-done`, and then nothing would drain.
+   */
+  const interruptSend = (
+    paneId: string,
+    target: { text: string } | { id: string },
+  ): {
+    status: 'sent' | 'interrupting' | 'queued' | 'rejected';
+    id?: string;
+    reason?: string;
+  } => {
+    const pane = panes.getById(paneId);
+    if (!pane) return { status: 'rejected', reason: ROW_NOT_FOUND };
+    activity.touchTab(pane.tab_id, { force: true });
+    const conn = agentRunners.get(paneId);
+    const runnerOwned = pane.startup_cmd?.startsWith('muxpad agent') ?? false;
+    if (!conn && !runnerOwned) return { status: 'rejected', reason: 'pane has no agent runner' };
+    if (respawns.get(paneId)?.gaveUp)
+      return { status: 'rejected', reason: agentExitedMessage(paneId) };
+    let row: { id: string };
+    if ('text' in target) {
+      const t = target.text.trim();
+      if (!t) return { status: 'rejected', reason: 'empty message' };
+      if (queue.count(paneId) >= MAX_QUEUED_SENDS)
+        return {
+          status: 'rejected',
+          reason: `too many queued messages (max ${MAX_QUEUED_SENDS}) — wait for some to run`,
+        };
+      row = queue.enqueueFront(paneId, t);
+      activity.noteUserMessage(pane.tab_id);
+    } else {
+      const promoted = queue.promote(target.id, paneId);
+      // It drained or was cancelled between the click and this frame.
+      if (!promoted) return { status: 'rejected', reason: 'that message is no longer queued' };
+      row = promoted;
+    }
+    broadcastQueue(paneId);
+    if (!conn) {
+      // Nothing is running to interrupt; it is first in line for the runner.
+      void sweepDeadRunners();
+      return { status: 'queued', id: row.id };
+    }
+    if (conn.turnActive) {
+      // The same Stop the composer's button relays — see the socket's `stop`.
+      conn.pendingSendText = null;
+      markStopped(conn);
+      if (sendToRunner(paneId, { t: 'stop' })) return { status: 'interrupting', id: row.id };
+      // Relay lost a race with the socket close: it stays first in line.
+      return { status: 'queued', id: row.id };
+    }
+    // Idle (the client thought otherwise): the front of the queue is ours.
+    drainQueue(paneId);
+    return queue.peek(paneId)?.id === row.id
+      ? { status: 'queued', id: row.id }
+      : { status: 'sent', id: row.id };
+  };
+
   // Server-side liveness detection. A WebSocket severed abruptly (browser
   // hard-reload, crashed tab, network blip) does NOT fire 'close' until the
   // OS TCP timeout — minutes later. Until then the dead client stays on
@@ -2008,11 +2090,39 @@ export function attachWsServer(deps: {
         // Mark this socket alive on attach + pong so it doesn't get
         // terminated as a ghost on the next round.
         keepAlive(ws);
-        const unsub = deps.events.subscribe((e) => {
-          if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(e));
+        // CATCH-UP BEFORE LIVE, with no await in between: a client that says
+        // where it left off (?epoch=&seq=) gets what it missed, then the live
+        // stream, and nothing can be emitted in the gap. `_hello` tells it
+        // which happened; `replayed: false` means "refetch your baseline".
+        const bus = deps.events;
+        const epoch = url.searchParams.get('epoch');
+        const seqParam = url.searchParams.get('seq');
+        const missed =
+          epoch !== null && seqParam !== null ? bus.since(epoch, Number(seqParam)) : null;
+        for (const w of missed ?? []) ws.send(w.json);
+        ws.send(
+          JSON.stringify({
+            _hello: { epoch: bus.epoch, seq: bus.lastSeq, replayed: missed !== null },
+          }),
+        );
+        const unsub = bus.subscribeWire((w) => {
+          if (ws.readyState === WebSocket.OPEN) ws.send(w.json);
         });
-        ws.on('close', unsub);
-        ws.on('error', unsub);
+        // An app-level heartbeat the BROWSER can see. Protocol pings are
+        // answered by the browser invisibly, so a client could not tell a
+        // quiet stream from a dead one (a phone that changed networks keeps
+        // an OPEN socket to nowhere). Silence past a few of these is its cue
+        // to reconnect — and with replay, reconnecting costs almost nothing.
+        const hb = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) ws.send(EVENTS_HEARTBEAT);
+        }, EVENTS_HEARTBEAT_MS);
+        hb.unref?.();
+        const teardown = () => {
+          clearInterval(hb);
+          unsub();
+        };
+        ws.on('close', teardown);
+        ws.on('error', teardown);
       });
       return;
     }
@@ -2442,6 +2552,12 @@ export function attachWsServer(deps: {
             // outlive the send it names and be worn by the next autonomous
             // turn. See `pendingSendText`.
             conn.pendingSendText = null;
+            // The Home screen's row hint: a snippet of what the turn said,
+            // stored before the status edges below so their refetch carries
+            // it. A turn with nothing to quote keeps the previous one.
+            if (frame.ok !== false && frame.summary?.trim()) {
+              deps.cache.setReplyHint(paneId, frame.summary);
+            }
             // No question outlives its turn (the runner resolves them all on
             // interrupt/result), so the blocked state can't either.
             deps.cache.setBlocked(paneId, false);
@@ -2691,6 +2807,9 @@ export function attachWsServer(deps: {
             if (typeof frame.qid !== 'string' || !Array.isArray(frame.questions)) return;
             const firstOpen = conn.pendingQuestions.size === 0;
             conn.pendingQuestions.set(frame.qid, frame.questions);
+            // The Home screen's row hint: what it is asking, set before the
+            // block edge below so that edge's refetch already carries it.
+            if (firstOpen) deps.cache.setQuestionHint(paneId, frame.questions[0]?.question ?? null);
             // D5: "needs input" had NO representation in the nav. The question
             // reached chat sockets and a push and touched nothing else, so a
             // chat parked on ask_user read as plain idle in the sidebar — the
@@ -2728,7 +2847,10 @@ export function attachWsServer(deps: {
             // `blocked` with no card, which is the same wedge one level down.
             if (wasFront) {
               const next = conn.pendingQuestions.entries().next();
-              if (!next.done) presentQuestion(next.value[0], next.value[1]);
+              if (!next.done) {
+                deps.cache.setQuestionHint(paneId, next.value[1][0]?.question ?? null);
+                presentQuestion(next.value[0], next.value[1]);
+              }
             }
           } else if (frame.t === 'notify') {
             // The `notify` TOOL — the agent deciding this one is worth a phone.
@@ -3441,6 +3563,8 @@ export function attachWsServer(deps: {
             /** `/compact` instructions — what the summary must keep. */
             args?: string;
             answers?: Array<{ question: string; answers: string[] }>;
+            /** `send` only: stop the running turn and run this one next. */
+            interrupt?: boolean;
           }>(data);
           if (!msg) return;
           // App-level heartbeat: the client pings on an interval and treats a
@@ -3556,6 +3680,15 @@ export function attachWsServer(deps: {
             }
             return;
           }
+          if (msg.t === 'queue-send-now') {
+            // A queued message's "send now": promote it and interrupt — the
+            // same single step as an interrupting send (see interruptSend).
+            if (typeof msg.id !== 'string') return;
+            const outcome = interruptSend(chatPaneId, { id: msg.id });
+            if (outcome.status === 'rejected')
+              send({ t: 'notice', message: outcome.reason ?? 'could not send now' });
+            return;
+          }
           if (msg.t === 'queue-clear') {
             const dropped = queue.list(chatPaneId).map((row) => row.id);
             if (queue.clear(chatPaneId) > 0) {
@@ -3574,7 +3707,11 @@ export function attachWsServer(deps: {
           // reconnecting agent enqueues instead of dropping, and the server
           // drains it later even with no browser open. (TUI sessions are
           // terminal-driven; chat is a read-only view and submitSend rejects.)
-          const outcome = submitSend(chatPaneId, msg.text);
+          // `interrupt`: stop the running turn and make this the next one,
+          // ahead of the queue (Cmd/Ctrl+Enter, the composer's interrupt).
+          const outcome = msg.interrupt
+            ? interruptSend(chatPaneId, { text: msg.text })
+            : submitSend(chatPaneId, msg.text);
           if (outcome.status === 'rejected') {
             send({
               t: 'error',
@@ -3583,7 +3720,7 @@ export function attachWsServer(deps: {
                   ? 'This session is driven from its terminal — chat is a read-only view. Start an ✳ Agent tab for a chat-native session.'
                   : (outcome.reason ?? 'could not send'),
             });
-          } else if (outcome.status === 'queued') {
+          } else if (outcome.status === 'queued' || outcome.status === 'interrupting') {
             // Tell the sending socket its message was parked so it can drop the
             // optimistic turn state; the pending bubble arrives via the queue
             // broadcast (which every view, including this one, already got).

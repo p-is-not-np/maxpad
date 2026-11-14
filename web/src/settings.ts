@@ -88,8 +88,71 @@ const THEME_ALIASES: Record<string, Theme> = {
   latte: 'github-light',
 };
 
+/**
+ * THE STYLE — how the chrome is BUILT, independent of what colour it is.
+ *
+ * A theme is a palette (and, since demoscene, a typeface). A style is the
+ * structure that palette is poured into: whether the rail is its own surface
+ * or the page's, whether the composer floats, whether the rail and the content
+ * are cards on a canvas. The two are orthogonal, so they are two settings and
+ * two root attributes — `data-theme` and `data-style` — and every style rule
+ * in the stylesheets is scoped under `:where([data-style="…"])` so Default is
+ * exactly the stylesheet with no style rules at all.
+ */
+export type UiStyle = 'default' | 'minimal' | 'floating' | 'combo';
+
+export const STYLES: { value: UiStyle; label: string }[] = [
+  { value: 'default', label: 'Default' },
+  { value: 'minimal', label: 'Minimal' },
+  { value: 'floating', label: 'Floating' },
+  { value: 'combo', label: 'Minimal + Floating' },
+];
+
+const VALID_STYLES = new Set<UiStyle>(STYLES.map((s) => s.value));
+
+/** A stored style, or null for anything this build does not know — the same
+ *  "an unknown name is nothing chosen" rule the theme follows. */
+export function readStyle(raw: unknown): UiStyle | null {
+  return typeof raw === 'string' && VALID_STYLES.has(raw as UiStyle) ? (raw as UiStyle) : null;
+}
+
+/**
+ * THE PROMPT BOX — which composer design the chat pane draws.
+ *
+ * A third look setting beside theme and style, narrower than both: it changes
+ * only the composer, so it can be tried against any palette and any chrome.
+ * It lands as `data-composer` on `<html>`; every rule for an option is scoped
+ * under `:where([data-composer="…"])`, so Default is the stylesheet with none
+ * of them. Where an option moves controls (A's icon row, B's `+` bar, C's
+ * pill, D's Claude-style bar with the session under it) ChatPane asks `composerInForce` and places them — the same actions,
+ * reachable in every option.
+ */
+export type ComposerDesign = 'default' | 'a' | 'b' | 'c' | 'd';
+
+export const COMPOSERS: { value: ComposerDesign; label: string; hint: string }[] = [
+  { value: 'default', label: 'Default', hint: 'The current composer' },
+  { value: 'a', label: 'A · Box', hint: 'One rounded box, an icon row and a round send' },
+  { value: 'b', label: 'B · Bar', hint: 'A slim bar, every command behind +' },
+  { value: 'c', label: 'C · Pill', hint: 'A floating blurred pill' },
+  { value: 'd', label: 'D · Claude', hint: 'The Claude desktop bar: +, mic, and a quiet meta row' },
+];
+
+const VALID_COMPOSERS = new Set<ComposerDesign>(COMPOSERS.map((c) => c.value));
+
+/** A stored prompt box, or null for anything this build does not know. */
+export function readComposer(raw: unknown): ComposerDesign | null {
+  return typeof raw === 'string' && VALID_COMPOSERS.has(raw as ComposerDesign)
+    ? (raw as ComposerDesign)
+    : null;
+}
+
 export interface Settings {
   theme: ThemeChoice;
+  /** This browser's style — the fallback when the install has none stored,
+   *  exactly as `theme` is. */
+  style: UiStyle;
+  /** This browser's prompt box — the fallback, exactly as `style` is. */
+  composer: ComposerDesign;
   // Persisted width of the desktop sidebar. The upper bound is enforced live
   // while dragging (never wider than the longest tab name + its status/close
   // icon needs); this stored value is only sanity-clamped on read.
@@ -115,6 +178,8 @@ const DEFAULTS: Settings = {
   // System by default: it is the option most people want, and it is the one
   // pair in this list built to be flipped between.
   theme: 'system',
+  style: 'default',
+  composer: 'default',
   sidebarWidth: 280,
 };
 
@@ -158,6 +223,8 @@ function read(): Settings {
     const parsed = JSON.parse(raw) as Partial<Settings>;
     return {
       theme: readChoice(parsed),
+      style: readStyle(parsed.style) ?? DEFAULTS.style,
+      composer: readComposer(parsed.composer) ?? DEFAULTS.composer,
       sidebarWidth:
         typeof parsed.sidebarWidth === 'number' && Number.isFinite(parsed.sidebarWidth)
           ? Math.min(SIDENAV_MAX_WIDTH, Math.max(SIDENAV_MIN_WIDTH, parsed.sidebarWidth))
@@ -204,9 +271,30 @@ export function themeInForce(s: Settings): ThemeChoice {
   return serverTheme ?? s.theme;
 }
 
+/** The install's style, or null when none is stored — the twin of
+ *  `serverTheme`, and for the same reasons. */
+let serverStyle: UiStyle | null = null;
+
+/** The style ACTUALLY IN FORCE — the install's if it has one, else this
+ *  browser's. The picker asks this, for the reason `themeInForce` exists. */
+export function styleInForce(s: Settings): UiStyle {
+  return serverStyle ?? s.style;
+}
+
+/** The install's prompt box, or null when none is stored — the style's twin. */
+let serverComposer: ComposerDesign | null = null;
+
+/** The prompt box ACTUALLY IN FORCE — the install's if it has one, else this
+ *  browser's. The picker and ChatPane both ask this. */
+export function composerInForce(s: Settings): ComposerDesign {
+  return serverComposer ?? s.composer;
+}
+
 function applyToDocument(s: Settings) {
   if (typeof document === 'undefined') return;
   document.documentElement.dataset.theme = resolveTheme(themeInForce(s), systemPrefersDark());
+  document.documentElement.dataset.style = styleInForce(s);
+  document.documentElement.dataset.composer = composerInForce(s);
 }
 
 /**
@@ -227,6 +315,34 @@ export function setServerTheme(choice: ThemeChoice | null): void {
 /** The install's theme, or null when nothing is stored for it. */
 export function getServerTheme(): ThemeChoice | null {
   return serverTheme;
+}
+
+/** Point the document at the INSTALL's style, or `null` for none stored. Same
+ *  callers and the same no-op rule as {@link setServerTheme}. */
+export function setServerStyle(choice: UiStyle | null): void {
+  if (serverStyle === choice) return;
+  serverStyle = choice;
+  applyToDocument(current);
+  for (const fn of listeners) fn({ ...current });
+}
+
+/** The install's style, or null when nothing is stored for it. */
+export function getServerStyle(): UiStyle | null {
+  return serverStyle;
+}
+
+/** Point the document at the INSTALL's prompt box, or `null` for none stored.
+ *  Same callers and the same no-op rule as {@link setServerStyle}. */
+export function setServerComposer(choice: ComposerDesign | null): void {
+  if (serverComposer === choice) return;
+  serverComposer = choice;
+  applyToDocument(current);
+  for (const fn of listeners) fn({ ...current });
+}
+
+/** The install's prompt box, or null when nothing is stored for it. */
+export function getServerComposer(): ComposerDesign | null {
+  return serverComposer;
 }
 
 /**

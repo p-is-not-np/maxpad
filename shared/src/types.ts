@@ -319,7 +319,7 @@ export const PaneSpecSchema = z.object({
   shell: z.string().nullable().default(null),
   startup_cmd: z.string().nullable().default(null),
   cwd: z.string().nullable().default(null),
-  env: z.record(z.string()).nullable().default(null),
+  env: z.record(z.string(), z.string()).nullable().default(null),
   created_at: z.number(),
   // User-set pane name. Persistent (stored on the row), overriding the
   // live-derived label (terminal title → foreground_cmd → "Pane N") so a
@@ -521,6 +521,13 @@ export const TabSchema = z.object({
   // one-line row. Never a placeholder and never an error string: the rail is
   // a signal surface, and "couldn't summarise" is not a signal.
   headline: z.string().nullable().optional(),
+  // ONE LINE OF WHAT THE AGENT LAST SAID: the open question while the chat is
+  // blocked, else a snippet of the reply that ended its last turn. Runtime-
+  // only (in-memory on the server, gone after a restart) and the phone Home
+  // screen's row hint — `headline` is the fallback when this is null. Always
+  // sent (null rather than absent) by a server that has it, so a client
+  // coalescing rows can clear a stale one; `.optional()` is wire-compat.
+  hint: z.string().nullable().optional(),
   // True once the USER has named this tab by hand. Permanent, and the
   // auto-namer's hard stop: it may fill an empty or bootstrap name, but once
   // you have chosen one it never touches the name (or the icon) again. This

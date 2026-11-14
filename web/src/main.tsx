@@ -1,10 +1,10 @@
 import { RouterProvider } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { bootTheme } from './boot-prefetch';
+import { bootPrefs } from './boot-prefetch';
 import { SlackNoticeDiagnostic } from './components/SlackNoticeDiagnostic';
 import { startEvents, subscribe, subscribeReconnect } from './events';
-import { applyBootTheme, refreshAppTheme } from './lib/app-theme';
+import { applyBootPrefs, refreshAppTheme } from './lib/app-theme';
 import { pushOpen } from './lib/external-open-store';
 import { setLastPaneId } from './lib/last-visited';
 import { startPresence } from './lib/presence';
@@ -71,11 +71,13 @@ if (!selfEmbedded) {
   // Not awaited and not gated: a failure here leaves the local default in
   // place, which is exactly what a fresh install looks like.
   //
-  // Applied through `applyBootTheme`, which drops it if a live value has
+  // The style rides along in the same prefs set, for the same reason.
+  //
+  // Applied through `applyBootPrefs`, which drops it if a live value has
   // already landed — the prefetch has a 1.5s wait budget and the push it would
   // be overwriting is the one somebody just chose.
-  void bootTheme().then((t) => {
-    if (t) applyBootTheme(t);
+  void bootPrefs().then((p) => {
+    if (p) applyBootPrefs(p);
   });
   startEvents();
   subscribeReconnect(() => {

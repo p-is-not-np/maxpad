@@ -6,6 +6,7 @@ import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getPushState } from '../lib/push';
 import { passkeyAPI, passkeyCeremony } from '../lib/slack-passkey';
+import { setServerComposer } from '../settings';
 import { SettingsMenu } from './SettingsMenu';
 vi.mock('../lib/slack-passkey', () => ({ passkeyAPI: vi.fn(), passkeyCeremony: vi.fn() }));
 vi.mock('./SlackSetupGuide', () => ({ SlackSetupGuide: () => null }));
@@ -29,6 +30,28 @@ vi.mock('../settings', () => ({
     { value: 'demoscene', label: 'Demoscene' },
   ],
   SYSTEM_PAIR: { light: 'alucard', dark: 'dracula' },
+  // The Style picker beside it: the same in-force question, and the same
+  // optimistic setter, as the theme's.
+  styleInForce: (s: { style?: string }) => s.style ?? 'default',
+  getServerStyle: () => null,
+  setServerStyle: vi.fn(),
+  STYLES: [
+    { value: 'default', label: 'Default' },
+    { value: 'minimal', label: 'Minimal' },
+    { value: 'floating', label: 'Floating' },
+    { value: 'combo', label: 'Minimal + Floating' },
+  ],
+  // …and the Prompt box picker under it, the same contract a third time.
+  composerInForce: (s: { composer?: string }) => s.composer ?? 'default',
+  getServerComposer: () => null,
+  setServerComposer: vi.fn(),
+  COMPOSERS: [
+    { value: 'default', label: 'Default', hint: 'The current composer' },
+    { value: 'a', label: 'A · Box', hint: 'box' },
+    { value: 'b', label: 'B · Bar', hint: 'bar' },
+    { value: 'c', label: 'C · Pill', hint: 'pill' },
+    { value: 'd', label: 'D · Claude', hint: 'claude' },
+  ],
 }));
 let root: ReturnType<typeof createRoot>;
 let host: HTMLDivElement;
@@ -93,7 +116,7 @@ it('opens a named modal, navigates sections, cancels with Escape and restores fo
   await click('Integrations');
   expect(visible()).toContain('Create passkey');
   expect(visible()).not.toContain('Font size');
-  await click('General');
+  await click('Appearance');
   expect(visible()).toContain('Theme');
   expect(document.querySelector('#font-size')).toBeNull();
   await act(async () => dialog.dispatchEvent(new Event('cancel', { cancelable: true })));
@@ -198,7 +221,7 @@ it('retains a locally verified enrollment receipt across sections until trusted-
   expect(passkeyAPI).toHaveBeenCalledWith('registration-options', { secret: 'one-time-code' });
   expect(visible()).toContain('not active');
   expect(document.querySelector('pre')?.textContent).toContain('fingerprint');
-  await click('General');
+  await click('Appearance');
   await click('Integrations');
   expect(document.querySelector('pre')?.textContent).toContain('fingerprint');
   expect(document.querySelector('input[type=password]')).toBeNull();
@@ -274,7 +297,7 @@ it('shows the current Slack state without a completed setup checklist or empty r
     // Notifications has its own section: as the last row of General, under
     // the theme grid, its lone Enable button read as an action on the tiles
     // above it ("they feel like the action button for picking a theme").
-  ).toEqual(['General', 'Notifications', 'Integrations', 'Machines']);
+  ).toEqual(['Appearance', 'Agents', 'Chats', 'Notifications', 'Integrations', 'Machines', 'Data']);
   expect(document.querySelector('[aria-label="Slack approvals"]')).toBeNull();
   expect(approvals.textContent).toContain('Ask each time.');
   expect(
@@ -448,7 +471,7 @@ it('keeps notifications in their own section, not under the theme grid', async (
   // what the app LOOKS like, and this is a permission a browser grants to a
   // device.
   await open();
-  const general = document.querySelector('[aria-label="General settings"]');
+  const general = document.querySelector('[aria-label="Appearance settings"]');
   expect(general?.textContent).toContain('Theme');
   expect(general?.textContent).not.toContain('Notifications');
 
@@ -548,4 +571,79 @@ it('writes the install’s theme, never a chat row', async () => {
   expect(src).toMatch(/api\.setPref\('theme', value\)/);
   expect(src).not.toMatch(/patchTabRow/);
   expect(src).not.toMatch(/patchTab\(/);
+});
+
+/**
+ * THE STYLE PICKER sits beside the theme's, in General, and follows its
+ * contract: one radio group, the style in force checked, and an optimistic
+ * install-wide write that undoes itself on failure.
+ */
+it('offers the four styles in Appearance, with the one in force chosen', async () => {
+  await open();
+  const general = document.querySelector('[aria-label="Appearance settings"]');
+  const group = general?.querySelector('.settings-styles');
+  expect(group?.querySelector('legend')?.textContent).toBe('Style');
+  const radios = [...(group?.querySelectorAll<HTMLInputElement>('input[name="style"]') ?? [])];
+  expect(radios.map((r) => r.value)).toEqual(['default', 'minimal', 'floating', 'combo']);
+  expect(radios.filter((r) => r.checked).map((r) => r.value)).toEqual(['default']);
+  // Each tile draws its style, so the four previews are distinguishable.
+  expect(
+    [...(group?.querySelectorAll<HTMLElement>('.style-mock') ?? [])].map((m) => m.dataset.look),
+  ).toEqual(['default', 'minimal', 'floating', 'combo']);
+});
+
+it('writes the install’s style and reverts when it cannot be stored', () => {
+  const src = readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), 'SettingsMenu.tsx'),
+    'utf8',
+  );
+  expect(src).toMatch(/<StylePicker chosen=\{styleInForce\(settings\)\}/);
+  expect(src).toMatch(/api\.setPref\('style', value\)/);
+  expect(src).toMatch(/const before = getServerStyle\(\)/);
+  expect(src).toMatch(/\.catch\(\(err\) => \{[\s\S]{0,320}setServerStyle\(before\)/);
+});
+
+/**
+ * THE PROMPT BOX PICKER sits under the style's, in General, and you pick one by
+ * using it: the press repaints at once, the install stores it, and a failed
+ * write undoes the press and says so.
+ */
+it('offers the five prompt boxes under the style, with the one in force chosen', async () => {
+  await open();
+  const general = document.querySelector('[aria-label="Appearance settings"]');
+  const groups = [...(general?.querySelectorAll('fieldset') ?? [])];
+  const at = groups.findIndex((g) => g.classList.contains('settings-composers'));
+  expect(at).toBeGreaterThan(groups.findIndex((g) => g.classList.contains('settings-styles')));
+  const group = groups[at];
+  expect(group?.querySelector('legend')?.textContent).toBe('Prompt box');
+  const radios = [...(group?.querySelectorAll<HTMLInputElement>('input[name="composer"]') ?? [])];
+  expect(radios.map((r) => r.value)).toEqual(['default', 'a', 'b', 'c', 'd']);
+  expect(radios.filter((r) => r.checked).map((r) => r.value)).toEqual(['default']);
+  expect(
+    [...(group?.querySelectorAll<HTMLElement>('.composer-mock') ?? [])].map(
+      (m) => m.dataset.design,
+    ),
+  ).toEqual(['default', 'a', 'b', 'c', 'd']);
+});
+
+it('applies a picked prompt box at once, and undoes it when it cannot be stored', async () => {
+  const fetchMock = vi.fn().mockRejectedValue(new Error('offline'));
+  vi.stubGlobal('fetch', fetchMock);
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.mocked(setServerComposer).mockClear();
+  try {
+    await open();
+    const b = document.querySelector<HTMLInputElement>('input[name="composer"][value="b"]');
+    await act(async () => b?.click());
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(vi.mocked(setServerComposer).mock.calls).toEqual([['b'], [null]]);
+    expect(fetchMock.mock.calls.map((c) => String(c[0]))).toContain('/api/prefs/composer');
+    expect(document.querySelector('.settings-composers [role=alert]')?.textContent).toMatch(
+      /Couldn’t save the prompt box/,
+    );
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });

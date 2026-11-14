@@ -15,7 +15,23 @@ import type Database from 'better-sqlite3';
  * behind it: anything could write anything and every browser would receive
  * it. So the keys are enumerated here and the route refuses the rest.
  */
-export const PREF_KEYS = ['theme'] as const;
+// `style` is the theme's twin: how the chrome is built rather than what colour
+// it is, and a document-level fact for exactly the same reasons.
+// `composer` (the prompt box design) is the third, for the same reasons again.
+// The rest are the Settings dialog's controls: what a new chat starts as,
+// two pieces of rail chrome, and how long a published link lives.
+export const PREF_KEYS = [
+  'theme',
+  'style',
+  'composer',
+  'new_chat_backend',
+  'new_chat_mode',
+  'new_chat_model',
+  'new_chat_effort',
+  'rail_recent',
+  'memory_gauge',
+  'publish_days',
+] as const;
 export type PrefKey = (typeof PREF_KEYS)[number];
 
 export function isPrefKey(k: string): k is PrefKey {

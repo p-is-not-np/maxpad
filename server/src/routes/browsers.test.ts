@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Database from 'better-sqlite3';
 import { Hono } from 'hono';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OPENED_QUIET_MS, browsersRoutes } from './browsers.js';
 
 /**
@@ -19,7 +19,8 @@ import { OPENED_QUIET_MS, browsersRoutes } from './browsers.js';
 
 let db: Database.Database;
 let app: Hono;
-let registry: { start: ReturnType<typeof vi.fn>; stop: ReturnType<typeof vi.fn> };
+type RegistryFn = (appId: string) => Promise<unknown>;
+let registry: { start: Mock<RegistryFn>; stop: Mock<RegistryFn> };
 
 const CHROME = { path: '/bin/chrome', source: 'test' };
 

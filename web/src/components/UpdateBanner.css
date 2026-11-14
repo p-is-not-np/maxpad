@@ -37,7 +37,7 @@
   color: var(--accent-fg);
   border: 1px solid color-mix(in srgb, var(--accent) 72%, #000);
   border-radius: 999px;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-lg);
   font-family: var(--chrome-font);
   font-size: 0.8125rem;
   line-height: 1.35;

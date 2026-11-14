@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import type { AppUrl, PaneSpec, PaneStatus, Tab, Workspace } from '@muxpad/shared';
-import { rollupStatus, tabTakesPanes } from '@muxpad/shared';
+import { STATUS_ORDER, rollupStatus, tabTakesPanes } from '@muxpad/shared';
 import type Database from 'better-sqlite3';
 import { provisionError } from './pane-provision-state.js';
 import type { PtydClient } from './ptyd-client/PtydClient.js';
@@ -162,6 +162,17 @@ export class PtydCache extends EventEmitter {
   // (not in PaneState) for the same reason as agentBusy: pty lifecycle must not
   // be able to clear it.
   private readonly blocked = new Set<string>();
+  // ONE LINE OF WHAT THE AGENT LAST SAID — the phone Home screen's row hint.
+  // Two slots, because the two answer different questions and the open
+  // question must win while it is open: `questionHints` is the question a
+  // blocked pane is waiting on (cleared with the block, see setBlocked), and
+  // `replyHints` is a snippet of the last finished turn's reply. In-memory
+  // only and deliberately NOT an emitter: every write lands just before a
+  // status edge (block, unblock, turn-done → unread) which already fans the
+  // `paneChange` that makes clients refetch the row carrying it. Lost on a
+  // restart, which is fine — the client falls back to the tab's headline.
+  private readonly questionHints = new Map<string, string>();
+  private readonly replyHints = new Map<string, string>();
   // Panes whose runner exhausted its automatic restarts (respawns.gaveUp) or
   // reported a fatal it can't come back from. Mirrored from the ws layer.
   private readonly dead = new Set<string>();
@@ -611,8 +622,33 @@ export class PtydCache extends EventEmitter {
     if (on === this.blocked.has(id)) return;
     const before = this.getStatus(id, false);
     if (on) this.blocked.add(id);
-    else this.blocked.delete(id);
+    else {
+      this.blocked.delete(id);
+      // The question that blocked it goes with the block, whichever path
+      // cleared it (answered, turn over, runner gone).
+      this.questionHints.delete(id);
+    }
     if (this.getStatus(id, false) !== before) this.emit('paneChange', id);
+  }
+
+  /** The question a blocked pane is waiting on, one line. Set BEFORE
+   *  `setBlocked(id, true)` so the edge's refetch already carries it. */
+  setQuestionHint(id: string, text: string | null): void {
+    const t = text ? oneLineHint(text) : '';
+    if (t) this.questionHints.set(id, t);
+    else this.questionHints.delete(id);
+  }
+
+  /** A snippet of the reply that ended the pane's last turn. */
+  setReplyHint(id: string, text: string | null): void {
+    const t = text ? oneLineHint(text) : '';
+    if (t) this.replyHints.set(id, t);
+    else this.replyHints.delete(id);
+  }
+
+  /** The open question if there is one, else the last reply, else null. */
+  getHint(id: string): string | null {
+    return this.questionHints.get(id) ?? this.replyHints.get(id) ?? null;
   }
 
   /**
@@ -711,6 +747,8 @@ export class PtydCache extends EventEmitter {
     this.agentBusy.delete(id);
     this.subagentCounts.delete(id);
     this.blocked.delete(id);
+    this.questionHints.delete(id);
+    this.replyHints.delete(id);
     this.dead.delete(id);
     this.runnerOwned.delete(id);
     this.detector.forget(id);
@@ -797,6 +835,12 @@ export function decoratePane(
     // Normally null, which is the "nothing is known to be wrong" case.
     provision_error: provisionError(pane.id),
   };
+}
+
+/** Collapse to one line and cap it — a row hint, not a transcript. */
+export function oneLineHint(text: string, max = 160): string {
+  const s = text.replace(/\s+/g, ' ').trim();
+  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
 }
 
 /**
@@ -940,12 +984,21 @@ export function decorateTab(
   // be: it only ever appears alongside `done: true`, which is unconditional —
   // so a client coalescing a live row over a done one clears `done` in the
   // same merge, and a stale reason has nothing left to attach to.
+  // The hint speaks for the pane the status came from: a blocked pane's
+  // question outranks another pane's finished reply. Unconditional (null, not
+  // absent) so a client coalescing rows can un-say a stale one.
+  const hint =
+    tabPanes
+      .map((p) => ({ s: cache.getStatus(p.id, p.unread === true), h: cache.getHint(p.id) }))
+      .filter((x) => x.h !== null)
+      .sort((a, b) => STATUS_ORDER.indexOf(a.s) - STATUS_ORDER.indexOf(b.s))[0]?.h ?? null;
   return {
     ...tab,
     attention,
     unread,
     status,
     agents,
+    hint,
     // Whether this tab's chrome offers a `+` at all — resolved from the panes
     // this function already read, so it costs nothing, and resolved HERE so the
     // rail, the pane strip and the mobile bar cannot each decide differently.

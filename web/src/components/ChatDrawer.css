@@ -56,7 +56,7 @@
   /* Deeper and softer than the first attempt: it has to read as ABOVE the log
      at a glance, and an overlay at the same apparent elevation as the thing
      behind it reads as a column whose text has mysteriously stopped. */
-  box-shadow: 0 10px 34px -10px rgb(0 0 0 / 0.5), 0 2px 8px -4px rgb(0 0 0 / 0.4);
+  box-shadow: var(--shadow-lg);
   font-family: var(--chrome-font, inherit);
   color: var(--d-ink);
   overflow: hidden;
@@ -674,4 +674,10 @@
 .chat-drawer__artifact-acts button.-armed {
   border-color: var(--status-dead, var(--danger));
   color: var(--status-dead, var(--danger));
+}
+
+/* MINIMAL STYLE (and the combo): a bare icon until you point at it. */
+:where([data-style="minimal"]) .chat-drawer-open,
+:where([data-style="combo"]) .chat-drawer-open {
+  background: transparent;
 }

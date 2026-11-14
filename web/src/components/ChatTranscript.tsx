@@ -46,6 +46,7 @@ import { ChatMentionCard, ChatMentionPill } from './ChatMentionPicker';
 import { CopyablePre } from './CopyablePre';
 import { FromAgentMessage } from './FromAgentMessage';
 import { SvgAgentGlyph } from './PaneWebSwitch';
+import { type ZoomCallbacks, attachZoom } from './zoom-surface';
 
 /** Open a full-screen image or video. Lives here with the media it opens. */
 /** One openable attachment. */
@@ -606,7 +607,17 @@ export function ImageModal({
   return (
     <div className="chat-modal-backdrop chat-img-backdrop">
       <button type="button" className="chat-modal-scrim" aria-label="Close" onClick={onClose} />
-      <div className="chat-img-stage">
+      {/* The stage covers the scrim, so a tap in the empty space around the
+          image lands here, not on the scrim. Close on that too — but only when
+          the tap hit the stage or frame itself, never the image or the nav. */}
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: Escape and the × button close it from the keyboard */}
+      <div
+        className="chat-img-stage"
+        onClick={(e) => {
+          const t = e.target as HTMLElement;
+          if (t === e.currentTarget || t.classList.contains('chat-img-frame')) onClose();
+        }}
+      >
         {/* The FRAME is what the image is measured against, and it has a size of
             its own: `flex: 1; min-height: 0` inside a stage that is pinned to
             the backdrop. Without it the stage was sized BY the image and
@@ -681,25 +692,21 @@ export function ImageModal({
 }
 
 /**
- * The lightbox image with self-contained zoom — pinch + double-tap + drag on
- * touch, double-click + drag on desktop. Needed because muxpad's viewport meta
- * disables native page zoom (user-scalable=no) app-wide, so the OS pinch never
- * reaches the image. `touch-action: none` (CSS) hands every touch to us.
+ * The lightbox image, zoomable the way Photos is: pinch around the point
+ * between your fingers (and pan with them at once), one-finger pan with
+ * momentum and a rubber band at the edges, double-tap to 2.5x at the tap and
+ * back; on desktop the wheel or a trackpad pinch zooms at the cursor, drag
+ * pans, double-click toggles. A swipe — sideways to step the gallery, down to
+ * close — exists only at 1x, so a zoomed picture is never thrown away.
  *
- * Zoom is driven by the image's RENDERED SIZE (width/height), not a CSS
- * transform: a transform scales the already-downscaled bitmap on the GPU (soft
- * when you zoom in), whereas resizing the element makes the browser
- * re-rasterize from the full-resolution source — sharp up to the image's real
- * pixels. Pan still rides `transform: translate` (translation never blurs).
+ * The gestures live in `attachZoom` (and their arithmetic in
+ * `lib/zoom-gesture`), which draws straight to the image's `transform` from
+ * requestAnimationFrame — no React render per frame, nothing that lays out.
  *
- * ─── IT FITS THE STAGE, NOT THE WINDOW ──────────────────────────────────────
- * This measured `window.innerWidth/innerHeight`, and the backdrop it lives in
- * is `position: absolute; inset: 0` — scoped to the CHAT PANE. With a sidebar
- * open, or in a split, the pane is hundreds of pixels narrower than the window,
- * so a "fitted" image was computed too large and hung off the right and bottom
- * edges with no way to see the rest: reported as a full-size screenshot opening
- * cut off. The stage is measured directly, and observed, so a pane resize or a
- * sidebar toggle re-fits instead of going stale.
+ * The box is the whole frame, not the picture: a pinch whose fingers land on
+ * the backdrop beside a narrow screenshot still zooms it, and a tap there
+ * still closes. It measures itself, so a pane resize or sidebar toggle
+ * re-fits the picture to the pane rather than the window.
  */
 function ZoomableImage({
   url,
@@ -711,288 +718,32 @@ function ZoomableImage({
   name: string;
   /** Step the gallery. Absent for a lone image — then a swipe does nothing. */
   onSwipe?: ((delta: number) => void) | undefined;
-  /** Close the lightbox — a swipe DOWN at 1x, the phone's "put it away". */
+  /** Close the lightbox — a swipe DOWN at 1x, or a tap beside the picture. */
   onDismiss?: (() => void) | undefined;
 }) {
-  const [scale, setScale] = useState(1);
-  // How far a swipe-down has dragged the picture, in px. Drawn as a translate
-  // so the image follows the finger and the gesture reads as "pulling it
-  // away"; snaps back to 0 if released short of the threshold.
-  const [pull, setPull] = useState(0);
-  const [pos, setPos] = useState({ x: 0, y: 0 });
-  // The contained fit size at scale 1 (px), computed from the natural size and
-  // the STAGE — the base the zoom multiplies. null until the image loads.
-  const [fit, setFit] = useState<{ w: number; h: number } | null>(null);
-  const sRef = useRef(scale);
-  sRef.current = scale;
-  const pRef = useRef(pos);
-  pRef.current = pos;
-  const fitRef = useRef(fit);
-  fitRef.current = fit;
+  const boxRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
-  const g = useRef({
-    mode: 'none' as 'none' | 'pan' | 'pinch' | 'swipe',
-    startDist: 0,
-    startScale: 1,
-    startX: 0,
-    startY: 0,
-    startCX: 0,
-    startCY: 0,
-    lastTap: 0,
-    /** Any touchstart — tells a real double-click from a synthesized one. */
-    lastTouch: 0,
-    swipeDX: 0,
-    swipeDY: 0,
-  });
-  const MAX = 5;
-
-  /** The box the image must fit inside: the stage, minus its own padding. */
-  const stageBox = () => {
-    const stage = imgRef.current?.parentElement;
-    if (stage) {
-      // clientWidth/Height exclude borders and scrollbars and include padding,
-      // so the padding comes off explicitly rather than as a guessed constant.
-      const cs = getComputedStyle(stage);
-      const w =
-        stage.clientWidth - Number.parseFloat(cs.paddingLeft) - Number.parseFloat(cs.paddingRight);
-      const h =
-        stage.clientHeight - Number.parseFloat(cs.paddingTop) - Number.parseFloat(cs.paddingBottom);
-      if (w > 0 && h > 0) return { w, h };
-    }
-    // The stage has no layout yet (first paint). The window is wrong — that is
-    // the bug above — but it is the only number available, and one frame later
-    // the observer corrects it.
-    return { w: window.innerWidth, h: window.innerHeight };
-  };
-
-  const computeFit = () => {
-    const img = imgRef.current;
-    if (!img || !img.naturalWidth) return;
-    const box = stageBox();
-    const r = Math.min(box.w / img.naturalWidth, box.h / img.naturalHeight, 1);
-    setFit({ w: Math.round(img.naturalWidth * r), h: Math.round(img.naturalHeight * r) });
-  };
-  // biome-ignore lint/correctness/useExhaustiveDependencies: one-time listener set up on mount; every value it acts on is read through a live ref, so re-subscribing on each change would detach and reattach for nothing
+  // Read live by the surface, so a new callback identity never re-attaches it.
+  const cb = useRef<ZoomCallbacks>({ onSwipe, onDismiss });
+  cb.current = { onSwipe, onDismiss };
   useEffect(() => {
-    computeFit();
-    window.addEventListener('resize', computeFit);
-    // A pane resize, a sidebar toggle or a split drag changes the stage without
-    // changing the window, and `resize` says nothing about any of them.
-    const stage = imgRef.current?.parentElement;
-    const ro = stage ? new ResizeObserver(() => computeFit()) : null;
-    if (stage && ro) ro.observe(stage);
-    return () => {
-      window.removeEventListener('resize', computeFit);
-      ro?.disconnect();
-    };
-  }, []);
-
-  const clampScale = (s: number) => Math.min(MAX, Math.max(1, s));
-  // Pan bound: how far the (scaled) image can move before its edge enters the
-  // stage — i.e. the overflow beyond the stage, per axis. Measured against the
-  // same box the fit uses, for the same reason.
-  const clampXY = (x: number, y: number, s: number) => {
-    const f = fitRef.current;
-    if (!f) return { x: 0, y: 0 };
-    const box = stageBox();
-    const maxX = Math.max(0, (f.w * s - box.w) / 2);
-    const maxY = Math.max(0, (f.h * s - box.h) / 2);
-    return { x: Math.max(-maxX, Math.min(maxX, x)), y: Math.max(-maxY, Math.min(maxY, y)) };
-  };
-  const apply = (s: number, x: number, y: number) => {
-    const c = clampXY(x, y, s);
-    setScale(s);
-    setPos(c);
-  };
-  // Toggle 1x ⇄ 2.5x, keeping the tapped/clicked point under the finger.
-  const toggleZoom = (clientX: number, clientY: number) => {
-    if (sRef.current > 1) {
-      setScale(1);
-      setPos({ x: 0, y: 0 });
-      return;
-    }
+    const box = boxRef.current;
     const img = imgRef.current;
-    if (!img) return;
-    const r = img.getBoundingClientRect();
-    const s = 2.5;
-    const ox = clientX - (r.left + r.width / 2);
-    const oy = clientY - (r.top + r.height / 2);
-    apply(s, ox * (1 - s), oy * (1 - s));
-  };
-
-  const dist = (a: React.Touch, b: React.Touch) =>
-    Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-
-  /** A swipe only exists at 1x — above it, one finger is panning the image. */
-  const SWIPE_PX = 60;
-  /** Further than a sideways swipe: closing is the bigger consequence. */
-  const DISMISS_PX = 90;
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    const gs = g.current;
-    gs.lastTouch = Date.now();
-    if (e.touches.length === 2) {
-      const [a, b] = [e.touches[0], e.touches[1]];
-      if (!a || !b) return;
-      gs.mode = 'pinch';
-      gs.startDist = dist(a, b) || 1;
-      gs.startScale = sRef.current;
-      gs.startX = pRef.current.x;
-      gs.startY = pRef.current.y;
-      gs.startCX = (a.clientX + b.clientX) / 2;
-      gs.startCY = (a.clientY + b.clientY) / 2;
-    } else if (e.touches.length === 1) {
-      const a = e.touches[0];
-      if (!a) return;
-      const now = Date.now();
-      if (now - gs.lastTap < 300) {
-        gs.lastTap = 0;
-        gs.mode = 'none';
-        toggleZoom(a.clientX, a.clientY);
-        return;
-      }
-      gs.lastTap = now;
-      gs.mode = sRef.current > 1 ? 'pan' : 'swipe';
-      gs.swipeDX = 0;
-      gs.swipeDY = 0;
-      gs.startX = pRef.current.x;
-      gs.startY = pRef.current.y;
-      gs.startCX = a.clientX;
-      gs.startCY = a.clientY;
-    }
-  };
-  const onTouchMove = (e: React.TouchEvent) => {
-    const gs = g.current;
-    if (gs.mode === 'pinch' && e.touches.length === 2) {
-      const [a, b] = [e.touches[0], e.touches[1]];
-      if (!a || !b) return;
-      const scale = clampScale(gs.startScale * (dist(a, b) / gs.startDist));
-      const cx = (a.clientX + b.clientX) / 2;
-      const cy = (a.clientY + b.clientY) / 2;
-      apply(scale, gs.startX + (cx - gs.startCX), gs.startY + (cy - gs.startCY));
-    } else if (gs.mode === 'pan' && e.touches.length === 1) {
-      const a = e.touches[0];
-      if (!a) return;
-      apply(
-        sRef.current,
-        gs.startX + (a.clientX - gs.startCX),
-        gs.startY + (a.clientY - gs.startCY),
-      );
-    } else if (gs.mode === 'swipe' && e.touches.length === 1) {
-      const a = e.touches[0];
-      if (!a) return;
-      const dx = a.clientX - gs.startCX;
-      const dy = a.clientY - gs.startCY;
-      // Horizontal intent steps the gallery; a mostly-DOWNWARD drag pulls the
-      // picture away to close it. Neither may fire for the other's gesture.
-      const horizontal = Math.abs(dx) > Math.abs(dy);
-      gs.swipeDX = horizontal ? dx : 0;
-      gs.swipeDY = !horizontal && dy > 0 ? dy : 0;
-      if (onDismiss) setPull(gs.swipeDY);
-    }
-  };
-  const onTouchEnd = (e: React.TouchEvent) => {
-    const gs = g.current;
-    if (gs.mode === 'swipe' && Math.abs(gs.swipeDX) >= SWIPE_PX) {
-      // Swipe LEFT (negative dx) means "bring the next one in from the right".
-      onSwipe?.(gs.swipeDX < 0 ? 1 : -1);
-      gs.swipeDX = 0;
-    }
-    if (gs.mode === 'swipe' && gs.swipeDY >= DISMISS_PX && onDismiss) {
-      gs.swipeDY = 0;
-      onDismiss();
-      return;
-    }
-    gs.swipeDY = 0;
-    // Unconditional: this handler's `pull` is the render's, which a move in
-    // the same frame has already outdated. React drops a no-op set.
-    setPull(0);
-    if (e.touches.length === 0) gs.mode = 'none';
-    // Pinched back to 1 → snap the pan to center.
-    if (sRef.current <= 1 && (pRef.current.x !== 0 || pRef.current.y !== 0)) {
-      setPos({ x: 0, y: 0 });
-    }
-  };
-
-  // Desktop: drag to pan when zoomed.
-  const drag = useRef<{ on: boolean; sx: number; sy: number; ox: number; oy: number }>({
-    on: false,
-    sx: 0,
-    sy: 0,
-    ox: 0,
-    oy: 0,
-  });
-  const onMouseDown = (e: React.MouseEvent) => {
-    if (sRef.current <= 1) return;
-    e.preventDefault();
-    drag.current = {
-      on: true,
-      sx: e.clientX,
-      sy: e.clientY,
-      ox: pRef.current.x,
-      oy: pRef.current.y,
-    };
-  };
-  // biome-ignore lint/correctness/useExhaustiveDependencies: stable listeners driven by refs — `apply` is recreated per render and listing it would tear down and rebuild the listener set on every keystroke
-  useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      if (!drag.current.on) return;
-      apply(
-        sRef.current,
-        drag.current.ox + (e.clientX - drag.current.sx),
-        drag.current.oy + (e.clientY - drag.current.sy),
-      );
-    };
-    const onUp = () => {
-      drag.current.on = false;
-    };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
+    if (!box || !img) return;
+    return attachZoom(box, img, cb);
   }, []);
-
   return (
-    <img
-      ref={imgRef}
-      className={`chat-img-full chat-img-zoom${scale > 1 ? ' -zoomed' : ''}`}
-      src={url}
-      alt={name}
-      draggable={false}
-      onLoad={computeFit}
-      // Size drives the zoom (browser re-rasterizes from source = sharp);
-      // translate only pans. Before the image loads, fall back to the CSS
-      // fit (max 100%). The pan clamp assumes the image is laid out CENTRED
-      // in the frame even when it overflows it — `.chat-img-frame` guarantees
-      // that with `place-content: center`; without it the right edge was
-      // unreachable.
-      style={
-        fit
-          ? {
-              width: `${fit.w * scale}px`,
-              height: `${fit.h * scale}px`,
-              maxWidth: 'none',
-              maxHeight: 'none',
-              transform: `translate(${pos.x}px, ${pos.y + pull}px)`,
-              opacity: pull ? Math.max(0.4, 1 - pull / 400) : undefined,
-            }
-          : { transform: `translate(${pos.x}px, ${pos.y + pull}px)` }
-      }
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
-      // A double-TAP is already handled in onTouchStart, and mobile Chrome then
-      // synthesizes a `dblclick` from the same two taps — measured on a 390px
-      // touch emulation: touchend at 855px wide, then dblclick, then back to
-      // 342px. The second toggle undid the first, so double-tap never zoomed.
-      onDoubleClick={(e) => {
-        if (Date.now() - g.current.lastTouch < 1000) return;
-        toggleZoom(e.clientX, e.clientY);
-      }}
-      onMouseDown={onMouseDown}
-    />
+    <div ref={boxRef} className="chat-img-zoomer">
+      {/* `-pending` hides it until its natural size is known: before that
+          there is no transform to fit it with, only a full-size flash. */}
+      <img
+        ref={imgRef}
+        className="chat-img-full chat-img-zoom -pending"
+        src={url}
+        alt={name}
+        draggable={false}
+      />
+    </div>
   );
 }
 
@@ -1044,6 +795,7 @@ function MediaGallery({
           <button
             // Index-suffixed: the same attachment can legitimately appear twice
             // in one message, so the url alone isn't a unique key.
+            // biome-ignore lint/suspicious/noArrayIndexKey: see above; the list is static per message.
             key={`${it.url}-${i}`}
             type="button"
             className={`chat-gallery-item${video ? ' -video' : ''}`}
@@ -1375,7 +1127,10 @@ export function NoticeCard({
 export function AgentLaunchCard({
   description,
   anchorId,
-}: { description: string; anchorId?: string | undefined }) {
+}: {
+  description: string;
+  anchorId?: string | undefined;
+}) {
   const text = `Agent "${description}" launched`;
   return (
     <div className="chat-turn chat-turn-notice" data-eid={anchorId}>

@@ -184,7 +184,7 @@ export function panesTabScopedRoutes(deps: {
         shell: z.string().optional(),
         startup_cmd: z.string().nullable().optional(),
         cwd: z.string().optional(),
-        env: z.record(z.string()).nullable().optional(),
+        env: z.record(z.string(), z.string()).nullable().optional(),
         inherit_cwd_from: z.string().optional(),
         // Which face the pane opens on — agent panes land directly on chat.
         face: z.enum(['terminal', 'web', 'chat']).optional(),

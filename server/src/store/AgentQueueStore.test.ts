@@ -90,4 +90,34 @@ describe('AgentQueueStore', () => {
     db.prepare('DELETE FROM panes WHERE id = ?').run(paneId);
     expect(queue.count(paneId)).toBe(0);
   });
+
+  it('enqueueFront puts a message ahead of everything already waiting', () => {
+    queue.enqueue(paneId, 'one');
+    queue.enqueue(paneId, 'two');
+    queue.enqueueFront(paneId, 'now');
+    queue.enqueue(paneId, 'three');
+    expect(queue.list(paneId).map((r) => r.text)).toEqual(['now', 'one', 'two', 'three']);
+    expect(queue.peek(paneId)?.text).toBe('now');
+    queue.enqueueFront(paneId, 'sooner');
+    expect(queue.peek(paneId)?.text).toBe('sooner');
+  });
+
+  it('enqueueFront on an empty queue is just the first message', () => {
+    queue.enqueueFront(paneId, 'only');
+    queue.enqueue(paneId, 'after');
+    expect(queue.list(paneId).map((r) => r.text)).toEqual(['only', 'after']);
+  });
+
+  it('promote moves a queued message to the front, scoped to its pane', () => {
+    queue.enqueue(paneId, 'a');
+    queue.enqueue(paneId, 'b');
+    const c = queue.enqueue(paneId, 'c');
+    expect(queue.promote(c.id, otherPane)).toBeUndefined();
+    expect(queue.promote(c.id, paneId)?.text).toBe('c');
+    expect(queue.list(paneId).map((r) => r.text)).toEqual(['c', 'a', 'b']);
+    // Already first: a no-op, not a reshuffle.
+    queue.promote(c.id, paneId);
+    expect(queue.list(paneId).map((r) => r.text)).toEqual(['c', 'a', 'b']);
+    expect(queue.promote('gone', paneId)).toBeUndefined();
+  });
 });

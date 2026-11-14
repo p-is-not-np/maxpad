@@ -11,9 +11,17 @@ interface BrandProps {
    * wordmark's slot.
    */
   markOnly?: boolean;
+  /** Link to the Home screen rather than '/' — the phone chrome, where the
+   *  mark doubles as the way back to what needs you. */
+  home?: boolean;
 }
 
-export function Brand({ asLink = true, responsive = true, markOnly = false }: BrandProps) {
+export function Brand({
+  asLink = true,
+  responsive = true,
+  markOnly = false,
+  home = false,
+}: BrandProps) {
   const insecure = window.location.protocol !== 'https:';
   const securityLabel = insecure ? 'Muxpad — HTTP connection is not encrypted' : 'Muxpad';
   const inner = (
@@ -36,7 +44,12 @@ export function Brand({ asLink = true, responsive = true, markOnly = false }: Br
   const className = `brand${markOnly ? ' brand-mark-only' : ''}`;
   if (asLink) {
     return (
-      <Link to="/" className={className} title={securityLabel}>
+      <Link
+        to={home ? '/home' : '/'}
+        className={className}
+        title={home ? `Home — ${securityLabel}` : securityLabel}
+        aria-label={home ? 'Home' : undefined}
+      >
         {inner}
       </Link>
     );

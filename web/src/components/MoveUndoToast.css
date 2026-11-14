@@ -21,8 +21,8 @@
   background: var(--bg-tabbar);
   color: var(--fg);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
   max-width: 420px;
   font-size: 0.8125rem;
   line-height: 1.35;
@@ -44,7 +44,9 @@
   font: inherit;
   font-weight: 600;
   cursor: pointer;
-  transition: background 80ms ease, border-color 80ms ease;
+  transition:
+    background 80ms ease,
+    border-color 80ms ease;
 }
 .move-undo-toast-action:hover {
   background: var(--border-strong);

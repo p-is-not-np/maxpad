@@ -4,16 +4,33 @@ import { api } from '../api';
 
 import { type PushState, disablePush, enablePush, getPushState, sendTestPush } from '../lib/push';
 import {
+  COMPOSERS,
+  type ComposerDesign,
+  STYLES,
   SYSTEM_PAIR,
   THEME_CHOICES,
   type ThemeChoice,
+  type UiStyle,
+  composerInForce,
+  getServerComposer,
+  getServerStyle,
   getServerTheme,
+  setServerComposer,
+  setServerStyle,
   setServerTheme,
+  styleInForce,
   themeInForce,
   updateSettings,
   useSettings,
 } from '../settings';
 import { MachinesSettings } from './MachinesSettings';
+import {
+  AgentsSection,
+  ChatsSection,
+  DataSection,
+  SETTINGS_SECTIONS,
+  type SettingsSection,
+} from './SettingsSections';
 import { SlackPasskeySettings } from './SlackPasskeySettings';
 import './SettingsMenu.css';
 
@@ -35,9 +52,7 @@ export function SettingsMenu() {
   // and this is a permission the browser grants to a device. Its own section
   // also gives the push state somewhere to explain itself (see PushSection),
   // which a one-line row never had room for.
-  const [section, setSection] = useState<'general' | 'notifications' | 'integrations' | 'machines'>(
-    'general',
-  );
+  const [section, setSection] = useState<SettingsSection>('appearance');
   useEffect(() => {
     if (!open) return;
     const el = dialog.current;
@@ -118,30 +133,39 @@ export function SettingsMenu() {
             <div className="settings-layout">
               <aside className="settings-sidebar">
                 <nav aria-label="Settings sections">
-                  {(['general', 'notifications', 'integrations', 'machines'] as const).map(
-                    (item) => (
-                      <button
-                        key={item}
-                        type="button"
-                        aria-current={section === item ? 'page' : undefined}
-                        onClick={() => setSection(item)}
-                      >
-                        {item.charAt(0).toUpperCase() + item.slice(1)}
-                      </button>
-                    ),
-                  )}
+                  {SETTINGS_SECTIONS.map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      aria-current={section === item ? 'page' : undefined}
+                      onClick={() => setSection(item)}
+                    >
+                      {item.charAt(0).toUpperCase() + item.slice(1)}
+                    </button>
+                  ))}
                 </nav>
               </aside>
               {/* NO SECTION HEADING. It printed the selected nav item back at
-                  you — "General" in the list, "General" again as an h2 three
+                  you — "Appearance" in the list, "Appearance" again as an h2 three
                   centimetres to its right — which is a title for a page that
                   already has one. The nav IS the heading. */}
               <div className="settings-body">
                 <section hidden={section !== 'machines'} aria-label="Machines">
                   <MachinesSettings />
                 </section>
-                <section hidden={section !== 'general'} aria-label="General settings">
+                <section hidden={section !== 'appearance'} aria-label="Appearance settings">
                   <ThemePicker chosen={themeInForce(settings)} />
+                  <StylePicker chosen={styleInForce(settings)} />
+                  <ComposerPicker chosen={composerInForce(settings)} />
+                </section>
+                <section hidden={section !== 'agents'} aria-label="Agent settings">
+                  <AgentsSection active={open && section === 'agents'} />
+                </section>
+                <section hidden={section !== 'chats'} aria-label="Chat settings">
+                  <ChatsSection />
+                </section>
+                <section hidden={section !== 'data'} aria-label="Data settings">
+                  <DataSection active={open && section === 'data'} />
                 </section>
                 <section hidden={section !== 'notifications'} aria-label="Notification settings">
                   <PushSection />
@@ -278,6 +302,153 @@ function ThemeMock({ theme }: { theme: string }) {
         <i className="theme-mock-line" />
         <i className="theme-mock-line theme-mock-line--short" />
       </span>
+    </span>
+  );
+}
+
+/**
+ * THE STYLE PICKER — the theme picker's twin, for how the chrome is BUILT.
+ *
+ * Same contract as {@link ThemePicker}: one value for the install, stored
+ * server-side and pushed to every window, applied optimistically on the press
+ * and undone if the write fails. The tiles are drawn in the theme in force
+ * (they inherit the dialog's tokens), so what changes between them is only
+ * the structure — which is the only thing a style is.
+ */
+export function StylePicker({ chosen }: { chosen: UiStyle }) {
+  const [failed, setFailed] = useState(false);
+  const pick = (value: UiStyle) => {
+    const before = getServerStyle();
+    setFailed(false);
+    setServerStyle(value);
+    void api.setPref('style', value).catch((err) => {
+      console.error('could not store the style', err);
+      setServerStyle(before);
+      setFailed(true);
+    });
+  };
+  return (
+    <fieldset className="settings-row settings-themes settings-styles">
+      <legend>Style</legend>
+      <div className="theme-grid style-grid">
+        {STYLES.map((s) => (
+          <label key={s.value} className="theme-tile" data-chosen={s.value === chosen}>
+            <input
+              type="radio"
+              name="style"
+              value={s.value}
+              checked={s.value === chosen}
+              onChange={() => pick(s.value)}
+            />
+            <span className="theme-tile-preview">
+              <StyleMock look={s.value} />
+            </span>
+            <span className="theme-tile-name">{s.label}</span>
+          </label>
+        ))}
+      </div>
+      {failed ? (
+        <p className="settings-note" role="alert">
+          Couldn’t save the style. The server may be running a build from before styles existed —
+          restart muxpad and try again.
+        </p>
+      ) : null}
+    </fieldset>
+  );
+}
+
+/** The frame of a muxpad in miniature: a rail, a page, and a composer — the
+ *  three things whose construction a style changes. */
+function StyleMock({ look }: { look: UiStyle }) {
+  return (
+    <span className="style-mock" data-look={look} aria-hidden="true">
+      <span className="style-mock-rail">
+        <i className="style-mock-row" />
+        <i className="style-mock-row style-mock-row--on" />
+        <i className="style-mock-row" />
+      </span>
+      <span className="style-mock-page">
+        <i className="style-mock-line" />
+        <i className="style-mock-line style-mock-line--short" />
+        <i className="style-mock-composer" />
+      </span>
+    </span>
+  );
+}
+
+/**
+ * THE PROMPT BOX PICKER — which composer the chat draws, under the style.
+ *
+ * The style picker's contract again: one value for the install, applied on the
+ * press so the composer under the dialog changes while you look at it, stored
+ * server-side and pushed to every window, undone if the write fails. You pick
+ * one by USING it, so the change has to be live.
+ */
+export function ComposerPicker({ chosen }: { chosen: ComposerDesign }) {
+  const [failed, setFailed] = useState(false);
+  const pick = (value: ComposerDesign) => {
+    const before = getServerComposer();
+    setFailed(false);
+    setServerComposer(value);
+    void api.setPref('composer', value).catch((err) => {
+      console.error('could not store the prompt box', err);
+      setServerComposer(before);
+      setFailed(true);
+    });
+  };
+  return (
+    <fieldset className="settings-row settings-themes settings-composers">
+      <legend>Prompt box</legend>
+      <div className="theme-grid style-grid">
+        {COMPOSERS.map((c) => (
+          <label
+            key={c.value}
+            className="theme-tile"
+            data-chosen={c.value === chosen}
+            title={c.hint}
+          >
+            <input
+              type="radio"
+              name="composer"
+              value={c.value}
+              checked={c.value === chosen}
+              onChange={() => pick(c.value)}
+            />
+            <span className="theme-tile-preview">
+              <ComposerMock design={c.value} />
+            </span>
+            <span className="theme-tile-name">{c.label}</span>
+          </label>
+        ))}
+      </div>
+      {failed ? (
+        <p className="settings-note" role="alert">
+          Couldn’t save the prompt box. The server may be running a build from before it existed —
+          restart muxpad and try again.
+        </p>
+      ) : null}
+    </fieldset>
+  );
+}
+
+/** The bottom of a chat in miniature: two lines of log and the prompt box,
+ *  drawn the way each design builds it. */
+function ComposerMock({ design }: { design: ComposerDesign }) {
+  return (
+    <span className="composer-mock" data-design={design} aria-hidden="true">
+      <i className="style-mock-line" />
+      <i className="style-mock-line style-mock-line--short" />
+      <span className="composer-mock-box">
+        <i className="composer-mock-plus" />
+        <i className="composer-mock-field" />
+        <i className="composer-mock-send" />
+        <span className="composer-mock-row">
+          <i />
+          <i />
+          <i />
+        </span>
+      </span>
+      <i className="composer-mock-meta" />
     </span>
   );
 }

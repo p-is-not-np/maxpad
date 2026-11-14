@@ -19,10 +19,11 @@
     "lint": "biome check ."
   },
   "dependencies": {
-    "zod": "^3.23.8"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
-    "vitest": "^2.1.4",
-    "typescript": "^5.6.3"
+    "@types/node": "^22.19.17",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
   }
 }
