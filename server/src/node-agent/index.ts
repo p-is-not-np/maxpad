@@ -12,6 +12,7 @@ import {
   muxpadLocate,
   projectsDir,
 } from '../chat/TranscriptReader.js';
+import { readHostMemory } from '../host-memory.js';
 import { LinkServer, linkUpgradeKind } from './link-server.js';
 import { readOriginIdentity } from './origin-identity.js';
 
@@ -282,6 +283,9 @@ export async function startNodeAgent(opts: NodeAgentOptions): Promise<{ close: (
      * drops every pane's link on this machine.
      */
     originKey: () => readOriginIdentity(dataDir),
+    // The same reader the server uses for its own machine, so a remote gauge
+    // and the local one can never disagree about what "available" means.
+    hostMemory: readHostMemory,
     makeTail: (sid, assistant, sink, tailBytes) =>
       new TranscriptTail(sid, {
         ...(tailBytes === undefined ? {} : { tailBytes }),

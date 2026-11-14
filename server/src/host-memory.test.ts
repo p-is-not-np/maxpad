@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   availableFromVmStat,
   memoryFromMeminfo,
+  parseHostMemory,
   parseProcStatus,
   parseSwapUsage,
   processName,
@@ -112,5 +113,50 @@ describe('shortPath', () => {
   it('keeps two segments so two checkouts of one project stay apart', () => {
     expect(shortPath('/home/a/maxpad-wt/vitest5/server')).toBe('vitest5/server');
     expect(shortPath('/')).toBe('/');
+  });
+});
+
+describe('parseHostMemory — a reading from another machine', () => {
+  const ok = {
+    platform: 'darwin',
+    ramTotalBytes: 1000,
+    ramAvailableBytes: 400,
+    swapTotalBytes: 100,
+    swapUsedBytes: 10,
+    top: [{ pid: 1, name: 'node', cwd: null, rssBytes: 5, swapBytes: 0 }],
+  };
+
+  it('accepts a well-formed one', () => {
+    expect(parseHostMemory(ok)).toEqual(ok);
+  });
+
+  it('clamps available to total and swap used to swap total', () => {
+    const m = parseHostMemory({ ...ok, ramAvailableBytes: 5000, swapUsedBytes: 500 });
+    expect(m?.ramAvailableBytes).toBe(1000);
+    expect(m?.swapUsedBytes).toBe(100);
+  });
+
+  it('drops malformed processes, caps the list and cuts long strings', () => {
+    const m = parseHostMemory({
+      ...ok,
+      top: [
+        { pid: 'x', name: 'bad', rssBytes: 1, swapBytes: 0 },
+        ...Array.from({ length: 30 }, (_, i) => ({
+          pid: i,
+          name: 'n'.repeat(500),
+          cwd: 7,
+          rssBytes: 1,
+          swapBytes: 0,
+        })),
+      ],
+    });
+    expect(m?.top).toHaveLength(19); // 20 looked at, the malformed one dropped
+    expect(m?.top[0]?.name).toHaveLength(64);
+    expect(m?.top[0]?.cwd).toBe(null);
+  });
+
+  it('is null for anything that is not a reading', () => {
+    for (const v of [null, 3, 'x', {}, { ...ok, ramTotalBytes: 0 }, { ...ok, swapTotalBytes: -1 }])
+      expect(parseHostMemory(v), JSON.stringify(v)).toBe(null);
   });
 });

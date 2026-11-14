@@ -172,3 +172,47 @@ export async function readHostMemory(opts: { top?: number } = {}): Promise<HostM
     top: [],
   };
 }
+
+/**
+ * A reading from ANOTHER machine, checked field by field — or null.
+ *
+ * It arrives over the host link from a peer that may be old, buggy or
+ * compromised, and it ends up in the gauge's arithmetic and in the popover's
+ * text. So every number must be finite and non-negative, available is clamped
+ * to total, the process list is capped, and strings are cut short. Anything
+ * that is not a reading is `null`, which the gauge shows as "unknown".
+ */
+export function parseHostMemory(v: unknown): HostMemory | null {
+  if (!v || typeof v !== 'object') return null;
+  const o = v as Record<string, unknown>;
+  const num = (x: unknown): number | null =>
+    typeof x === 'number' && Number.isFinite(x) && x >= 0 ? x : null;
+  const text = (x: unknown, max: number): string | null =>
+    typeof x === 'string' ? x.slice(0, max) : null;
+  const total = num(o.ramTotalBytes);
+  const avail = num(o.ramAvailableBytes);
+  const swapTotal = num(o.swapTotalBytes);
+  const swapUsed = num(o.swapUsedBytes);
+  if (total === null || total === 0 || avail === null || swapTotal === null || swapUsed === null)
+    return null;
+  const top: HostMemory['top'] = [];
+  if (Array.isArray(o.top))
+    for (const p of o.top.slice(0, 20)) {
+      if (!p || typeof p !== 'object') continue;
+      const q = p as Record<string, unknown>;
+      const pid = num(q.pid);
+      const name = text(q.name, 64);
+      const rss = num(q.rssBytes);
+      const swap = num(q.swapBytes);
+      if (pid === null || name === null || rss === null || swap === null) continue;
+      top.push({ pid, name, cwd: text(q.cwd, 128), rssBytes: rss, swapBytes: swap });
+    }
+  return {
+    platform: text(o.platform, 32) ?? 'unknown',
+    ramTotalBytes: total,
+    ramAvailableBytes: Math.min(avail, total),
+    swapTotalBytes: swapTotal,
+    swapUsedBytes: Math.min(swapUsed, swapTotal),
+    top,
+  };
+}

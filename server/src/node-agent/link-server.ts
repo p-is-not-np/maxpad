@@ -115,6 +115,13 @@ export interface LinkServerDeps {
     hits: unknown[];
     fallback: boolean;
   };
+  /**
+   * Read THIS machine's memory, for the gauge on the server that dialled us.
+   *
+   * Optional only so tests that do not care need not supply one; the agent
+   * always wires the real reader. Absent answers `unavailable`.
+   */
+  hostMemory?: (opts: { top?: number }) => Promise<unknown>;
   /** Build a transcript tail. See TranscriptSubscriptions. */
   makeTail: ConstructorParameters<typeof TranscriptSubscriptions>[0]['makeTail'];
   /**
@@ -285,6 +292,10 @@ export class LinkServer {
       if (m.op === 'sign') this.signOrigin(m.id, m.callId, m.action, m.payload);
       return;
     }
+    if (m.ch === 'host') {
+      if (m.op === 'read') void this.answerMemory(m.id, m.top);
+      return;
+    }
     if (m.op === 'frame') {
       const r = this.runners.get(m.paneId);
       if (r?.readyState === WebSocket.OPEN) r.send(JSON.stringify(m.frame));
@@ -362,6 +373,26 @@ export class LinkServer {
     const nonce = randomUUID();
     const sig = sign(identity.key, { origin: identity.origin, action, payload, ts, nonce });
     this.up({ ch: 'origin', op: 'signed', id, proof: { ts, nonce, sig } });
+  }
+
+  /**
+   * Answer one memory read. ALWAYS answers — a reader that throws is said as
+   * `unavailable`, so the server shows "unknown" now rather than after its
+   * timeout.
+   */
+  private async answerMemory(id: unknown, top: unknown): Promise<void> {
+    if (typeof id !== 'string' || !id) return;
+    const read = this.deps.hostMemory;
+    if (!read) {
+      this.up({ ch: 'host', op: 'unavailable', id, reason: 'not supported on this machine' });
+      return;
+    }
+    const n = typeof top === 'number' && Number.isFinite(top) ? Math.max(0, Math.min(top, 20)) : 0;
+    try {
+      this.up({ ch: 'host', op: 'memory', id, memory: await read({ top: Math.floor(n) }) });
+    } catch (e) {
+      this.up({ ch: 'host', op: 'unavailable', id, reason: (e as Error).message || 'unreadable' });
+    }
   }
 
   /**

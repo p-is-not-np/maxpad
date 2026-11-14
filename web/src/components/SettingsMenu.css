@@ -1033,6 +1033,21 @@
   font-size: 0.8125rem;
   font-variant-numeric: tabular-nums;
 }
+.machine-mem {
+  font-family: var(--chrome-font);
+  font-size: 0.75rem;
+}
+.machine-mem[data-pressure="warn"] {
+  color: var(--status-working);
+  font-weight: 600;
+}
+.machine-mem[data-pressure="critical"] {
+  color: var(--status-blocked);
+  font-weight: 600;
+}
+.machine-mem[data-pressure="unknown"] {
+  font-style: italic;
+}
 .machine-note,
 .machines-note {
   margin: 8px 0 0;
