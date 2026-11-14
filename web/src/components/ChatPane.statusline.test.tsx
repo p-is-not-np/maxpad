@@ -648,15 +648,11 @@ describe('the mode chip', () => {
     expect(box.querySelector('.chat-status-menu')?.textContent).toMatch(/muxpad’s assistant/);
   });
 
-  it('answers the next question: how to actually change it', () => {
-    // No harness can rewrite a running session's instructions, so a switch
-    // here could only deliver the new contract as a message the conversation
-    // drifts from. Saying so beats offering a control that under-delivers.
+  it('carries no explanatory paragraph once the model dials are there', () => {
     const box = chat();
     act(() => box.querySelector<HTMLButtonElement>('.chat-status-seg.-mode')?.click());
     const text = box.querySelector('.chat-status-menu')?.textContent ?? '';
-    expect(text).toMatch(/keeps the mode it was created in/);
-    expect(text).toMatch(/open a new chat in Agent mode/i);
+    expect(text).not.toMatch(/keeps the mode it was created in/);
   });
 
   it('offers no way to switch the running pane', () => {

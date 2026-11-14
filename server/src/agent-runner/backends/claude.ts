@@ -22,7 +22,7 @@ import {
   backendSupportsEffort,
   blockText,
   isAgentLaunchTool,
-  isRetiredClaudeModel,
+  isOfferedClaudeModel,
   needsReplyFallback,
   parseCronMarker,
   subagentLabel,
@@ -1855,7 +1855,7 @@ export function createClaudeBackend(host: RunnerHost, opts: BackendOptions): Age
         try {
           const models = await session.supportedModels();
           modelList = models
-            .filter((m) => !isRetiredClaudeModel(m))
+            .filter((m) => isOfferedClaudeModel(m))
             .map((m) => ({
               value: m.value,
               displayName: m.displayName,

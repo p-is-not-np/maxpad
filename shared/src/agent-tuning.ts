@@ -177,21 +177,19 @@ export function parseFastWord(v: string | undefined): boolean | undefined {
   return v === 'on' ? true : v === 'off' ? false : undefined;
 }
 
+/** The Claude models the picker offers, by the id each entry resolves to. */
+export const OFFERED_CLAUDE_MODELS: readonly string[] = [
+  'claude-opus-5-5',
+  'claude-sonnet-5-5',
+  'claude-fable-5-2',
+];
+
 /**
- * Claude models the picker no longer offers: Haiku, and every generation
- * before 5. Judged on the id an alias resolves to as well as the alias, so
- * `haiku` → `claude-haiku-4-5-…` goes, while `opus` → `claude-opus-5-5`
- * stays. An id we cannot date (a bare alias with no resolution) is kept.
+ * Whether the picker offers this Claude model. Judged on the id an alias
+ * resolves to (`opus` → `claude-opus-5-5`), so the list follows the SDK's
+ * aliases. `default` is always kept: it is the "no override" choice.
  */
-export function isRetiredClaudeModel(m: {
-  value: string;
-  displayName?: string;
-  resolvedModel?: string;
-}): boolean {
-  const names = [m.value, m.displayName ?? '', m.resolvedModel ?? ''];
-  if (names.some((n) => /haiku/i.test(n))) return true;
-  return names.some((n) => {
-    const v = /^claude-[a-z]+-(\d+)/i.exec(n) ?? /^[a-z]+ (\d+)(?:\.\d+)?$/i.exec(n);
-    return v !== null && Number(v[1]) < 5;
-  });
+export function isOfferedClaudeModel(m: { value: string; resolvedModel?: string }): boolean {
+  if (m.value === 'default') return true;
+  return OFFERED_CLAUDE_MODELS.includes(m.resolvedModel ?? m.value);
 }

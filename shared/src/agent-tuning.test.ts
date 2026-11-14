@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  isRetiredClaudeModel,
+  isOfferedClaudeModel,
   tuningFlags,
   tuningFromStartupCmd,
   tuningRefusal,
@@ -68,23 +68,22 @@ describe('agent tuning in the startup command', () => {
   });
 });
 
-describe('isRetiredClaudeModel', () => {
-  it('drops Haiku and every Claude model before 5, keeps 5+ and bare aliases', () => {
+describe('isOfferedClaudeModel', () => {
+  it('offers Default, Opus 5.5, Sonnet 5.5 and Fable 5.2 only', () => {
     const list = [
-      { value: 'default', displayName: 'Default (recommended)', resolvedModel: 'claude-opus-5-5' },
-      { value: 'opus', displayName: 'Opus 5.5', resolvedModel: 'claude-opus-5-5' },
-      { value: 'claude-fable-5-1', displayName: 'Fable 5.1' },
-      { value: 'claude-sonnet-5', displayName: 'Sonnet 5' },
-      { value: 'haiku', displayName: 'Haiku 4.5', resolvedModel: 'claude-haiku-4-5-20251001' },
-      { value: 'claude-opus-4-8', displayName: 'Opus 4.8' },
-      { value: 'claude-sonnet-4-6', displayName: 'Sonnet 4.6' },
-      { value: 'sonnet' },
+      { value: 'default', resolvedModel: 'claude-opus-5-5' },
+      { value: 'opus', resolvedModel: 'claude-opus-5-5' },
+      { value: 'fable', resolvedModel: 'claude-fable-5-2' },
+      { value: 'sonnet', resolvedModel: 'claude-sonnet-5-5' },
+      { value: 'haiku', resolvedModel: 'claude-haiku-5-5' },
+      { value: 'claude-fable-5-1', resolvedModel: 'claude-fable-5-1' },
+      { value: 'claude-opus-5', resolvedModel: 'claude-opus-5' },
+      { value: 'claude-opus-4-8', resolvedModel: 'claude-opus-4-8' },
     ];
-    expect(list.filter((m) => !isRetiredClaudeModel(m)).map((m) => m.value)).toEqual([
+    expect(list.filter(isOfferedClaudeModel).map((m) => m.value)).toEqual([
       'default',
       'opus',
-      'claude-fable-5-1',
-      'claude-sonnet-5',
+      'fable',
       'sonnet',
     ]);
   });
