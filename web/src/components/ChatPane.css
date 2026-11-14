@@ -4726,3 +4726,157 @@ button.chat-filechip {
     height: 38px;
   }
 }
+
+/* ── COMPOSER OPTION D — the Claude desktop bar ──────────────────────────────
+   One rounded line with a faint fill and a hairline, growing upward as the
+   text wraps: a `+` at the far left that opens a roomy menu above the bar,
+   the field (its placeholder carries the keys), and on the right two quiet
+   icons — the send slot (send, queue or stop) and the mic. No shadow, no tool
+   row: the session sits UNDER the bar, outside it, as a muted meta line. */
+:where([data-composer="d"]) .chat-composer {
+  gap: 0;
+  padding: 5px 6px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--chat-fg) 12%, transparent);
+  background: color-mix(in srgb, var(--chat-fg) 5%, var(--chat-bg));
+  box-shadow: none;
+}
+:where([data-composer="d"]) .chat-composer:focus-within {
+  border-color: color-mix(in srgb, var(--chat-fg) 22%, transparent);
+  box-shadow: none;
+}
+:where([data-composer="d"]) .chat-composer-main {
+  align-items: flex-end;
+  gap: 4px;
+}
+:where([data-composer="d"]) .chat-composer-main > .chat-tools,
+:where([data-composer="d"]) .chat-composer-main > .chat-attach,
+:where([data-composer="d"]) .chat-composer-main > .chat-send,
+:where([data-composer="d"]) .chat-composer-main > .chat-mic {
+  align-self: flex-end;
+}
+:where([data-composer="d"]) .chat-composer .chat-input {
+  height: 2.25rem;
+  min-height: 2.25rem;
+  padding: 0.4375rem 6px;
+  font-size: 0.9375rem;
+}
+:where([data-composer="d"]) .chat-composer .chat-input::placeholder {
+  color: var(--chat-faint);
+}
+/* Every button on the bar is the same quiet 36px square: an icon in the ink,
+   a faint square under it on hover (and, for the `+`, while its menu is open). */
+:where([data-composer="d"]) .chat-composer .chat-attach,
+:where([data-composer="d"]) .chat-composer .chat-mic,
+:where([data-composer="d"]) .chat-composer .chat-send {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--chat-fg);
+  box-shadow: none;
+}
+:where([data-composer="d"]) .chat-composer .chat-attach svg,
+:where([data-composer="d"]) .chat-composer .chat-mic svg {
+  width: 20px;
+  height: 20px;
+}
+:where([data-composer="d"]) .chat-composer .chat-attach:hover,
+:where([data-composer="d"]) .chat-composer .chat-attach[aria-expanded="true"],
+:where([data-composer="d"]) .chat-composer .chat-mic:hover,
+:where([data-composer="d"]) .chat-composer .chat-mic:focus-visible,
+:where([data-composer="d"]) .chat-composer .chat-send:hover:not(:disabled),
+:where([data-composer="d"]) .chat-composer .chat-send:focus-visible {
+  transform: none;
+  background: color-mix(in srgb, var(--chat-fg) 9%, transparent);
+  color: var(--chat-fg);
+}
+:where([data-composer="d"]) .chat-composer .chat-send:disabled {
+  opacity: 1;
+  filter: none;
+  color: var(--chat-faint);
+}
+/* Stop is a solid rounded square in the ink, as Claude draws it. */
+:where([data-composer="d"]) .chat-composer .chat-send.is-stop .chat-stop-glyph {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background: var(--chat-fg);
+}
+/* The `+` menu: a rounded surface with a soft shadow, roomy rows of icon and
+   label in the ink. */
+:where([data-composer="d"]) .chat-composer .chat-tools-sheet {
+  bottom: calc(100% + 10px);
+  left: -2px;
+  min-width: 260px;
+  padding: 6px;
+  border: 1px solid color-mix(in srgb, var(--chat-fg) 12%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--chat-fg) 4%, var(--chat-elev));
+  box-shadow:
+    0 2px 6px color-mix(in srgb, var(--shadow-ink) 10%, transparent),
+    0 18px 40px -14px color-mix(in srgb, var(--shadow-ink) 45%, transparent);
+}
+:where([data-composer="d"]) .chat-composer .chat-tools-item {
+  gap: 12px;
+  min-height: 0;
+  padding: 6px 12px;
+  border-radius: 9px;
+  color: var(--chat-fg);
+  font-size: 0.9375rem;
+}
+:where([data-composer="d"]) .chat-composer .chat-tools-item svg {
+  width: 18px;
+  height: 18px;
+  color: var(--chat-dim);
+}
+:where([data-composer="d"]) .chat-composer .chat-tools-item:hover,
+:where([data-composer="d"]) .chat-composer .chat-tools-item:focus-visible {
+  background: color-mix(in srgb, var(--chat-fg) 8%, transparent);
+}
+/* The meta row: under the bar, right-aligned, muted, no surface of its own. */
+:where([data-composer="d"]) .chat-composer-meta {
+  display: flex;
+  justify-content: flex-end;
+  max-width: 768px;
+  height: 26px;
+  margin: 4px auto 0;
+  padding: 0 6px;
+}
+:where([data-composer="d"]) .chat-composer-meta > .chat-status-bar {
+  flex: 0 1 auto;
+  height: 26px;
+}
+:where([data-composer="d"]) .chat-composer-meta .chat-status-seg {
+  padding: 2px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--chat-dim);
+  font-family: var(--ui-font, inherit);
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
+:where([data-composer="d"]) .chat-composer-meta .chat-status-seg.-mode .chat-status-seg-label {
+  font-weight: 400;
+}
+:where([data-composer="d"]) .chat-composer-meta .chat-status-seg:hover {
+  color: var(--chat-fg);
+}
+@media (max-width: 720px) {
+  :where([data-composer="d"]) .chat-composer {
+    padding: 4px 5px;
+    border-radius: 18px;
+  }
+  :where([data-composer="d"]) .chat-composer .chat-input {
+    height: 2.5rem;
+    min-height: 2.5rem;
+    padding: 0.5625rem 4px;
+    font-size: 1.0625rem;
+  }
+  :where([data-composer="d"]) .chat-composer .chat-attach,
+  :where([data-composer="d"]) .chat-composer .chat-mic,
+  :where([data-composer="d"]) .chat-composer .chat-send {
+    width: 38px;
+    height: 38px;
+  }
+}

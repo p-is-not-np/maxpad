@@ -607,6 +607,24 @@
   border-radius: 2px;
   background: color-mix(in srgb, var(--fg) 24%, transparent);
 }
+/* Five designs, one row on a desktop. */
+.settings-composers .style-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+@media (max-width: 700px) {
+  .settings-composers .style-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.composer-mock-meta {
+  display: none;
+  align-self: flex-end;
+  width: 30%;
+  height: 3px;
+  margin-right: 3px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--fg) 22%, transparent);
+}
 /* A: one rounded box; the field over an icon row; the send ends the row. */
 .composer-mock[data-design="a"] .composer-mock-box {
   padding: 5px 4px 3px 6px;
@@ -641,6 +659,30 @@
 }
 .composer-mock[data-design="b"] .composer-mock-row {
   display: none;
+}
+/* D: the Claude bar — `+`, field, two quiet icons, and the session under it. */
+.composer-mock[data-design="d"] .composer-mock-box {
+  margin-top: auto;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--fg) 6%, var(--bg));
+  border-color: color-mix(in srgb, var(--fg) 12%, transparent);
+}
+.composer-mock[data-design="d"] .composer-mock-plus {
+  display: block;
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--fg) 45%, transparent);
+}
+.composer-mock[data-design="d"] .composer-mock-send {
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--fg) 70%, transparent);
+}
+.composer-mock[data-design="d"] .composer-mock-row {
+  display: none;
+}
+.composer-mock[data-design="d"] .composer-mock-meta {
+  display: block;
 }
 /* C: a pill, translucent, lifted off the log, the commands inside it. */
 .composer-mock[data-design="c"] .composer-mock-box {

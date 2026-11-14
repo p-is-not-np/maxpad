@@ -436,6 +436,7 @@ function ComposerMock({ design }: { design: ComposerDesign }) {
           <i />
         </span>
       </span>
+      <i className="composer-mock-meta" />
     </span>
   );
 }

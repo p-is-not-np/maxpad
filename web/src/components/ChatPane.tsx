@@ -4086,11 +4086,17 @@ export function ChatPane({
   // is the arrangement argued for above. A and C keep it but draw the tools as
   // icons, named in a tooltip (A: on a row that ends in the send slot; C:
   // inside the pill). B is the command bar: everything idle lives behind the
-  // `+` on every layout, so it never has a labelled row.
+  // `+` on every layout, so it never has a labelled row. D (the Claude
+  // desktop bar) does the same, with the mic on the bar and the session in a
+  // quiet meta row under it.
   const composer = composerInForce(useSettings());
   const iconTools = composer === 'a' || composer === 'c';
-  const collapsedTools = toolsIdle && (touchLayout || composer === 'b');
-  const labelledTools = toolsIdle && !touchLayout && composer !== 'b';
+  const plusOnly = composer === 'b' || composer === 'd';
+  const collapsedTools = toolsIdle && (touchLayout || plusOnly);
+  const labelledTools = toolsIdle && !touchLayout && !plusOnly;
+  // D keeps a mic on the bar whenever dictation is available and idle, so the
+  // send slot never has to BE the mic there and the `+` menu needs no Dictate.
+  const barMic = composer === 'd' && voiceMic && voice.supported && !voiceIsLive(voice.state);
   const [toolsOpen, setToolsOpen] = useState(false);
   const toolsRef = useRef<HTMLDivElement>(null);
   useDismissable(toolsOpen, toolsRef, () => setToolsOpen(false));
@@ -5509,7 +5515,7 @@ export function ChatPane({
               Review a screen
             </button>
           ) : null}
-          {voiceMic && voice.supported ? (
+          {voiceMic && voice.supported && !barMic ? (
             <button
               type="button"
               role="menuitem"
@@ -5542,8 +5548,9 @@ export function ChatPane({
               everything you can do to this chat, so the model chip rides it
               too — one more row in a sheet that is only on screen while you
               are using it, rather than a permanent line under the input. */}
-          {/* B's desktop bar already carries the session as a chip. */}
-          {composer === 'b' && !touchLayout ? null : (
+          {/* B's desktop bar carries the session as a chip, D's meta row
+              under the bar. */}
+          {plusOnly && !touchLayout ? null : (
             <div className="chat-tools-session">{sessionStrip}</div>
           )}
         </div>
@@ -6342,11 +6349,15 @@ export function ChatPane({
                   placeholder={
                     question
                       ? 'Type an answer, or tap an option…'
-                      : // Chat is addressed as Chat. Naming the harness here was
-                        // the same slip as the greeting: "Message Claude…" under a
-                        // pane that calls itself Chat, in the one mode where the
-                        // harness is not a thing the user chose.
-                        `Message ${mode === 'chat' ? 'Chat' : assistantLabel(session?.assistant)}…`
+                      : // D carries the keys in the placeholder, as the Claude
+                        // app does — desktop only: a phone's Return is a newline.
+                        composer === 'd' && !touchLayout
+                        ? '↵ to send, ⇧↵ for new line'
+                        : // Chat is addressed as Chat. Naming the harness here was
+                          // the same slip as the greeting: "Message Claude…" under a
+                          // pane that calls itself Chat, in the one mode where the
+                          // harness is not a thing the user chose.
+                          `Message ${mode === 'chat' ? 'Chat' : assistantLabel(session?.assistant)}…`
                   }
                 />
                 {/* C rides the commands and the session INSIDE the pill, after
@@ -6360,8 +6371,22 @@ export function ChatPane({
                 {composer === 'b' && !touchLayout ? (
                   <div className="chat-composer-tools">{sessionStrip}</div>
                 ) : null}
-                {/* A puts the send slot at the end of its tool row instead. */}
-                {composer === 'a' && labelledTools ? null : sendSlot}
+                {/* A puts the send slot at the end of its tool row instead; D
+                    has its own mic beside it, so its slot is never the mic. */}
+                {(composer === 'a' && labelledTools) || (barMic && micInsteadOfSend)
+                  ? null
+                  : sendSlot}
+                {barMic ? (
+                  <button
+                    type="button"
+                    className="chat-mic chat-bar-mic"
+                    onClick={() => voice.start()}
+                    aria-label="Dictate"
+                    title="Dictate — speak instead of typing"
+                  >
+                    <SvgMic />
+                  </button>
+                ) : null}
               </div>
               {/* Attachment previews live INSIDE the composer pill, as a row
                 under the input — not a floating strip above it. */}
@@ -6550,6 +6575,12 @@ export function ChatPane({
                 </div>
               ) : null}
             </div>
+            {/* D: the session as a quiet meta row UNDER and outside the bar,
+                right-aligned — mode chip and model, as the Claude app draws
+                it. Touch keeps it in the `+` sheet, which costs no row. */}
+            {composer === 'd' && !touchLayout ? (
+              <div className="chat-composer-meta">{sessionStrip}</div>
+            ) : null}
           </div>
         ) : null}
       </div>

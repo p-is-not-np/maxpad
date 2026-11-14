@@ -50,6 +50,7 @@ vi.mock('../settings', () => ({
     { value: 'a', label: 'A · Box', hint: 'box' },
     { value: 'b', label: 'B · Bar', hint: 'bar' },
     { value: 'c', label: 'C · Pill', hint: 'pill' },
+    { value: 'd', label: 'D · Claude', hint: 'claude' },
   ],
 }));
 let root: ReturnType<typeof createRoot>;
@@ -607,7 +608,7 @@ it('writes the install’s style and reverts when it cannot be stored', () => {
  * using it: the press repaints at once, the install stores it, and a failed
  * write undoes the press and says so.
  */
-it('offers the four prompt boxes under the style, with the one in force chosen', async () => {
+it('offers the five prompt boxes under the style, with the one in force chosen', async () => {
   await open();
   const general = document.querySelector('[aria-label="General settings"]');
   const groups = [...(general?.querySelectorAll('fieldset') ?? [])];
@@ -616,13 +617,13 @@ it('offers the four prompt boxes under the style, with the one in force chosen',
   const group = groups[at];
   expect(group?.querySelector('legend')?.textContent).toBe('Prompt box');
   const radios = [...(group?.querySelectorAll<HTMLInputElement>('input[name="composer"]') ?? [])];
-  expect(radios.map((r) => r.value)).toEqual(['default', 'a', 'b', 'c']);
+  expect(radios.map((r) => r.value)).toEqual(['default', 'a', 'b', 'c', 'd']);
   expect(radios.filter((r) => r.checked).map((r) => r.value)).toEqual(['default']);
   expect(
     [...(group?.querySelectorAll<HTMLElement>('.composer-mock') ?? [])].map(
       (m) => m.dataset.design,
     ),
-  ).toEqual(['default', 'a', 'b', 'c']);
+  ).toEqual(['default', 'a', 'b', 'c', 'd']);
 });
 
 it('applies a picked prompt box at once, and undoes it when it cannot be stored', async () => {

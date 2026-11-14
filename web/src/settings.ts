@@ -124,16 +124,17 @@ export function readStyle(raw: unknown): UiStyle | null {
  * It lands as `data-composer` on `<html>`; every rule for an option is scoped
  * under `:where([data-composer="…"])`, so Default is the stylesheet with none
  * of them. Where an option moves controls (A's icon row, B's `+` bar, C's
- * pill) ChatPane asks `composerInForce` and places them — the same actions,
+ * pill, D's Claude-style bar with the session under it) ChatPane asks `composerInForce` and places them — the same actions,
  * reachable in every option.
  */
-export type ComposerDesign = 'default' | 'a' | 'b' | 'c';
+export type ComposerDesign = 'default' | 'a' | 'b' | 'c' | 'd';
 
 export const COMPOSERS: { value: ComposerDesign; label: string; hint: string }[] = [
   { value: 'default', label: 'Default', hint: 'The current composer' },
   { value: 'a', label: 'A · Box', hint: 'One rounded box, an icon row and a round send' },
   { value: 'b', label: 'B · Bar', hint: 'A slim bar, every command behind +' },
   { value: 'c', label: 'C · Pill', hint: 'A floating blurred pill' },
+  { value: 'd', label: 'D · Claude', hint: 'The Claude desktop bar: +, mic, and a quiet meta row' },
 ];
 
 const VALID_COMPOSERS = new Set<ComposerDesign>(COMPOSERS.map((c) => c.value));

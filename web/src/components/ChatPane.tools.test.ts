@@ -23,10 +23,8 @@ describe('the composer tools', () => {
     // multiple buttons on the left, doesn't feel like anything changed" was
     // looking at, and which really is indistinguishable from what it replaced.
     // (Prompt box B, the command bar, keeps the `+` on a desktop too.)
-    expect(SRC).toMatch(
-      /const collapsedTools = toolsIdle && \(touchLayout \|\| composer === 'b'\);/,
-    );
-    expect(SRC).toMatch(/const labelledTools = toolsIdle && !touchLayout && composer !== 'b';/);
+    expect(SRC).toMatch(/const collapsedTools = toolsIdle && \(touchLayout \|\| plusOnly\);/);
+    expect(SRC).toMatch(/const labelledTools = toolsIdle && !touchLayout && !plusOnly;/);
     const labelled = SRC.slice(SRC.indexOf(') : labelledTools ? ('));
     expect(labelled.slice(0, labelled.lastIndexOf(') : ('))).toMatch(/chat-tool-btn/);
   });
@@ -70,7 +68,7 @@ describe('the composer tools', () => {
     // The sheet carries the chip, which is what makes the row unnecessary.
     expect(SRC).toMatch(/<div className="chat-tools-session">\{sessionStrip\}<\/div>/);
     expect(SRC).toMatch(
-      /composer === 'b' && !touchLayout \? null : \(\s*<div className="chat-tools-session">/,
+      /plusOnly && !touchLayout \? null : \(\s*<div className="chat-tools-session">/,
     );
   });
 
