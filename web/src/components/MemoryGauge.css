@@ -17,8 +17,10 @@
 .memgauge[data-pressure="critical"] {
   --memgauge-fill: var(--status-blocked);
 }
-/* Text, not an icon: the icon-btn's fixed 36px square would clip it. */
-.memgauge-btn.icon-btn {
+/* Text, not an icon: the icon-btn's fixed square would clip it. Three classes
+   deep so it also beats the floating rail's `.sidenav-footer .icon-btn`
+   32px square, which loads later at the same specificity. */
+.memgauge .memgauge-btn.icon-btn {
   width: auto;
   padding: 0 9px;
   color: var(--memgauge-fill);
