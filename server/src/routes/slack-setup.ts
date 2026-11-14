@@ -34,7 +34,7 @@ export function slackSetupRoutes() {
     if (!/^application\/json(?:;|$)/i.test(c.req.header('content-type') || ''))
       return c.json({ error: 'JSON required' }, 415);
     const { operationID } = z
-      .object({ operationID: z.string().uuid() })
+      .object({ operationID: z.guid() })
       .strict()
       .parse(await c.req.json());
     for (const [k, v] of tests) if (v.expires < Date.now()) tests.delete(k);

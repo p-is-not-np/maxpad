@@ -67,7 +67,7 @@ export function slackPasskeyRoutes(deps: {
     const path = paths[c.req.param('operation')];
     if (!path) return c.json({ error: 'Unknown operation' }, 404);
     const wrapper = z
-      .object({ body: z.record(z.unknown()) })
+      .object({ body: z.record(z.string(), z.unknown()) })
       .strict()
       .parse(await c.req.json());
     const result = await slackBrokerRequest(
