@@ -5,6 +5,7 @@
 //
 // See docs/plans/2026-07-01-web-chat-session-switching.md.
 
+import { type EffortLevel, isEffortLevel } from './agent-tuning.js';
 import { stripMentionContext } from './chat-context.js';
 import { parseCronMarker } from './cron.js';
 import { parseSpawnDelivery } from './spawn-delivery.js';
@@ -454,7 +455,26 @@ export interface AgentSessionStatus {
    *  (or that don't expose one in their stream — Codex/Cursor) omit it and the
    *  chat header simply hides the meter chip. */
   context?: { pct: number; tokens: number; max: number };
-  models?: Array<{ value: string; displayName: string; resolvedModel?: string }>;
+  models?: AgentModelOption[];
+  /** The effort the NEXT turn runs at, when the backend knows it (pinned, or
+   *  Codex's config default). Absent = the harness's default, unreported. */
+  effort?: EffortLevel;
+  /** Codex fast mode as it applies to the next turn (pinned, or the config's
+   *  `service_tier`). Absent on backends without a fast tier. */
+  fast?: boolean;
+}
+
+/** One pickable model, plus what it supports — so the picker can hide an
+ *  effort level or a fast toggle the chosen model would refuse. */
+export interface AgentModelOption {
+  value: string;
+  displayName: string;
+  resolvedModel?: string;
+  /** Effort levels this model takes. Absent = unknown (fall back to the
+   *  backend's list); [] = none (the model has no effort dial). */
+  efforts?: EffortLevel[];
+  /** This model offers a fast service tier (Codex). */
+  fast?: boolean;
 }
 
 /**
@@ -479,17 +499,13 @@ export function sanitizeAgentStatus(raw: unknown): AgentSessionStatus | null {
   const models = Array.isArray(o.models)
     ? o.models
         .filter(
-          (m): m is { value: string; displayName: string; resolvedModel?: string } =>
+          (m): m is AgentModelOption =>
             typeof m === 'object' &&
             m !== null &&
             typeof (m as Record<string, unknown>).value === 'string' &&
             typeof (m as Record<string, unknown>).displayName === 'string',
         )
-        .map((m) => ({
-          value: m.value,
-          displayName: m.displayName,
-          ...(typeof m.resolvedModel === 'string' ? { resolvedModel: m.resolvedModel } : {}),
-        }))
+        .map((m) => sanitizeModelOption(m))
     : undefined;
   return {
     model: o.model,
@@ -504,6 +520,21 @@ export function sanitizeAgentStatus(raw: unknown): AgentSessionStatus | null {
         }
       : {}),
     ...(models && models.length > 0 ? { models } : {}),
+    ...(isEffortLevel(o.effort) ? { effort: o.effort } : {}),
+    ...(typeof o.fast === 'boolean' ? { fast: o.fast } : {}),
+  };
+}
+
+/** One model entry off the wire: unknown effort words are dropped, not
+ *  trusted — they end up as buttons whose value reaches a startup command. */
+export function sanitizeModelOption(m: AgentModelOption): AgentModelOption {
+  const raw = m as unknown as Record<string, unknown>;
+  return {
+    value: m.value,
+    displayName: m.displayName,
+    ...(typeof raw.resolvedModel === 'string' ? { resolvedModel: raw.resolvedModel } : {}),
+    ...(Array.isArray(raw.efforts) ? { efforts: raw.efforts.filter(isEffortLevel) } : {}),
+    ...(raw.fast === true ? { fast: true } : {}),
   };
 }
 

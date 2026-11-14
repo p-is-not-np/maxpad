@@ -21,11 +21,14 @@ describe('agent modes over HTTP', () => {
   let relayed: Array<{ paneId: string; mode: AgentMode }>;
   /** When false the bridge reports "no runner connected". */
   let runnerConnected: boolean;
+  /** Every tuning frame the route relayed to the (fake) live runner. */
+  let tuned: Array<{ paneId: string; tuning: Record<string, unknown> }>;
 
   beforeEach(async () => {
     tmp = mkdtempSync(join(tmpdir(), 'muxpad-mode-'));
     db = openDb(':memory:');
     relayed = [];
+    tuned = [];
     runnerConnected = true;
     test = await createTestApp({
       db,
@@ -36,6 +39,11 @@ describe('agent modes over HTTP', () => {
         setMode: (paneId, mode) => {
           if (!runnerConnected) return false;
           relayed.push({ paneId, mode });
+          return true;
+        },
+        setTuning: (paneId, tuning) => {
+          if (!runnerConnected) return false;
+          tuned.push({ paneId, tuning });
           return true;
         },
       },
@@ -357,6 +365,109 @@ describe('agent modes over HTTP', () => {
     });
     expect([204, 503]).toContain(res.status); // 503 only if ptyd went away
     expect(paneRow(pane.id).startup_cmd).toBe('muxpad agent --mode chat');
+  });
+
+  // ── tuning: model / effort / fast ───────────────────────────────────────
+
+  it('creation bakes effort and fast in beside the model, in canonical order', async () => {
+    const { pane } = await agentTab({
+      backend: 'codex',
+      model: 'gpt-6',
+      effort: 'xhigh',
+      fast: true,
+    });
+    expect(paneRow(pane.id).startup_cmd).toBe(
+      "muxpad agent --backend codex --model 'gpt-6' --effort xhigh --fast on",
+    );
+  });
+
+  it('creation refuses a dial the harness lacks rather than storing a lie', async () => {
+    const fast = await test.app.request('/api/tabs', {
+      method: 'POST',
+      ...json({ workspace_id: wsId, bootstrap: 'agent', backend: 'claude', fast: true }),
+    });
+    expect(fast.status).toBe(400);
+    const minimal = await test.app.request('/api/tabs', {
+      method: 'POST',
+      ...json({ workspace_id: wsId, bootstrap: 'agent', effort: 'minimal' }),
+    });
+    expect(minimal.status).toBe(400);
+  });
+
+  it('PATCH tuning persists into startup_cmd AND tells the live runner', async () => {
+    const { pane } = await agentTab({ mode: 'chat', model: 'opus' });
+    const res = await test.app.request(`/api/panes/${pane.id}`, {
+      method: 'PATCH',
+      ...json({ effort: 'max', model: 'sonnet' }),
+    });
+    expect(res.status).toBe(200);
+    expect(paneRow(pane.id).startup_cmd).toBe(
+      "muxpad agent --mode chat --model 'sonnet' --effort max",
+    );
+    expect(tuned).toEqual([{ paneId: pane.id, tuning: { model: 'sonnet', effort: 'max' } }]);
+    // null unpins.
+    await test.app.request(`/api/panes/${pane.id}`, { method: 'PATCH', ...json({ effort: null }) });
+    expect(paneRow(pane.id).startup_cmd).toBe("muxpad agent --mode chat --model 'sonnet'");
+  });
+
+  it('PATCH tuning with no runner connected still persists — the next boot carries it', async () => {
+    runnerConnected = false;
+    const { pane } = await agentTab({ backend: 'codex', mode: 'agent' });
+    const res = await test.app.request(`/api/panes/${pane.id}`, {
+      method: 'PATCH',
+      ...json({ fast: false, effort: 'low' }),
+    });
+    expect(res.status).toBe(200);
+    expect(paneRow(pane.id).startup_cmd).toBe(
+      'muxpad agent --backend codex --effort low --fast off',
+    );
+  });
+
+  it('PATCH refuses fast on Claude, effort on Cursor, and a flag-shaped model', async () => {
+    const claude = await agentTab();
+    const cursor = await agentTab({ backend: 'cursor' });
+    const r1 = await test.app.request(`/api/panes/${claude.pane.id}`, {
+      method: 'PATCH',
+      ...json({ fast: true }),
+    });
+    const r2 = await test.app.request(`/api/panes/${cursor.pane.id}`, {
+      method: 'PATCH',
+      ...json({ effort: 'high' }),
+    });
+    const r3 = await test.app.request(`/api/panes/${claude.pane.id}`, {
+      method: 'PATCH',
+      ...json({ model: '--dangerously-skip-permissions' }),
+    });
+    expect([r1.status, r2.status, r3.status]).toEqual([400, 400, 400]);
+    expect(tuned).toEqual([]);
+    expect(paneRow(claude.pane.id).startup_cmd).toBe('muxpad agent --mode chat');
+  });
+
+  it('PATCH tuning on a pending harness pick is a 409 — the launch card carries it', async () => {
+    const { pane } = await agentTab({ backend: 'pick' });
+    const res = await test.app.request(`/api/panes/${pane.id}`, {
+      method: 'PATCH',
+      ...json({ effort: 'high' }),
+    });
+    expect(res.status).toBe(409);
+    expect(paneRow(pane.id).startup_cmd).toBe('muxpad agent --pick');
+  });
+
+  it('a folder switch keeps the tuning — a new session, not a new model', async () => {
+    const { pane } = await agentTab({
+      backend: 'codex',
+      model: 'gpt-6',
+      effort: 'high',
+      fast: true,
+    });
+    const res = await test.app.request(`/api/panes/${pane.id}/cwd`, {
+      method: 'POST',
+      ...json({ cwd: tmp }),
+    });
+    expect([204, 503]).toContain(res.status);
+    expect(paneRow(pane.id).startup_cmd).toBe(
+      "muxpad agent --backend codex --model 'gpt-6' --effort high --fast on",
+    );
   });
 
   // ── surfacing ───────────────────────────────────────────────────────────

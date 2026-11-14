@@ -7,7 +7,7 @@
  * exists. Powers `POST /api/agent-sessions/:paneId/send` (the CLI's
  * "open an agent with a first message" flow).
  */
-import type { AgentMode } from '@muxpad/shared';
+import type { AgentMode, AgentTuning } from '@muxpad/shared';
 
 export interface AgentBridge {
   /**
@@ -49,6 +49,14 @@ export interface AgentBridge {
    * respawn boots correctly. Powers `PATCH /api/panes/:id {mode}`.
    */
   setMode: (paneId: string, mode: AgentMode) => boolean;
+  /**
+   * Tell the pane's connected runner its tuning changed (model / effort /
+   * Codex fast). Keys present = changed; `null` = back to the harness default.
+   * False when no runner is connected — not an error, for the same reason as
+   * setMode: startup_cmd already carries it. Powers `PATCH /api/panes/:id`.
+   * Optional so a test bridge that predates it still type-checks.
+   */
+  setTuning?: (paneId: string, tuning: Partial<AgentTuning>) => boolean;
   /**
    * `submitSend` UNWRAPPED — the raw `{status, reason}` the queue returns.
    * The cron scheduler records that answer VERBATIM into `cron_runs.outcome`,

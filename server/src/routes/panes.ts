@@ -4,6 +4,7 @@ import type { AgentMode, LayoutNode, PaneSpec } from '@muxpad/shared';
 import {
   AgentModeInputSchema,
   DEFAULT_AGENT_MODE,
+  EFFORT_LEVELS,
   ONE_THING_PER_TAB,
   ROW_NOT_FOUND,
   appendLeafToLayout,
@@ -19,6 +20,13 @@ import { z } from 'zod';
 import type { AgentBridge } from '../agent-bridge.js';
 import { applyModeToStartupCmd, modeFromStartupCmd } from '../agent-modes.js';
 import { agentStartupCmd } from '../agent-tab.js';
+import {
+  isSafeModelId,
+  tuningFlags,
+  tuningFromStartupCmd,
+  tuningRefusal,
+  withTuning,
+} from '../agent-tuning.js';
 import { agentPaneHasMessages } from '../chat/has-messages.js';
 import { runRebase } from '../chat/rebase-run.js';
 import type { EventBus } from '../events.js';
@@ -565,6 +573,20 @@ export function panesScopedRoutes(deps: {
         // pre-rename 'do'/'deep': rejecting a version-skewed client's PATCH
         // would leave it unable to change a pane's mode at all.
         mode: AgentModeInputSchema.optional(),
+        // TUNING — model, reasoning effort, Codex fast mode. `null` unpins
+        // (back to the harness's default). Persisted into startup_cmd so a
+        // respawn/resume boots with it, then relayed to the live runner, which
+        // applies it from the NEXT turn — no respawn, every backend can take
+        // all three live (claude: setModel/applyFlagSettings; codex/cursor
+        // spawn per turn). Same charset gate as the launch routes: it lands in
+        // a shell-typed command.
+        model: z
+          .string()
+          .refine(isSafeModelId, 'model must be a plain model id')
+          .nullable()
+          .optional(),
+        effort: z.enum(EFFORT_LEVELS).nullable().optional(),
+        fast: z.boolean().nullable().optional(),
       })
       // safeParse (not parse): a rejected url/face_url must 400, not 500.
       .safeParse(await c.req.json().catch(() => ({})));
@@ -614,6 +636,40 @@ export function panesScopedRoutes(deps: {
         },
         400,
       );
+    }
+    const tuningPatch = {
+      ...(patch.model !== undefined ? { model: patch.model } : {}),
+      ...(patch.effort !== undefined ? { effort: patch.effort } : {}),
+      ...(patch.fast !== undefined ? { fast: patch.fast } : {}),
+    };
+    const tuningAsked = Object.keys(tuningPatch).length > 0;
+    let tunedCmd = p.startup_cmd;
+    if (tuningAsked) {
+      if (!p.startup_cmd?.startsWith('muxpad agent')) {
+        return c.json(
+          {
+            error: {
+              code: 'bad_request',
+              message: 'only a chat or an agent has a model — this is a terminal',
+            },
+          },
+          400,
+        );
+      }
+      if (/(^|\s)--pick(\s|$)/.test(p.startup_cmd)) {
+        // No harness yet, so nothing to tune: the launch card carries these.
+        return c.json(
+          {
+            error: {
+              code: 'conflict',
+              message: 'pick a harness first — model and effort are set when it starts',
+            },
+          },
+          409,
+        );
+      }
+      const refusal = tuningRefusal(paneBackend, tuningPatch);
+      if (refusal) return c.json({ error: { code: 'bad_request', message: refusal } }, 400);
     }
     const kindFlip = patch.kind !== undefined && patch.kind !== p.kind;
     if (!kindFlip && patch.url !== undefined && p.kind !== 'url') {
@@ -665,11 +721,15 @@ export function panesScopedRoutes(deps: {
     // the true behavior, so it's what we implement and document.
     deps.db.transaction(() => {
       if (patch.name !== undefined) panes.setName(id, patch.name);
+      if (tuningAsked) {
+        tunedCmd = withTuning(p.startup_cmd, tuningPatch);
+        if (tunedCmd !== p.startup_cmd) panes.setStartupCmd(id, tunedCmd);
+      }
       if (modeChanged) {
         const nextMode: AgentMode = patch.mode as AgentMode;
         panes.setMode(id, nextMode);
-        const nextCmd = applyModeToStartupCmd(p.startup_cmd, nextMode);
-        if (nextCmd !== p.startup_cmd) panes.setStartupCmd(id, nextCmd);
+        const nextCmd = applyModeToStartupCmd(tunedCmd, nextMode);
+        if (nextCmd !== tunedCmd) panes.setStartupCmd(id, nextCmd);
       }
       // Face flips never touch ptyd — the terminal keeps running underneath
       // whatever face is showing.
@@ -694,6 +754,9 @@ export function panesScopedRoutes(deps: {
     // Live relay only after the row is committed, so the runner is never told
     // about a mode the DB rolled back.
     if (modeChanged) deps.agentBridge?.setMode(id, patch.mode as AgentMode);
+    // Tuning likewise: persisted above, so a pane with no runner right now
+    // simply boots with it; a live one applies it from its next turn.
+    if (tuningAsked) deps.agentBridge?.setTuning?.(id, tuningPatch);
 
     const refreshed = panes.getById(id);
     if (refreshed) {
@@ -1072,6 +1135,10 @@ export function panesScopedRoutes(deps: {
           .regex(/^[A-Za-z0-9._[\]-]{1,64}$/)
           .refine((m) => !m.startsWith('-'), 'a model id cannot start with "-"')
           .optional(),
+        // Reasoning effort / Codex fast mode — closed allowlists, checked
+        // against the chosen harness below (agent-tuning.ts).
+        effort: z.enum(EFFORT_LEVELS).optional(),
+        fast: z.boolean().optional(),
       })
       .safeParse(await c.req.json().catch(() => ({})));
     if (!body.success)
@@ -1085,6 +1152,8 @@ export function panesScopedRoutes(deps: {
         400,
       );
     const backend = body.data.backend;
+    const tuningError = tuningRefusal(backend, body.data);
+    if (tuningError) return c.json({ error: { code: 'bad_request', message: tuningError } }, 400);
     // Chat mode is CLAUDE-ONLY (modeForBackend). This is the exact moment a
     // harness is chosen, so it is where the rule has to bite: picking Codex or
     // Cursor from the launch card converts the pane to Agent mode even if it
@@ -1114,6 +1183,8 @@ export function panesScopedRoutes(deps: {
       backend,
       mode: nextMode,
       ...(body.data.model !== undefined ? { model: body.data.model } : {}),
+      ...(body.data.effort !== undefined ? { effort: body.data.effort } : {}),
+      ...(body.data.fast !== undefined ? { fast: body.data.fast } : {}),
     });
     const workspaceId = tabs.getWorkspaceId(p.tab_id);
     // SPAWN FIRST, PERSIST AFTER. The conversion used to be written to the DB
@@ -1175,6 +1246,8 @@ export function panesScopedRoutes(deps: {
       mode: nextMode,
       cwd: nextCwd ?? null,
       model: body.data.model ?? null,
+      effort: body.data.effort ?? null,
+      fast: body.data.fast ?? null,
     });
   });
 
@@ -1300,11 +1373,12 @@ export function panesScopedRoutes(deps: {
       const backendMatch = p.startup_cmd?.match(/--backend (claude|codex|cursor)/);
       // The pane's MODE survives the folder switch — it's a property of how
       // you want this pane to behave, not of the session being restarted.
-      startupCmd =
-        applyModeToStartupCmd(
-          `muxpad agent${backendMatch ? ` --backend ${backendMatch[1]}` : ''}`,
-          p.mode,
-        ) ?? `muxpad agent${backendMatch ? ` --backend ${backendMatch[1]}` : ''}`;
+      // So does its TUNING (model / effort / fast): a new folder is a new
+      // session, not a reason to forget which model you chose.
+      const fresh = `muxpad agent${backendMatch ? ` --backend ${backendMatch[1]}` : ''}${tuningFlags(
+        tuningFromStartupCmd(p.startup_cmd),
+      )}`;
+      startupCmd = applyModeToStartupCmd(fresh, p.mode) ?? fresh;
       panes.setStartupCmd(id, startupCmd);
       // Switching folders starts a fresh session in a NEW project context —
       // messages queued against the old folder must not drain into it. Drop

@@ -8,6 +8,7 @@ import {
   type AgentMode,
   type AgentQuestion,
   type AgentSessionStatus,
+  type EffortLevel,
   type SubagentProgress,
   coerceAgentMode,
 } from '@muxpad/shared';
@@ -314,6 +315,20 @@ export type ServerFrame =
        */
       t: 'mode';
       mode: AgentMode;
+    }
+  | {
+      /**
+       * The pane's TUNING changed (PATCH /api/panes/:id). Keys present =
+       * changed, `null` = back to the harness default. Applies from the next
+       * turn; the startup_cmd already carries it for the next respawn.
+       * Validated again in the runner — never trusted off the wire. The
+       * server sends a model change as `set-model` instead (older runners
+       * know only that); `model` here is accepted for completeness.
+       */
+      t: 'tuning';
+      model?: string | null;
+      effort?: EffortLevel | null;
+      fast?: boolean | null;
     };
 
 /**

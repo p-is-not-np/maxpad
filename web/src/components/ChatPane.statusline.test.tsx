@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { api } from '../api';
 import { liveStatusLabel, sessionModelLabel, workingRowLabel } from '../lib/live-status';
 import { SessionBar } from './ChatStart';
 
@@ -906,5 +907,120 @@ describe('the status cells can actually open', () => {
       ),
       'an open panel is clipped away again',
     ).toBe(true);
+  });
+});
+
+/**
+ * THE DIALS in the session menu: model, reasoning effort, and (Codex) fast.
+ * Every choice is a PATCH — persisted on the pane, then relayed to the live
+ * runner — and the menu hides what the harness or the model lacks.
+ */
+describe('the session menu’s dials', () => {
+  let host: HTMLDivElement | null = null;
+  let root: ReturnType<typeof createRoot> | null = null;
+  afterEach(() => {
+    act(() => root?.unmount());
+    host?.remove();
+    host = null;
+    root = null;
+    vi.restoreAllMocks();
+  });
+
+  function open(props: Partial<Parameters<typeof SessionBar>[0]>) {
+    host = document.createElement('div');
+    document.body.appendChild(host);
+    root = createRoot(host);
+    act(() => {
+      root?.render(
+        <SessionBar
+          paneId="p1"
+          folder={null}
+          status={null}
+          send={() => {}}
+          liveLabel={null}
+          agents={[]}
+          mode="agent"
+          {...props}
+        />,
+      );
+    });
+    const seg = host.querySelector<HTMLButtonElement>('.chat-status-seg');
+    act(() => seg?.click());
+    return host;
+  }
+  const pills = (box: HTMLElement) =>
+    [...box.querySelectorAll<HTMLButtonElement>('.chat-tuning-pills button')].map(
+      (b) => b.textContent,
+    );
+
+  it('Claude: effort follows the model’s own levels, and a press PATCHes the pane', async () => {
+    const spy = vi.spyOn(api, 'setPaneTuning').mockResolvedValue({} as never);
+    const box = open({
+      assistant: 'claude',
+      status: {
+        model: 'opus',
+        effort: 'high',
+        models: [{ value: 'opus', displayName: 'Opus', efforts: ['low', 'high', 'max'] }],
+      },
+    });
+    expect(pills(box)).toEqual(['Default', 'Low', 'High', 'Max']);
+    expect(box.querySelector('.chat-tuning-pills [aria-pressed="true"]')?.textContent).toBe('High');
+    expect(box.querySelector('.chat-tuning-fast')).toBeNull();
+    const max = [...box.querySelectorAll<HTMLButtonElement>('.chat-tuning-pills button')].find(
+      (b) => b.textContent === 'Max',
+    );
+    await act(async () => max?.click());
+    expect(spy).toHaveBeenCalledWith('p1', { effort: 'max' });
+    // Shown at once, before the runner's status frame confirms it.
+    expect(box.querySelector('.chat-tuning-pills [aria-pressed="true"]')?.textContent).toBe('Max');
+  });
+
+  it('Codex: a fast toggle, and the line carries the pinned effort and ⚡', async () => {
+    const spy = vi.spyOn(api, 'setPaneTuning').mockResolvedValue({} as never);
+    const box = open({
+      assistant: 'codex',
+      status: {
+        model: 'gpt-6',
+        effort: 'xhigh',
+        fast: true,
+        models: [{ value: 'gpt-6', displayName: 'GPT-6', efforts: ['low', 'xhigh'], fast: true }],
+      },
+    });
+    expect(box.querySelector('.chat-status-seg')?.textContent).toContain('X-High ⚡');
+    const fast = box.querySelector<HTMLButtonElement>('.chat-tuning-fast');
+    expect(fast?.getAttribute('aria-checked')).toBe('true');
+    await act(async () => fast?.click());
+    expect(spy).toHaveBeenCalledWith('p1', { fast: false });
+  });
+
+  it('Cursor: the model list only — no effort, no fast', () => {
+    const box = open({
+      assistant: 'cursor',
+      status: { model: 'auto', models: [{ value: 'auto', displayName: 'Auto' }] },
+    });
+    expect(box.querySelector('.chat-tuning-pills')).toBeNull();
+    expect(box.querySelector('.chat-tuning-fast')).toBeNull();
+    expect(box.textContent).toContain('Auto');
+  });
+
+  it('Chat mode: the mode panel carries the model and effort too', async () => {
+    const spy = vi.spyOn(api, 'setPaneTuning').mockResolvedValue({} as never);
+    const box = open({
+      mode: 'chat',
+      assistant: 'claude',
+      status: {
+        model: 'opus',
+        models: [
+          { value: 'opus', displayName: 'Opus' },
+          { value: 'sonnet', displayName: 'Sonnet' },
+        ],
+      },
+    });
+    expect(pills(box)[0]).toBe('Default');
+    const sonnet = [...box.querySelectorAll<HTMLButtonElement>('.chat-session-item')].find((b) =>
+      b.textContent?.includes('Sonnet'),
+    );
+    await act(async () => sonnet?.click());
+    expect(spy).toHaveBeenCalledWith('p1', { model: 'sonnet' });
   });
 });

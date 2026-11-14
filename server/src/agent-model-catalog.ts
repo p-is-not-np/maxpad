@@ -1,3 +1,4 @@
+import { type AgentModelOption, sanitizeModelOption } from '@muxpad/shared';
 import type Database from 'better-sqlite3';
 import { GlobalsStore } from './store/GlobalsStore.js';
 
@@ -24,11 +25,7 @@ import { GlobalsStore } from './store/GlobalsStore.js';
  *    harness as `--model <id>`, and a retired id fails loudly in that session
  *    rather than silently mis-running.
  */
-export interface CatalogModel {
-  value: string;
-  displayName: string;
-  resolvedModel?: string;
-}
+export type CatalogModel = AgentModelOption;
 
 export type ModelCatalog = Record<string, CatalogModel[]>;
 
@@ -42,13 +39,11 @@ function cleanModel(v: unknown): CatalogModel | null {
   const o = v as Record<string, unknown>;
   if (typeof o.value !== 'string' || !o.value) return null;
   const displayName = typeof o.displayName === 'string' && o.displayName ? o.displayName : o.value;
-  return {
-    value: o.value,
-    displayName,
-    ...(typeof o.resolvedModel === 'string' && o.resolvedModel
-      ? { resolvedModel: o.resolvedModel }
-      : {}),
-  };
+  // Effort levels / fast ride along so the LAUNCH picker can offer the right
+  // dials before a session exists — same sanitizer as the status frame.
+  const clean = sanitizeModelOption({ ...(o as object), value: o.value, displayName });
+  if (!clean.resolvedModel) delete clean.resolvedModel;
+  return clean;
 }
 
 /**

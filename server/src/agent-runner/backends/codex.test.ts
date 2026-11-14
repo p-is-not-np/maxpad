@@ -189,6 +189,75 @@ describe('codex backend', () => {
     expect((log[2] as { ok: boolean; text?: string }).ok).toBe(true);
   });
 
+  // ── TUNING: effort and fast mode ride each turn's argv as `-c` keys ──────
+  // `-c`, not a flag, because `exec resume` takes `--config` and nothing else
+  // of the kind (see the writable-roots note in codex.ts). Fast OFF must be
+  // spelled out: a config.toml with `service_tier = "priority"` would
+  // otherwise win over the pane's explicit "off".
+  it('passes pinned effort and fast as -c keys, and a live change rides the next turn', async () => {
+    const { host, frames } = makeHost();
+    const { spawn, calls } = fakeSpawner();
+    const b = createCodexBackend(
+      host,
+      {
+        requestedSid: null,
+        requestedModel: null,
+        requestedEffort: 'high',
+        requestedFast: true,
+        mode: 'agent',
+      },
+      {
+        spawn,
+        listModels: async () => ({
+          models: [{ value: 'gpt-x', displayName: 'X', efforts: ['low', 'high'], fast: true }],
+          defaultModel: 'gpt-x',
+          defaultEffort: 'low',
+          defaultFast: false,
+        }),
+      },
+    );
+    b.start();
+    await tick();
+    closeChild(calls[0]!.child, 0);
+    await tick();
+    // The status reports what the next turn runs at — the PIN, not the config.
+    const boot = frames.filter((f) => f.t === 'status').at(-1) as {
+      effort?: string;
+      fast?: boolean;
+    };
+    expect(boot).toMatchObject({ effort: 'high', fast: true });
+
+    b.send('hi');
+    await tick();
+    expect(calls[1]!.args).toContain('model_reasoning_effort="high"');
+    expect(calls[1]!.args).toContain('service_tier="priority"');
+    line(calls[1]!.child, { type: 'thread.started', thread_id: 'thr-t' });
+    line(calls[1]!.child, { type: 'turn.completed' });
+    closeChild(calls[1]!.child, 0);
+    await tick();
+
+    b.setTuning?.({ effort: null, fast: false });
+    const after = frames.filter((f) => f.t === 'status').at(-1) as {
+      effort?: string;
+      fast?: boolean;
+    };
+    // Unpinned effort falls back to the CONFIG's level for display.
+    expect(after).toMatchObject({ effort: 'low', fast: false });
+    b.send('again');
+    await tick();
+    const args = calls[2]!.args;
+    expect(args.some((a) => a.startsWith('model_reasoning_effort='))).toBe(false);
+    expect(args).toContain('service_tier="default"');
+  });
+
+  it('pins nothing when nothing is pinned — the config.toml decides', async () => {
+    const { b, calls } = await boot();
+    b.send('hi');
+    await tick();
+    expect(calls[1]!.args.some((a) => a.startsWith('service_tier='))).toBe(false);
+    expect(calls[1]!.args.some((a) => a.startsWith('model_reasoning_effort='))).toBe(false);
+  });
+
   it('surfaces a logged-out backend as a clear turn-done, not a crash-loop', async () => {
     const { host, frames } = makeHost();
     const { spawn, calls } = fakeSpawner();

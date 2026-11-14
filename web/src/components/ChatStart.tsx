@@ -11,7 +11,15 @@
  * socket and no turn state, which is why several of them were already exported
  * and tested on their own.
  */
-import { AGENT_MODE_LABELS, type AgentMode, type AgentSessionStatus } from '@muxpad/shared';
+import {
+  AGENT_MODE_LABELS,
+  type AgentMode,
+  type AgentModelOption,
+  type AgentSessionStatus,
+  BACKEND_EFFORTS,
+  EFFORT_LABELS,
+  type EffortLevel,
+} from '@muxpad/shared';
 import { useEffect, useRef, useState } from 'react';
 import { type RecentFolder, api } from '../api';
 import { AGENT_BACKENDS, type AgentBackendId, backendLabel } from '../lib/agent-backend';
@@ -327,6 +335,10 @@ export function HarnessLaunchCard({
   setCwd,
   model,
   setModel,
+  effort = null,
+  setEffort,
+  fast = null,
+  setFast,
   busy,
   error,
   onCancel,
@@ -334,7 +346,7 @@ export function HarnessLaunchCard({
 }: {
   backend: AgentBackendId;
   folders: RecentFolder[];
-  models: Array<{ value: string; displayName: string; resolvedModel?: string }>;
+  models: AgentModelOption[];
   /** Where the pane is NOW — always a chip, even when it isn't "recent", so
    *  "leave it where it is" is never the one option you can't tap. */
   paneCwd: string | null;
@@ -342,6 +354,13 @@ export function HarnessLaunchCard({
   setCwd: (v: string) => void;
   model: string | null;
   setModel: (v: string | null) => void;
+  /** Reasoning effort to start with (null = the harness default). The row is
+   *  drawn only when `setEffort` is given and the harness has the dial. */
+  effort?: EffortLevel | null;
+  setEffort?: (v: EffortLevel | null) => void;
+  /** Codex fast mode to start with (null = whatever config.toml says). */
+  fast?: boolean | null;
+  setFast?: (v: boolean | null) => void;
   busy: boolean;
   error: string | null;
   onCancel: () => void;
@@ -357,6 +376,16 @@ export function HarnessLaunchCard({
   // both drew two identical buttons, one of which would have pinned the
   // string 'default' as if it were a model id.
   const pinnable = models.filter((m) => m.value !== 'default');
+  // The dials follow the chosen model when we know it; "Default" model means
+  // we do not, so the backend's whole range is offered.
+  const chosen = model ? models.find((m) => m.value === model) : undefined;
+  const launchEfforts = effortsFor(backend, chosen);
+  // A model change can strand a level the new model lacks — drop it rather
+  // than start a session with a pin the harness would refuse.
+  useEffect(() => {
+    if (effort && setEffort && !launchEfforts.includes(effort)) setEffort(null);
+    if (fast !== null && setFast && !fastOfferedFor(backend, chosen)) setFast(null);
+  }, [effort, setEffort, launchEfforts, fast, setFast, backend, chosen]);
   return (
     // A labelled SECTION, not a dialog: the card is inline and non-modal — it
     // traps nothing and simply replaces the strip it grew out of — so the
@@ -422,6 +451,63 @@ export function HarnessLaunchCard({
           ))}
         </div>
       </div>
+
+      {setEffort && launchEfforts.length ? (
+        <div className="chat-launch-section">
+          <div className="chat-launch-lbl">Reasoning effort</div>
+          <div className="chat-launch-models">
+            <button
+              type="button"
+              className="chat-launch-model"
+              aria-pressed={effort === null}
+              disabled={busy}
+              onClick={() => setEffort(null)}
+            >
+              Default
+            </button>
+            {launchEfforts.map((lvl) => (
+              <button
+                key={lvl}
+                type="button"
+                className="chat-launch-model"
+                aria-pressed={effort === lvl}
+                disabled={busy}
+                onClick={() => setEffort(lvl)}
+              >
+                {EFFORT_LABELS[lvl]}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {setFast && fastOfferedFor(backend, chosen) ? (
+        <div className="chat-launch-section">
+          <div className="chat-launch-lbl">Fast mode</div>
+          {/* Three states, because "off" and "whatever config.toml says" are
+              different answers when the config already asks for priority. */}
+          <div className="chat-launch-models">
+            {(
+              [
+                [null, 'Default'],
+                [true, 'On'],
+                [false, 'Off'],
+              ] as const
+            ).map(([v, label]) => (
+              <button
+                key={label}
+                type="button"
+                className="chat-launch-model"
+                aria-pressed={fast === v}
+                disabled={busy}
+                onClick={() => setFast(v)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <button type="button" className="chat-launch-go" disabled={busy} onClick={onStart}>
         {busy ? `Starting ${label}…` : `Start ${label}`}
@@ -679,6 +765,154 @@ export function OpenInsteadStrip({
  * these two sentences are the only place the vocabulary is explained, so they
  * have to carry it.
  */
+/**
+ * The effort levels worth offering for `model` on `backend`: the model's own
+ * list when the harness reported one (Claude's `supportedEffortLevels`, Codex's
+ * `supported_reasoning_levels`), else everything the backend takes. `[]` means
+ * no effort dial at all — Cursor, or a model that has none — and the section
+ * is not drawn.
+ */
+export function effortsFor(
+  backend: AgentBackendId,
+  model: AgentModelOption | undefined,
+): readonly EffortLevel[] {
+  return model?.efforts ?? BACKEND_EFFORTS[backend];
+}
+
+/** Codex only, and only for a model whose catalog lists the Fast tier (or
+ *  when we cannot tell which model is running). */
+export function fastOfferedFor(
+  backend: AgentBackendId,
+  model: AgentModelOption | undefined,
+): boolean {
+  return backend === 'codex' && (model === undefined || model.fast === true);
+}
+
+/**
+ * THE DIALS — model, reasoning effort and (Codex) fast mode — as one menu
+ * section, shared by both modes' panels.
+ *
+ * Every choice is a PATCH, not a socket frame: it lands in the pane's startup
+ * command first (so a respawn or resume keeps it) and the server then tells the
+ * live runner, which applies it from the NEXT turn. Nothing respawns — all
+ * three harnesses take all three dials without a restart. The runner's next
+ * status frame is the confirmation; until it lands the pressed pill is shown
+ * optimistically, and a refusal is said inline in the server's own words.
+ */
+function TuningSection({
+  paneId,
+  backend,
+  status,
+  current,
+  onPicked,
+}: {
+  paneId: string;
+  backend: AgentBackendId;
+  status: AgentStatus;
+  current: AgentModelOption | undefined;
+  onPicked: () => void;
+}) {
+  const [optimistic, setOptimistic] = useState<{
+    effort?: EffortLevel | null;
+    fast?: boolean;
+  }>({});
+  const [err, setErr] = useState<string | null>(null);
+  // A fresh status frame is the runner's own account — it replaces the guess.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset on every new frame, by identity
+  useEffect(() => setOptimistic({}), [status]);
+  const tune = (patch: { model?: string; effort?: EffortLevel | null; fast?: boolean }) => {
+    setErr(null);
+    if (patch.effort !== undefined || patch.fast !== undefined) {
+      setOptimistic((o) => ({ ...o, ...patch }));
+    }
+    api.setPaneTuning(paneId, patch).then(
+      () => {
+        if (patch.model !== undefined) onPicked();
+      },
+      (e: unknown) => {
+        setOptimistic({});
+        setErr(e instanceof Error ? e.message : 'could not change that');
+      },
+    );
+  };
+  const list = status.models ?? [];
+  const efforts = effortsFor(backend, current);
+  const effort = optimistic.effort !== undefined ? optimistic.effort : (status.effort ?? null);
+  const fast = optimistic.fast ?? status.fast ?? false;
+  return (
+    <>
+      {list.length ? <div className="chat-session-head">Model</div> : null}
+      {list.map((m) => {
+        // Show the CONCRETE id an alias resolves to (e.g. Opus →
+        // claude-opus-4-8) so "which model exactly" is unambiguous. For the
+        // active row prefer the live model the last turn actually ran
+        // (status.activeModel) over the alias's advertised resolution.
+        const concrete = m === current ? (status.activeModel ?? m.resolvedModel) : m.resolvedModel;
+        const showConcrete = concrete && concrete !== m.value && concrete !== m.displayName;
+        return (
+          <button
+            key={m.value}
+            type="button"
+            role="menuitem"
+            className={`chat-session-item${m === current ? ' is-active' : ''}`}
+            onClick={() => {
+              if (m !== current) tune({ model: m.value });
+              else onPicked();
+            }}
+          >
+            <span className="chat-session-item-label">{m.displayName}</span>
+            {showConcrete ? (
+              <span className="chat-session-item-desc chat-model-id">{concrete}</span>
+            ) : null}
+          </button>
+        );
+      })}
+      {efforts.length ? (
+        <>
+          <div className="chat-session-head">Reasoning effort</div>
+          <div className="chat-tuning-pills" role="group" aria-label="Reasoning effort">
+            <button
+              type="button"
+              className="chat-launch-model -sm"
+              aria-pressed={effort === null}
+              title="The model's own default"
+              onClick={() => effort !== null && tune({ effort: null })}
+            >
+              Default
+            </button>
+            {efforts.map((lvl) => (
+              <button
+                key={lvl}
+                type="button"
+                className="chat-launch-model -sm"
+                aria-pressed={effort === lvl}
+                onClick={() => effort !== lvl && tune({ effort: lvl })}
+              >
+                {EFFORT_LABELS[lvl]}
+              </button>
+            ))}
+          </div>
+        </>
+      ) : null}
+      {fastOfferedFor(backend, current) ? (
+        <button
+          type="button"
+          role="menuitemcheckbox"
+          aria-checked={fast}
+          className={`chat-session-item chat-tuning-fast${fast ? ' is-active' : ''}`}
+          onClick={() => tune({ fast: !fast })}
+        >
+          <span className="chat-session-item-label">Fast mode {fast ? 'on' : 'off'}</span>
+          <span className="chat-session-item-desc">
+            Codex priority tier — faster, uses more of your plan
+          </span>
+        </button>
+      ) : null}
+      {err ? <div className="chat-folder-error">{err}</div> : null}
+    </>
+  );
+}
+
 const MODE_CHOICES: ReadonlyArray<{ id: AgentMode; label: string; desc: string }> = [
   // Chat doesn't name a harness on purpose: it IS Claude, and which engine is
   // underneath is not a choice you make here (see modeForBackend). Agent is
@@ -861,6 +1095,12 @@ export function SessionBar({
       list.find((m) => m.value.toLowerCase() === modelLc))
     : undefined;
   const modelLabel = current?.displayName ?? status?.model ?? '';
+  // What the dials are set to, in as few characters as a phone can spare:
+  // ` · High ⚡`. Only what is PINNED or on — an unpinned Claude effort says
+  // nothing, because "default" is not news.
+  const tuningSuffix = status
+    ? `${status.effort ? ` · ${EFFORT_LABELS[status.effort]}` : ''}${status.fast ? ' ⚡' : ''}`
+    : '';
   const ctx = status?.context;
   const kTokens = (n: number) => `${Math.round(n / 1000)}k`;
 
@@ -971,7 +1211,13 @@ export function SessionBar({
             }`}
           >
             <SvgModeGlyph mode={mode} />
-            <span className="chat-status-seg-label">{AGENT_MODE_LABELS[mode]}</span>
+            <span className="chat-status-seg-label">
+              {AGENT_MODE_LABELS[mode]}
+              {status && modelLabel ? (
+                <span className="chat-status-seg-sub"> · {sessionModelLabel(modelLabel)}</span>
+              ) : null}
+              {tuningSuffix ? <span className="chat-status-seg-sub">{tuningSuffix}</span> : null}
+            </span>
           </button>
           {panel === 'mode' ? (
             // biome-ignore lint/a11y/useSemanticElements: an anchored popover, not a modal that owns the screen.
@@ -991,6 +1237,18 @@ export function SessionBar({
                   {AGENT_MODE_LABELS[mode === 'chat' ? 'agent' : 'chat']} mode.
                 </span>
               </div>
+              {/* The mode is fixed; the MODEL and EFFORT are not. A Chat-mode
+                  chat is still a Claude session with every dial an Agent-mode
+                  one has, so they live here — the one panel this mode opens. */}
+              {status ? (
+                <TuningSection
+                  paneId={paneId}
+                  backend={backendFromAssistant(assistant)}
+                  status={status}
+                  current={current}
+                  onPicked={() => setPanel(null)}
+                />
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -1197,6 +1455,7 @@ export function SessionBar({
                 already saying "Claude". */}
             <span className="chat-status-seg-label">
               {status ? sessionModelLabel(modelLabel) : assistantLabel(assistant)}
+              {tuningSuffix ? <span className="chat-status-seg-sub">{tuningSuffix}</span> : null}
             </span>
           </button>
           {/* When the folder chip is hidden (a plain, non-project chat) the
@@ -1254,33 +1513,13 @@ export function SessionBar({
                   </div>
                 </>
               ) : null}
-              {status.models?.length ? <div className="chat-session-head">Model</div> : null}
-              {status.models?.map((m) => {
-                // Show the CONCRETE id an alias resolves to (e.g. Opus →
-                // claude-opus-4-8) so "which model exactly" is unambiguous. For
-                // the active row prefer the live model the last turn actually ran
-                // (status.model) over the alias's advertised resolution.
-                const concrete =
-                  m === current ? (status.activeModel ?? m.resolvedModel) : m.resolvedModel;
-                const showConcrete = concrete && concrete !== m.value && concrete !== m.displayName;
-                return (
-                  <button
-                    key={m.value}
-                    type="button"
-                    role="menuitem"
-                    className={`chat-session-item${m === current ? ' is-active' : ''}`}
-                    onClick={() => {
-                      if (m !== current) send({ t: 'set-model', model: m.value });
-                      setPanel(null);
-                    }}
-                  >
-                    <span className="chat-session-item-label">{m.displayName}</span>
-                    {showConcrete ? (
-                      <span className="chat-session-item-desc chat-model-id">{concrete}</span>
-                    ) : null}
-                  </button>
-                );
-              })}
+              <TuningSection
+                paneId={paneId}
+                backend={backendFromAssistant(assistant)}
+                status={status}
+                current={current}
+                onPicked={() => setPanel(null)}
+              />
               {supportsSlash ? (
                 <>
                   <div className="chat-session-head">Session</div>
