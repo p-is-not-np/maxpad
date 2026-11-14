@@ -24,7 +24,7 @@ describe('the prompt box setting', () => {
   it('renders the send slot exactly once in every design', () => {
     // A moves it to the end of the icon row; everywhere else it ends the field.
     expect(SRC).toMatch(
-      /\{\(composer === 'a' && labelledTools\) \|\| \(barMic && micInsteadOfSend\)\s*\? null\s*: sendSlot\}/,
+      /\{\(composer === 'a' && labelledTools\) \|\| \(barMic && micInsteadOfSend && !stopInSlot\)\s*\? null\s*: sendSlot\}/,
     );
     expect(SRC).toMatch(/\{composer === 'a' \? sendSlot : null\}/);
     // The row that carries A's slot is the one A has: labelled and not C.

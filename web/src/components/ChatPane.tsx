@@ -4137,6 +4137,9 @@ export function ChatPane({
   // D keeps a mic on the bar whenever dictation is available and idle, so the
   // send slot never has to BE the mic there and the `+` menu needs no Dictate.
   const barMic = composer === 'd' && voiceMic && voice.supported && !voiceIsLive(voice.state);
+  // A turn running with nothing typed: the send slot is Stop (see `sendSlot`),
+  // in EVERY prompt box — including D, whose bar mic would otherwise take it.
+  const stopInSlot = sending && !question && !canSend;
   const [toolsOpen, setToolsOpen] = useState(false);
   const toolsRef = useRef<HTMLDivElement>(null);
   useDismissable(toolsOpen, toolsRef, () => setToolsOpen(false));
@@ -5407,9 +5410,8 @@ export function ChatPane({
    * the input row so a prompt box can place it: beside the field by default,
    * at the end of the icon row in option A.
    */
-  const sendSlot =
-    sending && !question && !canSend ? (
-      /* ── A RUNNING TURN WITH NOTHING TYPED: THE SLOT IS STOP ───
+  const sendSlot = stopInSlot ? (
+    /* ── A RUNNING TURN WITH NOTHING TYPED: THE SLOT IS STOP ───
          Still ONE button — never two circles, which is the defect
          that moved Stop out of here in the first place ("you have
          both a send and a stop button and they're both
@@ -5431,17 +5433,17 @@ export function ChatPane({
 
          Type anything and it becomes Queue again (below), which
          is the draft's own action returning to its own slot. */
-      <button
-        type="button"
-        className="chat-send is-stop"
-        onClick={stop}
-        aria-label="Stop this turn"
-        title="Stop this turn"
-      >
-        <span className="chat-stop-glyph" aria-hidden="true" />
-      </button>
-    ) : sending && !question ? (
-      /* Busy + composed text → Queue: the server holds it and
+    <button
+      type="button"
+      className="chat-send is-stop"
+      onClick={stop}
+      aria-label="Stop this turn"
+      title="Stop this turn"
+    >
+      <span className="chat-stop-glyph" aria-hidden="true" />
+    </button>
+  ) : sending && !question ? (
+    /* Busy + composed text → Queue: the server holds it and
          feeds it when the agent frees up.
 
          ── AND A SMALL BOLT BESIDE IT: INTERRUPT & SEND NOW ─────
@@ -5450,46 +5452,46 @@ export function ChatPane({
          keeps the edge and Enter, because waiting is the answer
          that loses nothing. Desktop only; a phone long-presses
          Queue or uses the `+` sheet. */
-      <>
-        {touchLayout ? null : (
-          <button
-            type="button"
-            className="chat-send-now"
-            onClick={interruptAndSend}
-            disabled={!canSend}
-            aria-label="Interrupt and send now"
-            title={`Interrupt & send now — stops this turn (${interruptModLabel()}↵)`}
-          >
-            <SvgInterrupt />
-          </button>
-        )}
+    <>
+      {touchLayout ? null : (
         <button
           type="button"
-          className="chat-send is-queue"
-          onClick={(e) => {
-            // The click that ends a long-press already interrupted.
-            if (queueLongPress.consume()) {
-              e.preventDefault();
-              return;
-            }
-            sendMessage();
-          }}
-          {...queueLongPress.handlers}
+          className="chat-send-now"
+          onClick={interruptAndSend}
           disabled={!canSend}
-          aria-label="Queue message — sends when the agent is free"
-          title={
-            uploadsInFlight
-              ? 'Waiting for uploads to finish — cancel one to queue now'
-              : touchLayout
-                ? 'Queue — sends when the agent is free. Hold to interrupt & send now'
-                : `Queue — sends when the agent is free (${interruptModLabel()}↵ interrupts)`
-          }
+          aria-label="Interrupt and send now"
+          title={`Interrupt & send now — stops this turn (${interruptModLabel()}↵)`}
         >
-          <SvgQueue />
+          <SvgInterrupt />
         </button>
-      </>
-    ) : micInsteadOfSend ? (
-      /* ── MIC → SEND → QUEUE, ONE SLOT ──────────────────────────
+      )}
+      <button
+        type="button"
+        className="chat-send is-queue"
+        onClick={(e) => {
+          // The click that ends a long-press already interrupted.
+          if (queueLongPress.consume()) {
+            e.preventDefault();
+            return;
+          }
+          sendMessage();
+        }}
+        {...queueLongPress.handlers}
+        disabled={!canSend}
+        aria-label="Queue message — sends when the agent is free"
+        title={
+          uploadsInFlight
+            ? 'Waiting for uploads to finish — cancel one to queue now'
+            : touchLayout
+              ? 'Queue — sends when the agent is free. Hold to interrupt & send now'
+              : `Queue — sends when the agent is free (${interruptModLabel()}↵ interrupts)`
+        }
+      >
+        <SvgQueue />
+      </button>
+    </>
+  ) : micInsteadOfSend ? (
+    /* ── MIC → SEND → QUEUE, ONE SLOT ──────────────────────────
          With nothing typed there is nothing to send, so the slot
          holds the thing you would do INSTEAD of typing. This is
          the arrangement the mock-up drew, and it is why Dictate is
@@ -5500,29 +5502,29 @@ export function ChatPane({
          worse — a dead target in the most valuable 36px of the
          composer, which is exactly where the one action available
          to an empty composer should be. */
-      <button
-        type="button"
-        className="chat-mic"
-        onClick={() => voice.start()}
-        aria-label="Dictate"
-        title="Dictate — speak instead of typing"
-      >
-        <SvgMic />
-      </button>
-    ) : (
-      <button
-        type="button"
-        className="chat-send"
-        onClick={sendMessage}
-        disabled={!canSend}
-        aria-label={uploadsInFlight ? 'Waiting for uploads' : 'Send'}
-        title={uploadsInFlight ? 'Waiting for uploads to finish — cancel one to send now' : 'Send'}
-      >
-        <span className="chat-send-glyph" aria-hidden="true">
-          ↑
-        </span>
-      </button>
-    );
+    <button
+      type="button"
+      className="chat-mic"
+      onClick={() => voice.start()}
+      aria-label="Dictate"
+      title="Dictate — speak instead of typing"
+    >
+      <SvgMic />
+    </button>
+  ) : (
+    <button
+      type="button"
+      className="chat-send"
+      onClick={sendMessage}
+      disabled={!canSend}
+      aria-label={uploadsInFlight ? 'Waiting for uploads' : 'Send'}
+      title={uploadsInFlight ? 'Waiting for uploads to finish — cancel one to send now' : 'Send'}
+    >
+      <span className="chat-send-glyph" aria-hidden="true">
+        ↑
+      </span>
+    </button>
+  );
 
   /**
    * THE COMPOSER'S TOOLS — one element, placed differently by layout.
@@ -6481,8 +6483,11 @@ export function ChatPane({
                   <div className="chat-composer-tools">{sessionStrip}</div>
                 ) : null}
                 {/* A puts the send slot at the end of its tool row instead; D
-                    has its own mic beside it, so its slot is never the mic. */}
-                {(composer === 'a' && labelledTools) || (barMic && micInsteadOfSend)
+                    has its own mic beside it, so its slot is never the mic —
+                    except that mid-turn with nothing typed the slot is STOP,
+                    and D then draws it beside the mic, as Claude does. Hiding
+                    it left D with no visible way to stop a run. */}
+                {(composer === 'a' && labelledTools) || (barMic && micInsteadOfSend && !stopInSlot)
                   ? null
                   : sendSlot}
                 {barMic ? (
