@@ -1818,6 +1818,84 @@ export function attachWsServer(deps: {
     return { status: 'queued', id: row.id };
   };
 
+  /**
+   * INTERRUPT AND SEND NOW.
+   *
+   * There is no steering into a running turn on any backend, so "send this
+   * now" is Stop plus a send — and the send has to be the VERY NEXT turn, ahead
+   * of anything already queued. Doing it as two client frames (stop, then
+   * send) races the drain: the stopped turn's `turn-done` drains the OLDEST
+   * queued message before the second frame lands, and the interrupting one
+   * waits behind it — the opposite of what was asked.
+   *
+   * So it is one server step, and the ordering rides the queue itself: the
+   * message goes to the FRONT (a new one via `enqueueFront`, a queued one via
+   * `promote`) and only then is the turn stopped. Whatever ends that turn —
+   * the runner's `turn-done`, a reconnect's hello — drains the front, which is
+   * this message. Nothing has to be remembered across the round trip, and the
+   * same `drainQueue` that feeds every other message feeds this one, so it
+   * works for every backend that honours Stop.
+   *
+   * `turnActive` alone decides whether to stop, NOT the socket Stop's
+   * "or a send in the last 15s" widening: that rule exists to catch a send
+   * whose turn has not echoed yet, which `turnActive` already covers here
+   * (every relay sets it optimistically). Relaying a Stop to an idle runner
+   * may never produce a `turn-done`, and then nothing would drain.
+   */
+  const interruptSend = (
+    paneId: string,
+    target: { text: string } | { id: string },
+  ): {
+    status: 'sent' | 'interrupting' | 'queued' | 'rejected';
+    id?: string;
+    reason?: string;
+  } => {
+    const pane = panes.getById(paneId);
+    if (!pane) return { status: 'rejected', reason: ROW_NOT_FOUND };
+    activity.touchTab(pane.tab_id, { force: true });
+    const conn = agentRunners.get(paneId);
+    const runnerOwned = pane.startup_cmd?.startsWith('muxpad agent') ?? false;
+    if (!conn && !runnerOwned) return { status: 'rejected', reason: 'pane has no agent runner' };
+    if (respawns.get(paneId)?.gaveUp)
+      return { status: 'rejected', reason: agentExitedMessage(paneId) };
+    let row: { id: string };
+    if ('text' in target) {
+      const t = target.text.trim();
+      if (!t) return { status: 'rejected', reason: 'empty message' };
+      if (queue.count(paneId) >= MAX_QUEUED_SENDS)
+        return {
+          status: 'rejected',
+          reason: `too many queued messages (max ${MAX_QUEUED_SENDS}) — wait for some to run`,
+        };
+      row = queue.enqueueFront(paneId, t);
+      activity.noteUserMessage(pane.tab_id);
+    } else {
+      const promoted = queue.promote(target.id, paneId);
+      // It drained or was cancelled between the click and this frame.
+      if (!promoted) return { status: 'rejected', reason: 'that message is no longer queued' };
+      row = promoted;
+    }
+    broadcastQueue(paneId);
+    if (!conn) {
+      // Nothing is running to interrupt; it is first in line for the runner.
+      void sweepDeadRunners();
+      return { status: 'queued', id: row.id };
+    }
+    if (conn.turnActive) {
+      // The same Stop the composer's button relays — see the socket's `stop`.
+      conn.pendingSendText = null;
+      markStopped(conn);
+      if (sendToRunner(paneId, { t: 'stop' })) return { status: 'interrupting', id: row.id };
+      // Relay lost a race with the socket close: it stays first in line.
+      return { status: 'queued', id: row.id };
+    }
+    // Idle (the client thought otherwise): the front of the queue is ours.
+    drainQueue(paneId);
+    return queue.peek(paneId)?.id === row.id
+      ? { status: 'queued', id: row.id }
+      : { status: 'sent', id: row.id };
+  };
+
   // Server-side liveness detection. A WebSocket severed abruptly (browser
   // hard-reload, crashed tab, network blip) does NOT fire 'close' until the
   // OS TCP timeout — minutes later. Until then the dead client stays on
@@ -3485,6 +3563,8 @@ export function attachWsServer(deps: {
             /** `/compact` instructions — what the summary must keep. */
             args?: string;
             answers?: Array<{ question: string; answers: string[] }>;
+            /** `send` only: stop the running turn and run this one next. */
+            interrupt?: boolean;
           }>(data);
           if (!msg) return;
           // App-level heartbeat: the client pings on an interval and treats a
@@ -3600,6 +3680,15 @@ export function attachWsServer(deps: {
             }
             return;
           }
+          if (msg.t === 'queue-send-now') {
+            // A queued message's "send now": promote it and interrupt — the
+            // same single step as an interrupting send (see interruptSend).
+            if (typeof msg.id !== 'string') return;
+            const outcome = interruptSend(chatPaneId, { id: msg.id });
+            if (outcome.status === 'rejected')
+              send({ t: 'notice', message: outcome.reason ?? 'could not send now' });
+            return;
+          }
           if (msg.t === 'queue-clear') {
             const dropped = queue.list(chatPaneId).map((row) => row.id);
             if (queue.clear(chatPaneId) > 0) {
@@ -3618,7 +3707,11 @@ export function attachWsServer(deps: {
           // reconnecting agent enqueues instead of dropping, and the server
           // drains it later even with no browser open. (TUI sessions are
           // terminal-driven; chat is a read-only view and submitSend rejects.)
-          const outcome = submitSend(chatPaneId, msg.text);
+          // `interrupt`: stop the running turn and make this the next one,
+          // ahead of the queue (Cmd/Ctrl+Enter, the composer's interrupt).
+          const outcome = msg.interrupt
+            ? interruptSend(chatPaneId, { text: msg.text })
+            : submitSend(chatPaneId, msg.text);
           if (outcome.status === 'rejected') {
             send({
               t: 'error',
@@ -3627,7 +3720,7 @@ export function attachWsServer(deps: {
                   ? 'This session is driven from its terminal — chat is a read-only view. Start an ✳ Agent tab for a chat-native session.'
                   : (outcome.reason ?? 'could not send'),
             });
-          } else if (outcome.status === 'queued') {
+          } else if (outcome.status === 'queued' || outcome.status === 'interrupting') {
             // Tell the sending socket its message was parked so it can drop the
             // optimistic turn state; the pending bubble arrives via the queue
             // broadcast (which every view, including this one, already got).

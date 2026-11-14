@@ -42,6 +42,51 @@ export class AgentQueueStore {
     return { id, pane_id: paneId, seq, text, created_at: now };
   }
 
+  /**
+   * Put a message at the FRONT of a pane's queue — the next one to drain.
+   * Interrupt-and-send uses it: the message must run before anything already
+   * waiting. `seq` goes below the current minimum (it may go to zero or
+   * negative; it is an order key, not a count).
+   */
+  enqueueFront(paneId: string, text: string): QueuedSend {
+    const id = ulid();
+    const now = Date.now();
+    const seq = this.minSeq(paneId) - 1;
+    this.db
+      .prepare(
+        'INSERT INTO agent_queue (id, pane_id, seq, text, created_at) VALUES (?, ?, ?, ?, ?)',
+      )
+      .run(id, paneId, seq, text, now);
+    return { id, pane_id: paneId, seq, text, created_at: now };
+  }
+
+  /**
+   * Move an already-queued message to the front, so it is the next to drain.
+   * Scoped to its pane like `remove`. Returns the row, or undefined when it is
+   * not (or no longer) queued — it drained or was cancelled meanwhile.
+   */
+  promote(id: string, paneId: string): QueuedSend | undefined {
+    const row = this.db
+      .prepare('SELECT * FROM agent_queue WHERE id = ? AND pane_id = ?')
+      .get(id, paneId) as QueuedSend | undefined;
+    if (!row) return undefined;
+    const min = this.minSeq(paneId);
+    if (row.seq === min) return row; // already first
+    const seq = min - 1;
+    this.db.prepare('UPDATE agent_queue SET seq = ? WHERE id = ?').run(seq, id);
+    return { ...row, seq };
+  }
+
+  private minSeq(paneId: string): number {
+    return (
+      (
+        this.db.prepare('SELECT MIN(seq) AS m FROM agent_queue WHERE pane_id = ?').get(paneId) as
+          | { m: number | null }
+          | undefined
+      )?.m ?? 1
+    );
+  }
+
   /** Every queued message for a pane, oldest first. */
   list(paneId: string): QueuedSend[] {
     return this.db

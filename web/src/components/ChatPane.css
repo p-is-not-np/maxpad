@@ -1877,6 +1877,7 @@
      line, not enough to be a separate thought. */
   gap: 6px;
 }
+.chat-queued-now,
 .chat-queued-edit,
 .chat-queued-cancel {
   flex: 0 0 auto;
@@ -1901,9 +1902,46 @@
   background: color-mix(in srgb, var(--chat-fg) 8%, transparent);
   color: var(--chat-fg);
 }
+.chat-queued-now:hover {
+  background: color-mix(in srgb, var(--chat-accent) 14%, transparent);
+  color: var(--chat-accent);
+}
 .chat-queued-cancel:hover {
   background: color-mix(in srgb, var(--chat-danger) 14%, transparent);
   color: var(--chat-danger);
+}
+
+/* ── INTERRUPT & SEND NOW, BESIDE QUEUE ─────────────────────────────────────
+   A bare glyph, NOT a second `.chat-send` circle — two filled circles on the
+   composer's edge is the defect `.chat-send.is-stop` records. Faint until
+   hovered, so Queue stays the obvious default and this the deliberate one. */
+.chat-send-now {
+  flex: 0 0 auto;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  margin-right: 2px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--chat-faint);
+  cursor: pointer;
+  transition:
+    background 100ms ease,
+    color 100ms ease;
+}
+.chat-send-now:hover:not(:disabled),
+.chat-send-now:focus-visible {
+  background: color-mix(in srgb, var(--chat-accent) 14%, transparent);
+  color: var(--chat-accent);
+}
+.chat-send-now:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -4321,6 +4359,27 @@ button.chat-filechip {
     0 8px 24px -12px color-mix(in srgb, var(--shadow-ink) 28%, transparent);
 }
 
+/* ── THE DIALS (model / effort / fast) in the session menu ─────────────────
+   The launch card's pills, a size smaller: a menu is a denser surface than a
+   card, and seven effort levels must wrap rather than widen the menu past a
+   phone. 32px is still a comfortable thumb target in a list this short. */
+.chat-tuning-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 2px 8px 6px;
+}
+.chat-launch-model.-sm {
+  min-height: 32px;
+  padding: 6px 9px;
+  font-size: 0.75rem;
+}
+/* The pinned effort / fast mark after the model name on the line. Dim, so the
+   model still reads first; it truncates with the label, never wraps it. */
+.chat-status-seg-sub {
+  color: var(--fg-faint, #6f7488);
+}
+
 /* ── COMPOSER OPTION A — one rounded box, a quiet icon row under it ─────────
    The ChatGPT / Claude.ai arrangement. The field takes the whole width of the
    box and grows upward (the wrap is anchored at the bottom); under it sits ONE
@@ -4879,25 +4938,4 @@ button.chat-filechip {
     width: 38px;
     height: 38px;
   }
-}
-
-/* ── THE DIALS (model / effort / fast) in the session menu ─────────────────
-   The launch card's pills, a size smaller: a menu is a denser surface than a
-   card, and seven effort levels must wrap rather than widen the menu past a
-   phone. 32px is still a comfortable thumb target in a list this short. */
-.chat-tuning-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding: 2px 8px 6px;
-}
-.chat-launch-model.-sm {
-  min-height: 32px;
-  padding: 6px 9px;
-  font-size: 0.75rem;
-}
-/* The pinned effort / fast mark after the model name on the line. Dim, so the
-   model still reads first; it truncates with the label, never wraps it. */
-.chat-status-seg-sub {
-  color: var(--fg-faint, #6f7488);
 }

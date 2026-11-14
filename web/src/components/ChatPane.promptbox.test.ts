@@ -24,7 +24,7 @@ describe('the prompt box setting', () => {
   it('renders the send slot exactly once in every design', () => {
     // A moves it to the end of the icon row; everywhere else it ends the field.
     expect(SRC).toMatch(
-      /\{\(composer === 'a' && labelledTools\) \|\| \(barMic && micInsteadOfSend\)\s*\? null\s*: sendSlot\}/,
+      /\{\(composer === 'a' && labelledTools\) \|\| \(barMic && micInsteadOfSend && !stopInSlot\)\s*\? null\s*: sendSlot\}/,
     );
     expect(SRC).toMatch(/\{composer === 'a' \? sendSlot : null\}/);
     // The row that carries A's slot is the one A has: labelled and not C.
@@ -56,7 +56,10 @@ describe('the prompt box setting', () => {
     expect(SRC).toMatch(/voiceMic && voice\.supported && !barMic \? \(/);
     expect(SRC).toMatch(/\{barMic \? \(\s*<button[\s\S]{0,120}className="chat-mic chat-bar-mic"/);
     // The keys live in the placeholder on a desktop.
-    expect(SRC).toMatch(/composer === 'd' && !touchLayout\s*\? '↵ to send, ⇧↵ for new line'/);
+    // (composerPlaceholder; its words are pinned in lib/composer-keys.test.)
+    expect(SRC).toMatch(
+      /placeholder=\{composerPlaceholder\(\{[\s\S]{0,80}composer,\s*touch: touchLayout,/,
+    );
     // The session: a meta row OUTSIDE the bar on a desktop, the sheet on touch.
     expect(SRC).toMatch(
       /\{composer === 'd' && !touchLayout \? \(\s*<div className="chat-composer-meta">\{sessionStrip\}<\/div>/,
