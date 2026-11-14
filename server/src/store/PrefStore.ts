@@ -17,7 +17,8 @@ import type Database from 'better-sqlite3';
  */
 // `style` is the theme's twin: how the chrome is built rather than what colour
 // it is, and a document-level fact for exactly the same reasons.
-export const PREF_KEYS = ['theme', 'style'] as const;
+// `composer` (the prompt box design) is the third, for the same reasons again.
+export const PREF_KEYS = ['theme', 'style', 'composer'] as const;
 export type PrefKey = (typeof PREF_KEYS)[number];
 
 export function isPrefKey(k: string): k is PrefKey {

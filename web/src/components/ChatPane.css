@@ -4297,7 +4297,9 @@ button.chat-filechip {
   box-shadow: var(--shadow-xl);
 }
 :where([data-style="floating"]) .chat-composer:focus-within {
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--chat-accent) 12%, transparent), var(--shadow-xl);
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--chat-accent) 12%, transparent),
+    var(--shadow-xl);
 }
 
 /* ═══ COMBO STYLE ═════════════════════════════════════════════════════════
@@ -4308,11 +4310,419 @@ button.chat-filechip {
 :where([data-style="combo"]) .chat-composer {
   padding: 8px 14px;
   border-radius: 22px;
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-ink) 6%, transparent), 0 8px 24px -12px
-    color-mix(in srgb, var(--shadow-ink) 28%, transparent);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--shadow-ink) 6%, transparent),
+    0 8px 24px -12px color-mix(in srgb, var(--shadow-ink) 28%, transparent);
 }
 :where([data-style="combo"]) .chat-composer:focus-within {
   border-color: color-mix(in srgb, var(--chat-fg) 26%, transparent);
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-ink) 6%, transparent), 0 8px 24px -12px
-    color-mix(in srgb, var(--shadow-ink) 28%, transparent);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--shadow-ink) 6%, transparent),
+    0 8px 24px -12px color-mix(in srgb, var(--shadow-ink) 28%, transparent);
+}
+
+/* ── COMPOSER OPTION A — one rounded box, a quiet icon row under it ─────────
+   The ChatGPT / Claude.ai arrangement. The field takes the whole width of the
+   box and grows upward (the wrap is anchored at the bottom); under it sits ONE
+   row: icon-only commands on the left — the name lives in the tooltip and in
+   aria-label — the session chip, and the round send slot at the far right.
+   The slot is still mic → send → queue → stop; only its address moved. */
+:where([data-composer="a"]) .chat-composer {
+  gap: 2px;
+  padding: 10px 10px 8px 14px;
+  border-radius: 26px;
+  border-color: color-mix(in srgb, var(--chat-fg) 13%, transparent);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--shadow-ink) 5%, transparent),
+    0 10px 32px -16px color-mix(in srgb, var(--shadow-ink) 34%, transparent);
+}
+:where([data-composer="a"]) .chat-composer:focus-within {
+  border-color: color-mix(in srgb, var(--chat-fg) 24%, transparent);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--shadow-ink) 5%, transparent),
+    0 10px 32px -16px color-mix(in srgb, var(--shadow-ink) 34%, transparent);
+}
+:where([data-composer="a"]) .chat-composer-main .chat-input {
+  padding: 0.375rem 4px 0.25rem;
+}
+:where([data-composer="a"]) .chat-composer-tools {
+  gap: 2px;
+  min-height: 34px;
+  margin: 0 0 0 -6px;
+}
+:where([data-composer="a"]) .chat-composer-tools > .chat-status-bar {
+  margin-right: 6px;
+}
+:where([data-composer="a"]) .chat-tool-btn {
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  color: var(--chat-dim);
+}
+:where([data-composer="a"]) .chat-tool-btn svg {
+  width: 18px;
+  height: 18px;
+  opacity: 0.8;
+}
+:where([data-composer="a"]) .chat-tool-btn:hover:not(:disabled),
+:where([data-composer="a"]) .chat-tool-btn:focus-visible {
+  background: color-mix(in srgb, var(--chat-fg) 8%, transparent);
+  color: var(--chat-fg);
+}
+:where([data-composer="a"]) .chat-tool-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+:where([data-composer="a"]) .chat-composer-tools .chat-send,
+:where([data-composer="a"]) .chat-composer-tools .chat-mic {
+  width: 32px;
+  height: 32px;
+}
+:where([data-composer="a"]) .chat-composer-tools .chat-send {
+  box-shadow: none;
+}
+:where([data-composer="a"]) .chat-composer-tools .chat-send:hover:not(:disabled) {
+  transform: none;
+  background: color-mix(in srgb, var(--chat-accent) 88%, var(--chat-fg));
+}
+/* Empty and not sendable (uploads in flight, no voice): an outline, not a
+   greyed-out fill — "filled when there is something to send". */
+:where([data-composer="a"]) .chat-composer-tools .chat-send:disabled {
+  opacity: 1;
+  filter: none;
+  background: color-mix(in srgb, var(--chat-fg) 9%, transparent);
+  color: var(--chat-faint);
+}
+:where([data-composer="a"]) .chat-composer-tools .chat-mic {
+  background: color-mix(in srgb, var(--chat-fg) 7%, transparent);
+  color: var(--chat-fg);
+}
+:where([data-composer="a"]) .chat-composer-tools .chat-mic:hover,
+:where([data-composer="a"]) .chat-composer-tools .chat-mic:focus-visible {
+  background: color-mix(in srgb, var(--chat-fg) 13%, transparent);
+}
+@media (max-width: 720px) {
+  :where([data-composer="a"]) .chat-composer {
+    padding: 4px 5px 4px 4px;
+    border-radius: 26px;
+  }
+  :where([data-composer="a"]) .chat-composer-main .chat-input {
+    padding: 0.5625rem 4px;
+  }
+  :where([data-composer="a"]) .chat-composer-main .chat-mic {
+    background: color-mix(in srgb, var(--chat-fg) 7%, transparent);
+  }
+}
+
+/* ── COMPOSER OPTION B — the command bar ─────────────────────────────────────
+   Linear / Raycast. At rest it is ONE slim line: a `+` that holds every
+   command, the field, the session as a small chip, and the send slot. Focus
+   opens it up — a little more room around the text and a quiet line of key
+   hints under it — and blurring folds it back. Nothing moves sideways: the
+   expansion is all vertical, so the controls stay where your hand left them. */
+:where([data-composer="b"]) .chat-composer {
+  gap: 0;
+  max-width: 720px;
+  padding: 3px 5px 3px 4px;
+  border-radius: 14px;
+  border-color: color-mix(in srgb, var(--chat-fg) 12%, transparent);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--shadow-ink) 6%, transparent),
+    0 6px 20px -12px color-mix(in srgb, var(--shadow-ink) 30%, transparent);
+  transition:
+    padding var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    max-width var(--dur) var(--ease);
+}
+:where([data-composer="b"]) .chat-composer:focus-within {
+  max-width: 768px;
+  padding: 7px 7px 6px 6px;
+  border-color: color-mix(in srgb, var(--chat-accent) 50%, transparent);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--chat-accent) 14%, transparent),
+    0 12px 32px -14px color-mix(in srgb, var(--shadow-ink) 40%, transparent);
+}
+:where([data-composer="b"]) .chat-composer-main {
+  align-items: flex-end;
+  gap: 4px;
+}
+:where([data-composer="b"]) .chat-composer-main > .chat-tools,
+:where([data-composer="b"]) .chat-composer-main > .chat-attach,
+:where([data-composer="b"]) .chat-composer-main > .chat-send,
+:where([data-composer="b"]) .chat-composer-main > .chat-mic,
+:where([data-composer="b"]) .chat-composer-main > .chat-composer-tools {
+  align-self: flex-end;
+  margin-bottom: 2px;
+}
+:where([data-composer="b"]) .chat-composer .chat-input {
+  height: 2.25rem;
+  min-height: 2.25rem;
+  padding: 0.4375rem 4px;
+  font-size: 0.9375rem;
+}
+:where([data-composer="b"]) .chat-composer .chat-attach,
+:where([data-composer="b"]) .chat-composer .chat-mic,
+:where([data-composer="b"]) .chat-composer .chat-send {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+}
+:where([data-composer="b"]) .chat-composer .chat-attach svg {
+  width: 18px;
+  height: 18px;
+}
+:where([data-composer="b"]) .chat-composer .chat-send {
+  box-shadow: none;
+}
+:where([data-composer="b"]) .chat-composer .chat-send:hover:not(:disabled) {
+  transform: none;
+  background: color-mix(in srgb, var(--chat-accent) 88%, var(--chat-fg));
+}
+:where([data-composer="b"]) .chat-composer .chat-send:disabled {
+  opacity: 1;
+  filter: none;
+  background: color-mix(in srgb, var(--chat-fg) 8%, transparent);
+  color: var(--chat-faint);
+}
+:where([data-composer="b"]) .chat-composer .chat-tools-sheet {
+  bottom: calc(100% + 10px);
+  left: -4px;
+  min-width: 220px;
+  border-radius: 12px;
+}
+:where([data-composer="b"]) .chat-composer .chat-tools-item {
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+/* The session, as a chip: the mode and model read at a glance, and it is still
+   the same SessionBar with the same menus behind it. */
+:where([data-composer="b"]) .chat-composer-main > .chat-composer-tools {
+  flex: 0 0 auto;
+  min-height: 0;
+  margin: 0 0 5px;
+  /* Sized by the chip now, so it cannot be a size container. */
+  container-type: normal;
+}
+:where([data-composer="b"]) .chat-composer-tools > .chat-status-bar {
+  flex: 0 0 auto;
+  height: 26px;
+  margin: 0;
+  padding: 0 2px;
+  border: 1px solid color-mix(in srgb, var(--chat-fg) 11%, transparent);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--chat-fg) 4%, transparent);
+}
+:where([data-composer="b"]) .chat-composer-tools > .chat-status-bar .chat-status-seg {
+  padding: 2px 6px;
+  font-size: 0.71875rem;
+}
+:where([data-composer="b"]) .chat-composer-hint {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-height: 0;
+  overflow: hidden;
+  padding: 0 8px;
+  opacity: 0;
+  color: var(--chat-faint);
+  font-family: var(--ui-font, inherit);
+  font-size: 0.6875rem;
+  line-height: 1;
+  transition:
+    max-height var(--dur) var(--ease),
+    opacity var(--dur) var(--ease),
+    padding var(--dur) var(--ease);
+}
+:where([data-composer="b"]) .chat-composer:focus-within .chat-composer-hint {
+  max-height: 24px;
+  padding: 6px 8px 2px;
+  opacity: 1;
+}
+:where([data-composer="b"]) .chat-composer-hint span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+:where([data-composer="b"]) .chat-composer-hint kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border: 1px solid color-mix(in srgb, var(--chat-fg) 14%, transparent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--chat-fg) 4%, transparent);
+  color: var(--chat-dim);
+  font: inherit;
+  font-size: 0.625rem;
+}
+@media (max-width: 720px) {
+  :where([data-composer="b"]) .chat-composer,
+  :where([data-composer="b"]) .chat-composer:focus-within {
+    max-width: none;
+    padding: 4px 5px 4px 4px;
+    border-radius: 16px;
+  }
+  :where([data-composer="b"]) .chat-composer .chat-input {
+    height: 2.5rem;
+    min-height: 2.5rem;
+    padding: 0.5625rem 4px;
+    font-size: 1.0625rem;
+  }
+  :where([data-composer="b"]) .chat-composer .chat-attach,
+  :where([data-composer="b"]) .chat-composer .chat-mic,
+  :where([data-composer="b"]) .chat-composer .chat-send {
+    width: 36px;
+    height: 36px;
+    border-radius: 11px;
+  }
+}
+
+/* ── COMPOSER OPTION C — the floating pill ───────────────────────────────────
+   Arc / Perplexity. One pill hovering over the conversation: translucent, with
+   the log blurred through it, and a long soft shadow that lifts it off the
+   page. The commands live INSIDE it, after the field, as icons; their names
+   open out on hover or focus, and stay open when the pane is wide enough to
+   spend the room (the container query below). The pill is fully round at one
+   line and keeps the same corners as the field grows. */
+:where([data-composer="c"]) .chat-composer-wrap {
+  container-type: inline-size;
+  container-name: composer-wrap;
+}
+:where([data-composer="c"]) .chat-composer {
+  gap: 4px;
+  max-width: 860px;
+  padding: 6px 6px 6px 18px;
+  border-radius: 28px;
+  border: 1px solid color-mix(in srgb, var(--chat-fg) 10%, transparent);
+  background: color-mix(in srgb, var(--chat-bg) 70%, transparent);
+  -webkit-backdrop-filter: blur(22px) saturate(1.6);
+  backdrop-filter: blur(22px) saturate(1.6);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, #fff 6%, transparent) inset,
+    0 2px 6px color-mix(in srgb, var(--shadow-ink) 8%, transparent),
+    0 22px 48px -18px color-mix(in srgb, var(--shadow-ink) 45%, transparent);
+}
+:where([data-composer="c"]) .chat-composer:focus-within {
+  border-color: color-mix(in srgb, var(--chat-fg) 20%, transparent);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, #fff 6%, transparent) inset,
+    0 2px 6px color-mix(in srgb, var(--shadow-ink) 8%, transparent),
+    0 26px 56px -18px color-mix(in srgb, var(--shadow-ink) 52%, transparent);
+}
+:where([data-composer="c"]) .chat-composer-main {
+  align-items: flex-end;
+  gap: 6px;
+}
+:where([data-composer="c"]) .chat-composer-main > .chat-tools,
+:where([data-composer="c"]) .chat-composer-main > .chat-attach,
+:where([data-composer="c"]) .chat-composer-main > .chat-send,
+:where([data-composer="c"]) .chat-composer-main > .chat-mic {
+  align-self: flex-end;
+}
+:where([data-composer="c"]) .chat-composer-tools {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 40px;
+  min-height: 40px;
+  margin: 0;
+  /* Sized by its buttons now, so it cannot be a size container. */
+  container-type: normal;
+}
+:where([data-composer="c"]) .chat-composer-tools > .chat-status-bar {
+  flex: 0 0 auto;
+  margin-left: 2px;
+  padding-left: 6px;
+  border-left: 1px solid color-mix(in srgb, var(--chat-fg) 11%, transparent);
+  height: 22px;
+}
+:where([data-composer="c"]) .chat-tool-btn {
+  height: 32px;
+  gap: 0;
+  padding: 0 8px;
+  border-radius: 999px;
+  color: var(--chat-dim);
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    gap var(--dur) var(--ease);
+}
+:where([data-composer="c"]) .chat-tool-btn svg {
+  width: 18px;
+  height: 18px;
+  opacity: 0.8;
+}
+:where([data-composer="c"]) .chat-tool-btn:hover:not(:disabled),
+:where([data-composer="c"]) .chat-tool-btn:focus-visible {
+  gap: 6px;
+  background: color-mix(in srgb, var(--chat-fg) 9%, transparent);
+  color: var(--chat-fg);
+}
+:where([data-composer="c"]) .chat-tool-label {
+  display: inline-block;
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  white-space: nowrap;
+  transition:
+    max-width var(--dur) var(--ease),
+    opacity var(--dur) var(--ease);
+}
+:where([data-composer="c"]) .chat-tool-btn:hover .chat-tool-label,
+:where([data-composer="c"]) .chat-tool-btn:focus-visible .chat-tool-label {
+  max-width: 140px;
+  opacity: 1;
+}
+/* A wide pane spends the room on words. */
+@container composer-wrap (min-width: 1100px) {
+  :where([data-composer="c"]) .chat-tool-btn {
+    gap: 6px;
+  }
+  :where([data-composer="c"]) .chat-tool-label {
+    max-width: 140px;
+    opacity: 1;
+  }
+}
+:where([data-composer="c"]) .chat-composer .chat-send,
+:where([data-composer="c"]) .chat-composer .chat-mic {
+  width: 40px;
+  height: 40px;
+}
+:where([data-composer="c"]) .chat-composer .chat-send {
+  box-shadow: 0 4px 14px -6px color-mix(in srgb, var(--chat-accent) 80%, transparent);
+}
+:where([data-composer="c"]) .chat-composer .chat-send:disabled {
+  opacity: 1;
+  filter: none;
+  box-shadow: none;
+  background: color-mix(in srgb, var(--chat-fg) 9%, transparent);
+  color: var(--chat-faint);
+}
+:where([data-composer="c"]) .chat-composer .chat-mic {
+  background: color-mix(in srgb, var(--chat-fg) 8%, transparent);
+  color: var(--chat-fg);
+}
+:where([data-composer="c"]) .chat-composer .chat-mic:hover,
+:where([data-composer="c"]) .chat-composer .chat-mic:focus-visible {
+  background: color-mix(in srgb, var(--chat-fg) 14%, transparent);
+}
+@media (max-width: 720px) {
+  :where([data-composer="c"]) .chat-composer {
+    padding: 5px;
+    border-radius: 26px;
+  }
+  :where([data-composer="c"]) .chat-composer .chat-send,
+  :where([data-composer="c"]) .chat-composer .chat-mic {
+    width: 38px;
+    height: 38px;
+  }
 }

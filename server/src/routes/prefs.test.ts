@@ -56,6 +56,20 @@ describe('writing one', () => {
     });
   });
 
+  it('takes the prompt box as a third, and pushes all three', async () => {
+    await put('theme', { value: 'memphis' });
+    await put('style', { value: 'combo' });
+    const res = await put('composer', { value: 'b' });
+    expect(res.status).toBe(200);
+    expect((await res.json()) as unknown).toEqual({
+      prefs: { theme: 'memphis', style: 'combo', composer: 'b' },
+    });
+    expect(seen.at(-1)).toEqual({
+      type: 'prefs.updated',
+      prefs: { theme: 'memphis', style: 'combo', composer: 'b' },
+    });
+  });
+
   it('clears it with null — the ABSENCE of a row, not an empty string', async () => {
     // A client reads "no value" as "use your own default", so the two have to
     // stay tellable apart.

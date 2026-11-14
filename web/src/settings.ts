@@ -116,11 +116,42 @@ export function readStyle(raw: unknown): UiStyle | null {
   return typeof raw === 'string' && VALID_STYLES.has(raw as UiStyle) ? (raw as UiStyle) : null;
 }
 
+/**
+ * THE PROMPT BOX — which composer design the chat pane draws.
+ *
+ * A third look setting beside theme and style, narrower than both: it changes
+ * only the composer, so it can be tried against any palette and any chrome.
+ * It lands as `data-composer` on `<html>`; every rule for an option is scoped
+ * under `:where([data-composer="…"])`, so Default is the stylesheet with none
+ * of them. Where an option moves controls (A's icon row, B's `+` bar, C's
+ * pill) ChatPane asks `composerInForce` and places them — the same actions,
+ * reachable in every option.
+ */
+export type ComposerDesign = 'default' | 'a' | 'b' | 'c';
+
+export const COMPOSERS: { value: ComposerDesign; label: string; hint: string }[] = [
+  { value: 'default', label: 'Default', hint: 'The current composer' },
+  { value: 'a', label: 'A · Box', hint: 'One rounded box, an icon row and a round send' },
+  { value: 'b', label: 'B · Bar', hint: 'A slim bar, every command behind +' },
+  { value: 'c', label: 'C · Pill', hint: 'A floating blurred pill' },
+];
+
+const VALID_COMPOSERS = new Set<ComposerDesign>(COMPOSERS.map((c) => c.value));
+
+/** A stored prompt box, or null for anything this build does not know. */
+export function readComposer(raw: unknown): ComposerDesign | null {
+  return typeof raw === 'string' && VALID_COMPOSERS.has(raw as ComposerDesign)
+    ? (raw as ComposerDesign)
+    : null;
+}
+
 export interface Settings {
   theme: ThemeChoice;
   /** This browser's style — the fallback when the install has none stored,
    *  exactly as `theme` is. */
   style: UiStyle;
+  /** This browser's prompt box — the fallback, exactly as `style` is. */
+  composer: ComposerDesign;
   // Persisted width of the desktop sidebar. The upper bound is enforced live
   // while dragging (never wider than the longest tab name + its status/close
   // icon needs); this stored value is only sanity-clamped on read.
@@ -147,6 +178,7 @@ const DEFAULTS: Settings = {
   // pair in this list built to be flipped between.
   theme: 'system',
   style: 'default',
+  composer: 'default',
   sidebarWidth: 280,
 };
 
@@ -191,6 +223,7 @@ function read(): Settings {
     return {
       theme: readChoice(parsed),
       style: readStyle(parsed.style) ?? DEFAULTS.style,
+      composer: readComposer(parsed.composer) ?? DEFAULTS.composer,
       sidebarWidth:
         typeof parsed.sidebarWidth === 'number' && Number.isFinite(parsed.sidebarWidth)
           ? Math.min(SIDENAV_MAX_WIDTH, Math.max(SIDENAV_MIN_WIDTH, parsed.sidebarWidth))
@@ -247,10 +280,20 @@ export function styleInForce(s: Settings): UiStyle {
   return serverStyle ?? s.style;
 }
 
+/** The install's prompt box, or null when none is stored — the style's twin. */
+let serverComposer: ComposerDesign | null = null;
+
+/** The prompt box ACTUALLY IN FORCE — the install's if it has one, else this
+ *  browser's. The picker and ChatPane both ask this. */
+export function composerInForce(s: Settings): ComposerDesign {
+  return serverComposer ?? s.composer;
+}
+
 function applyToDocument(s: Settings) {
   if (typeof document === 'undefined') return;
   document.documentElement.dataset.theme = resolveTheme(themeInForce(s), systemPrefersDark());
   document.documentElement.dataset.style = styleInForce(s);
+  document.documentElement.dataset.composer = composerInForce(s);
 }
 
 /**
@@ -285,6 +328,20 @@ export function setServerStyle(choice: UiStyle | null): void {
 /** The install's style, or null when nothing is stored for it. */
 export function getServerStyle(): UiStyle | null {
   return serverStyle;
+}
+
+/** Point the document at the INSTALL's prompt box, or `null` for none stored.
+ *  Same callers and the same no-op rule as {@link setServerStyle}. */
+export function setServerComposer(choice: ComposerDesign | null): void {
+  if (serverComposer === choice) return;
+  serverComposer = choice;
+  applyToDocument(current);
+  for (const fn of listeners) fn({ ...current });
+}
+
+/** The install's prompt box, or null when nothing is stored for it. */
+export function getServerComposer(): ComposerDesign | null {
+  return serverComposer;
 }
 
 /**

@@ -21,6 +21,7 @@ vi.mock('../api', () => ({ api: { prefs: () => getPrefs() } }));
 
 let applied: (string | null)[] = [];
 let styled: (string | null)[] = [];
+let composed: (string | null)[] = [];
 vi.mock('../settings', async (orig) => {
   const real = await orig<typeof import('../settings')>();
   return {
@@ -33,6 +34,10 @@ vi.mock('../settings', async (orig) => {
       styled.push(c);
       real.setServerStyle(c as never);
     },
+    setServerComposer: (c: string | null) => {
+      composed.push(c);
+      real.setServerComposer(c as never);
+    },
   };
 });
 
@@ -40,6 +45,7 @@ async function load() {
   vi.resetModules();
   applied = [];
   styled = [];
+  composed = [];
   return await import('./app-theme');
 }
 
@@ -125,6 +131,29 @@ describe('the style rides the same order', () => {
     t.applyPushedPrefs({ style: 'floating' });
     t.applyBootPrefs({ style: 'combo' });
     expect(styled).toEqual(['floating']);
+  });
+});
+
+describe('the prompt box rides it too', () => {
+  it('is applied from the same prefs set, unknown values as nothing chosen', async () => {
+    const t = await load();
+    t.applyBootPrefs({ theme: 'memphis', style: 'combo', composer: 'a' });
+    t.applyPushedPrefs({ composer: 'nope' });
+    expect(composed).toEqual(['a', null]);
+  });
+
+  it('DROPS a boot value that answers after a pushed one', async () => {
+    const t = await load();
+    t.applyPushedPrefs({ composer: 'c' });
+    t.applyBootPrefs({ composer: 'b' });
+    expect(composed).toEqual(['c']);
+  });
+
+  it('is recovered by the reconnect refetch', async () => {
+    const t = await load();
+    getPrefs.mockResolvedValue({ prefs: { composer: 'b' } });
+    await t.refreshAppTheme();
+    expect(composed).toEqual(['b']);
   });
 });
 

@@ -6,6 +6,7 @@ import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getPushState } from '../lib/push';
 import { passkeyAPI, passkeyCeremony } from '../lib/slack-passkey';
+import { setServerComposer } from '../settings';
 import { SettingsMenu } from './SettingsMenu';
 vi.mock('../lib/slack-passkey', () => ({ passkeyAPI: vi.fn(), passkeyCeremony: vi.fn() }));
 vi.mock('./SlackSetupGuide', () => ({ SlackSetupGuide: () => null }));
@@ -39,6 +40,16 @@ vi.mock('../settings', () => ({
     { value: 'minimal', label: 'Minimal' },
     { value: 'floating', label: 'Floating' },
     { value: 'combo', label: 'Minimal + Floating' },
+  ],
+  // …and the Prompt box picker under it, the same contract a third time.
+  composerInForce: (s: { composer?: string }) => s.composer ?? 'default',
+  getServerComposer: () => null,
+  setServerComposer: vi.fn(),
+  COMPOSERS: [
+    { value: 'default', label: 'Default', hint: 'The current composer' },
+    { value: 'a', label: 'A · Box', hint: 'box' },
+    { value: 'b', label: 'B · Bar', hint: 'bar' },
+    { value: 'c', label: 'C · Pill', hint: 'pill' },
   ],
 }));
 let root: ReturnType<typeof createRoot>;
@@ -589,4 +600,49 @@ it('writes the install’s style and reverts when it cannot be stored', () => {
   expect(src).toMatch(/api\.setPref\('style', value\)/);
   expect(src).toMatch(/const before = getServerStyle\(\)/);
   expect(src).toMatch(/\.catch\(\(err\) => \{[\s\S]{0,320}setServerStyle\(before\)/);
+});
+
+/**
+ * THE PROMPT BOX PICKER sits under the style's, in General, and you pick one by
+ * using it: the press repaints at once, the install stores it, and a failed
+ * write undoes the press and says so.
+ */
+it('offers the four prompt boxes under the style, with the one in force chosen', async () => {
+  await open();
+  const general = document.querySelector('[aria-label="General settings"]');
+  const groups = [...(general?.querySelectorAll('fieldset') ?? [])];
+  const at = groups.findIndex((g) => g.classList.contains('settings-composers'));
+  expect(at).toBeGreaterThan(groups.findIndex((g) => g.classList.contains('settings-styles')));
+  const group = groups[at];
+  expect(group?.querySelector('legend')?.textContent).toBe('Prompt box');
+  const radios = [...(group?.querySelectorAll<HTMLInputElement>('input[name="composer"]') ?? [])];
+  expect(radios.map((r) => r.value)).toEqual(['default', 'a', 'b', 'c']);
+  expect(radios.filter((r) => r.checked).map((r) => r.value)).toEqual(['default']);
+  expect(
+    [...(group?.querySelectorAll<HTMLElement>('.composer-mock') ?? [])].map(
+      (m) => m.dataset.design,
+    ),
+  ).toEqual(['default', 'a', 'b', 'c']);
+});
+
+it('applies a picked prompt box at once, and undoes it when it cannot be stored', async () => {
+  const fetchMock = vi.fn().mockRejectedValue(new Error('offline'));
+  vi.stubGlobal('fetch', fetchMock);
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.mocked(setServerComposer).mockClear();
+  try {
+    await open();
+    const b = document.querySelector<HTMLInputElement>('input[name="composer"][value="b"]');
+    await act(async () => b?.click());
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(vi.mocked(setServerComposer).mock.calls).toEqual([['b'], [null]]);
+    expect(fetchMock.mock.calls.map((c) => String(c[0]))).toContain('/api/prefs/composer');
+    expect(document.querySelector('.settings-composers [role=alert]')?.textContent).toMatch(
+      /Couldn’t save the prompt box/,
+    );
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });

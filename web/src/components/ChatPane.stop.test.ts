@@ -31,12 +31,12 @@ describe('the composer holds one button, and Stop is one of its faces', () => {
     // The branches are mutually exclusive by construction: Stop is the
     // `!canSend` arm of the busy branch and Queue is the other, so no state
     // can render both.
-    expect(SRC).toMatch(/\{sending && !question && !canSend \? \(/);
+    expect(SRC).toMatch(/const sendSlot =\s*sending && !question && !canSend \? \(/);
     expect(SRC).toMatch(/\) : sending && !question \? \(/);
   });
 
   it('stops the turn when a turn is running and nothing is typed', () => {
-    const busy = SRC.slice(SRC.indexOf('{sending && !question && !canSend ? ('));
+    const busy = SRC.slice(SRC.indexOf('sending && !question && !canSend ? ('));
     const stop = busy.slice(0, busy.indexOf(') : sending && !question ? ('));
     expect(stop).toMatch(/className="chat-send is-stop"/);
     expect(stop).toMatch(/onClick=\{stop\}/);

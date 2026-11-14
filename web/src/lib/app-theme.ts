@@ -4,7 +4,9 @@ import { subscribe } from '../events';
 import {
   THEME_CHOICES,
   type ThemeChoice,
+  readComposer,
   readStyle,
+  setServerComposer,
   setServerStyle,
   setServerTheme,
 } from '../settings';
@@ -48,7 +50,8 @@ import {
  * THE STYLE RIDES THE SAME ORDER. It is the theme's twin (how the chrome is
  * built rather than what colour it is), it arrives in the same `prefs` set
  * from the same three sources, and so it is applied with the theme under one
- * mark: a snapshot that loses for the theme loses for the style too.
+ * mark: a snapshot that loses for the theme loses for the style too. The
+ * prompt box (`composer`) is the third of the set and rides the same mark.
  *
  * A COUNTER, NOT A CLOCK. `performance.now()` would do the job and then fail
  * on the one case that must never fail: two values read inside the same
@@ -77,6 +80,7 @@ function applyPrefs(prefs: Prefs, asOf: number): void {
   appliedAsOf = asOf;
   setServerTheme(readTheme(prefs?.theme));
   setServerStyle(readStyle(prefs?.style));
+  setServerComposer(readComposer(prefs?.composer));
 }
 
 /**

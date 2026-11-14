@@ -214,7 +214,9 @@
   padding: 5px 16px;
   min-height: 32px;
   border-radius: 9px;
-  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
 }
 :where([data-style="floating"]) .settings-sidebar nav button:hover:not(:disabled) {
   color: var(--fg);
@@ -230,7 +232,9 @@
 :where([data-style="floating"]) .settings-sidebar nav button[aria-current]:hover:not(:disabled) {
   color: var(--fg);
   background: var(--bg-elev);
-  box-shadow: var(--shadow-sm), 0 0 0 1px color-mix(in srgb, var(--fg) 8%, transparent);
+  box-shadow:
+    var(--shadow-sm),
+    0 0 0 1px color-mix(in srgb, var(--fg) 8%, transparent);
   font-weight: 600;
 }
 .settings-body {
@@ -529,8 +533,9 @@
 .style-mock:is([data-look="floating"], [data-look="combo"]) .style-mock-rail,
 .style-mock:is([data-look="floating"], [data-look="combo"]) .style-mock-page {
   border-radius: 5px;
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--fg) 8%, transparent), 0 2px 4px
-    color-mix(in srgb, var(--shadow-ink) 30%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--fg) 8%, transparent),
+    0 2px 4px color-mix(in srgb, var(--shadow-ink) 30%, transparent);
 }
 .style-mock[data-look="floating"] .style-mock-composer {
   border-radius: 6px;
@@ -544,6 +549,122 @@
 .style-mock[data-look="combo"] .style-mock-composer {
   border-radius: 6px;
   box-shadow: 0 2px 4px color-mix(in srgb, var(--shadow-ink) 25%, transparent);
+}
+
+/* ─── THE PROMPT BOX MINIATURES ─────────────────────────────────────────────
+   The bottom of a chat and its composer, in the theme in force. Default is a
+   field with a tool row under it; A is a taller box with an icon row and a
+   round send; B is one slim line opening with a `+`; C is a pill floating
+   over the log. Drawings of ChatPane.css's [data-composer] layers. */
+.composer-mock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  height: 100%;
+  padding: 8px 9px 6px;
+  background: var(--bg);
+}
+.composer-mock-box {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px;
+  margin-top: auto;
+  padding: 3px 3px 3px 5px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--bg-elev) 92%, var(--fg));
+  border: 1px solid color-mix(in srgb, var(--fg) 14%, transparent);
+}
+.composer-mock-plus {
+  display: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--fg) 30%, transparent);
+}
+.composer-mock-field {
+  flex: 1 1 auto;
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--fg) 18%, transparent);
+}
+.composer-mock-send {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.composer-mock-row {
+  display: flex;
+  flex: 0 0 100%;
+  gap: 3px;
+}
+.composer-mock-row i {
+  width: 9px;
+  height: 3px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--fg) 24%, transparent);
+}
+/* A: one rounded box; the field over an icon row; the send ends the row. */
+.composer-mock[data-design="a"] .composer-mock-box {
+  padding: 5px 4px 3px 6px;
+  border-radius: 8px;
+  box-shadow: 0 3px 7px -3px color-mix(in srgb, var(--shadow-ink) 50%, transparent);
+}
+.composer-mock[data-design="a"] .composer-mock-field {
+  flex-basis: 100%;
+  margin-bottom: 2px;
+}
+.composer-mock[data-design="a"] .composer-mock-send {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 8px;
+  height: 8px;
+}
+.composer-mock[data-design="a"] .composer-mock-row i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+}
+/* B: one slim line, `+` first, nothing under it. */
+.composer-mock[data-design="b"] .composer-mock-box {
+  border-radius: 3px;
+}
+.composer-mock[data-design="b"] .composer-mock-plus {
+  display: block;
+}
+.composer-mock[data-design="b"] .composer-mock-send {
+  border-radius: 2px;
+}
+.composer-mock[data-design="b"] .composer-mock-row {
+  display: none;
+}
+/* C: a pill, translucent, lifted off the log, the commands inside it. */
+.composer-mock[data-design="c"] .composer-mock-box {
+  flex-wrap: nowrap;
+  margin: auto 2px 2px;
+  padding: 3px 3px 3px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-elev) 70%, transparent);
+  box-shadow: 0 5px 10px -4px color-mix(in srgb, var(--shadow-ink) 60%, transparent);
+}
+.composer-mock[data-design="c"] .composer-mock-row {
+  flex: 0 0 auto;
+  order: 1;
+  gap: 2px;
+}
+.composer-mock[data-design="c"] .composer-mock-row i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+}
+.composer-mock[data-design="c"] .composer-mock-send {
+  order: 2;
+  width: 8px;
+  height: 8px;
 }
 
 /* ── A SECTION'S OWN HEADING AND ITS SENTENCE ────────────────────────────
@@ -1414,7 +1535,9 @@
   text-align: center;
   min-height: 28px;
   padding: 4px 14px;
-  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
 }
 :where([data-style="combo"]) .settings-sidebar nav button:hover:not(:disabled) {
   color: var(--fg);

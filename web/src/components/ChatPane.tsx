@@ -234,6 +234,7 @@ import {
 import { isMobileLayout } from '../lib/mobile-layout';
 import { MOBILE_BREAKPOINT } from '../lib/mobile-layout';
 import { useDismissable } from '../lib/use-dismissable';
+import { composerInForce, useSettings } from '../settings';
 import { useMediaQuery } from '../use-media-query';
 import { SlackApprovalAlert } from './SlackApprovalAlert';
 import './ChatPane.css';
@@ -4081,8 +4082,15 @@ export function ChatPane({
   // holds the mic instead. See the button for why this beats a disabled Send.
   const micInsteadOfSend =
     voiceMic && voice.supported && !voiceIsLive(voice.state) && !input.trim() && chips.length === 0;
-  const collapsedTools = toolsIdle && touchLayout;
-  const labelledTools = toolsIdle && !touchLayout;
+  // …and WHICH prompt box is drawn (Settings › General › Prompt box). Default
+  // is the arrangement argued for above. A and C keep it but draw the tools as
+  // icons, named in a tooltip (A: on a row that ends in the send slot; C:
+  // inside the pill). B is the command bar: everything idle lives behind the
+  // `+` on every layout, so it never has a labelled row.
+  const composer = composerInForce(useSettings());
+  const iconTools = composer === 'a' || composer === 'c';
+  const collapsedTools = toolsIdle && (touchLayout || composer === 'b');
+  const labelledTools = toolsIdle && !touchLayout && composer !== 'b';
   const [toolsOpen, setToolsOpen] = useState(false);
   const toolsRef = useRef<HTMLDivElement>(null);
   useDismissable(toolsOpen, toolsRef, () => setToolsOpen(false));
@@ -5349,6 +5357,97 @@ export function ChatPane({
   );
 
   /**
+   * THE COMPOSER'S ONE ACTION SLOT — mic → send → queue → stop. Lifted out of
+   * the input row so a prompt box can place it: beside the field by default,
+   * at the end of the icon row in option A.
+   */
+  const sendSlot =
+    sending && !question && !canSend ? (
+      /* ── A RUNNING TURN WITH NOTHING TYPED: THE SLOT IS STOP ───
+         Still ONE button — never two circles, which is the defect
+         that moved Stop out of here in the first place ("you have
+         both a send and a stop button and they're both
+         horizontally presented").
+
+         What moving it out produced was worse, and a photo of a
+         phone settled it: the fold on the left, a Stop pill
+         floating alone on the right attached to nothing, and the
+         composer under both — three rows of chrome for one
+         running turn. "Look at this soup especially on mobile."
+
+         The resolution is that the slot is EMPTY of its usual
+         job. This button acts on your draft — send it, queue it —
+         and with nothing typed there is no draft, so it rendered
+         a DISABLED Queue: a dead target in the most valuable
+         36px of the composer, in the one state where there is
+         exactly one thing a person wants to do. Now it is that
+         thing.
+
+         Type anything and it becomes Queue again (below), which
+         is the draft's own action returning to its own slot. */
+      <button
+        type="button"
+        className="chat-send is-stop"
+        onClick={stop}
+        aria-label="Stop this turn"
+        title="Stop this turn"
+      >
+        <span className="chat-stop-glyph" aria-hidden="true" />
+      </button>
+    ) : sending && !question ? (
+      /* Busy + composed text → Queue: the server holds it and
+         feeds it when the agent frees up. */
+      <button
+        type="button"
+        className="chat-send is-queue"
+        onClick={sendMessage}
+        disabled={!canSend}
+        aria-label="Queue message — sends when the agent is free"
+        title={
+          uploadsInFlight
+            ? 'Waiting for uploads to finish — cancel one to queue now'
+            : 'Queue — sends when the agent is free'
+        }
+      >
+        <SvgQueue />
+      </button>
+    ) : micInsteadOfSend ? (
+      /* ── MIC → SEND → QUEUE, ONE SLOT ──────────────────────────
+         With nothing typed there is nothing to send, so the slot
+         holds the thing you would do INSTEAD of typing. This is
+         the arrangement the mock-up drew, and it is why Dictate is
+         not a label on the tool row: dictation replaces typing
+         rather than adding to a draft.
+
+         A disabled Send was the alternative, and it is strictly
+         worse — a dead target in the most valuable 36px of the
+         composer, which is exactly where the one action available
+         to an empty composer should be. */
+      <button
+        type="button"
+        className="chat-mic"
+        onClick={() => voice.start()}
+        aria-label="Dictate"
+        title="Dictate — speak instead of typing"
+      >
+        <SvgMic />
+      </button>
+    ) : (
+      <button
+        type="button"
+        className="chat-send"
+        onClick={sendMessage}
+        disabled={!canSend}
+        aria-label={uploadsInFlight ? 'Waiting for uploads' : 'Send'}
+        title={uploadsInFlight ? 'Waiting for uploads to finish — cancel one to send now' : 'Send'}
+      >
+        <span className="chat-send-glyph" aria-hidden="true">
+          ↑
+        </span>
+      </button>
+    );
+
+  /**
    * THE COMPOSER'S TOOLS — one element, placed differently by layout.
    *
    * DESKTOP puts it on a row of its own under the input, with the labels on
@@ -5365,6 +5464,10 @@ export function ChatPane({
    *    recording is not an action waiting to be taken, it is the thing you are
    *    doing, and its elapsed time and its stop cannot sit behind a `+`.
    */
+  /** A tool's name: bare text by default; a span A hides and C folds open on
+   *  hover, with the name kept in aria-label and the tooltip. */
+  const toolLabel = (name: string) =>
+    iconTools ? <span className="chat-tool-label">{name}</span> : name;
   const composerTools = collapsedTools ? (
     <div className="chat-tools" ref={toolsRef}>
       <button
@@ -5439,7 +5542,10 @@ export function ChatPane({
               everything you can do to this chat, so the model chip rides it
               too — one more row in a sheet that is only on screen while you
               are using it, rather than a permanent line under the input. */}
-          <div className="chat-tools-session">{sessionStrip}</div>
+          {/* B's desktop bar already carries the session as a chip. */}
+          {composer === 'b' && !touchLayout ? null : (
+            <div className="chat-tools-session">{sessionStrip}</div>
+          )}
         </div>
       ) : null}
     </div>
@@ -5448,21 +5554,23 @@ export function ChatPane({
       <button
         type="button"
         className="chat-tool-btn"
+        aria-label={iconTools ? 'Attach a file' : undefined}
         onClick={() => fileInputRef.current?.click()}
         title="Attach a file"
       >
         <SvgScreenlessAttach />
-        Attach
+        {toolLabel('Attach')}
       </button>
       {review.available ? (
         <button
           type="button"
           className="chat-tool-btn"
+          aria-label={iconTools ? 'Review a screen' : undefined}
           onClick={() => void review.start()}
           title="Review a screen — talk while you point"
         >
           <SvgScreen />
-          Review a screen
+          {toolLabel('Review a screen')}
         </button>
       ) : null}
       {/* NO DICTATE BUTTON. The mic is the composer's own right-hand button
@@ -5479,12 +5587,13 @@ export function ChatPane({
       <button
         type="button"
         className="chat-tool-btn"
+        aria-label={iconTools ? 'btw…' : undefined}
         disabled={branching}
         onClick={() => void branch()}
         title="btw — a new chat in this folder, pre-filled to read this one. This chat keeps running."
       >
         <SvgBranch />
-        btw…
+        {toolLabel('btw…')}
       </button>
     </>
   ) : (
@@ -6240,94 +6349,19 @@ export function ChatPane({
                         `Message ${mode === 'chat' ? 'Chat' : assistantLabel(session?.assistant)}…`
                   }
                 />
-                {sending && !question && !canSend ? (
-                  /* ── A RUNNING TURN WITH NOTHING TYPED: THE SLOT IS STOP ───
-                     Still ONE button — never two circles, which is the defect
-                     that moved Stop out of here in the first place ("you have
-                     both a send and a stop button and they're both
-                     horizontally presented").
-
-                     What moving it out produced was worse, and a photo of a
-                     phone settled it: the fold on the left, a Stop pill
-                     floating alone on the right attached to nothing, and the
-                     composer under both — three rows of chrome for one
-                     running turn. "Look at this soup especially on mobile."
-
-                     The resolution is that the slot is EMPTY of its usual
-                     job. This button acts on your draft — send it, queue it —
-                     and with nothing typed there is no draft, so it rendered
-                     a DISABLED Queue: a dead target in the most valuable
-                     36px of the composer, in the one state where there is
-                     exactly one thing a person wants to do. Now it is that
-                     thing.
-
-                     Type anything and it becomes Queue again (below), which
-                     is the draft's own action returning to its own slot. */
-                  <button
-                    type="button"
-                    className="chat-send is-stop"
-                    onClick={stop}
-                    aria-label="Stop this turn"
-                    title="Stop this turn"
-                  >
-                    <span className="chat-stop-glyph" aria-hidden="true" />
-                  </button>
-                ) : sending && !question ? (
-                  /* Busy + composed text → Queue: the server holds it and
-                     feeds it when the agent frees up. */
-                  <button
-                    type="button"
-                    className="chat-send is-queue"
-                    onClick={sendMessage}
-                    disabled={!canSend}
-                    aria-label="Queue message — sends when the agent is free"
-                    title={
-                      uploadsInFlight
-                        ? 'Waiting for uploads to finish — cancel one to queue now'
-                        : 'Queue — sends when the agent is free'
-                    }
-                  >
-                    <SvgQueue />
-                  </button>
-                ) : micInsteadOfSend ? (
-                  /* ── MIC → SEND → QUEUE, ONE SLOT ──────────────────────────
-                     With nothing typed there is nothing to send, so the slot
-                     holds the thing you would do INSTEAD of typing. This is
-                     the arrangement the mock-up drew, and it is why Dictate is
-                     not a label on the tool row: dictation replaces typing
-                     rather than adding to a draft.
-
-                     A disabled Send was the alternative, and it is strictly
-                     worse — a dead target in the most valuable 36px of the
-                     composer, which is exactly where the one action available
-                     to an empty composer should be. */
-                  <button
-                    type="button"
-                    className="chat-mic"
-                    onClick={() => voice.start()}
-                    aria-label="Dictate"
-                    title="Dictate — speak instead of typing"
-                  >
-                    <SvgMic />
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="chat-send"
-                    onClick={sendMessage}
-                    disabled={!canSend}
-                    aria-label={uploadsInFlight ? 'Waiting for uploads' : 'Send'}
-                    title={
-                      uploadsInFlight
-                        ? 'Waiting for uploads to finish — cancel one to send now'
-                        : 'Send'
-                    }
-                  >
-                    <span className="chat-send-glyph" aria-hidden="true">
-                      ↑
-                    </span>
-                  </button>
-                )}
+                {/* C rides the commands and the session INSIDE the pill, after
+                    the field; B keeps the session as a chip in its one line. */}
+                {composer === 'c' && labelledTools ? (
+                  <div className="chat-composer-tools">
+                    {composerTools}
+                    {sessionStrip}
+                  </div>
+                ) : null}
+                {composer === 'b' && !touchLayout ? (
+                  <div className="chat-composer-tools">{sessionStrip}</div>
+                ) : null}
+                {/* A puts the send slot at the end of its tool row instead. */}
+                {composer === 'a' && labelledTools ? null : sendSlot}
               </div>
               {/* Attachment previews live INSIDE the composer pill, as a row
                 under the input — not a floating strip above it. */}
@@ -6490,10 +6524,29 @@ export function ChatPane({
                   that sheet — on screen while you are using it, gone the rest
                   of the time. The row costs a desktop nothing it has a
                   shortage of; a phone it costs the one thing it is short of. */}
-              {labelledTools ? (
+              {labelledTools && composer !== 'c' ? (
                 <div className="chat-composer-tools">
                   {composerTools}
                   {sessionStrip}
+                  {composer === 'a' ? sendSlot : null}
+                </div>
+              ) : null}
+              {/* B: the keys, said quietly — desktop only, and only while the
+                  bar is focused (see .chat-composer-hint). A phone's Return is
+                  a newline and its send is the button, so there is nothing to
+                  say. */}
+              {composer === 'b' && !touchLayout ? (
+                <div className="chat-composer-hint" aria-hidden="true">
+                  <span>
+                    <kbd>↵</kbd> send
+                  </span>
+                  <span>
+                    <kbd>⇧</kbd>
+                    <kbd>↵</kbd> new line
+                  </span>
+                  <span>
+                    <kbd>@</kbd> mention a chat
+                  </span>
                 </div>
               ) : null}
             </div>

@@ -53,6 +53,7 @@ describe('settings', () => {
     expect(get()).toEqual({
       theme: 'system',
       style: 'default',
+      composer: 'default',
       sidebarWidth: 280,
     });
   });
@@ -64,6 +65,31 @@ describe('settings', () => {
     localStorage.setItem('muxpad.settings.v1', JSON.stringify({ style: 'brutalist' }));
     vi.resetModules();
     expect((await import('./settings')).getSettings().style).toBe('default');
+  });
+
+  it('persists the prompt box, and reads an unknown one as Default', async () => {
+    updateSettings({ composer: 'c' });
+    expect(localStorage.getItem('muxpad.settings.v1')).toContain('"composer":"c"');
+    vi.resetModules();
+    expect((await import('./settings')).getSettings().composer).toBe('c');
+    localStorage.setItem('muxpad.settings.v1', JSON.stringify({ composer: 'z' }));
+    vi.resetModules();
+    expect((await import('./settings')).getSettings().composer).toBe('default');
+  });
+
+  it('paints the prompt box in force on <html>, the install’s over this browser’s', async () => {
+    localStorage.setItem('muxpad.settings.v1', JSON.stringify({ composer: 'a' }));
+    vi.resetModules();
+    const s = await import('./settings');
+    // Module load paints this browser's choice — the no-flash first paint.
+    expect(document.documentElement.dataset.composer).toBe('a');
+    s.setServerComposer('b');
+    expect(document.documentElement.dataset.composer).toBe('b');
+    expect(s.composerInForce(s.getSettings())).toBe('b');
+    expect(s.getServerComposer()).toBe('b');
+    // None stored on the install → this browser's shows through again.
+    s.setServerComposer(null);
+    expect(document.documentElement.dataset.composer).toBe('a');
   });
 });
 

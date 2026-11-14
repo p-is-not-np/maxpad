@@ -4,13 +4,18 @@ import { api } from '../api';
 
 import { type PushState, disablePush, enablePush, getPushState, sendTestPush } from '../lib/push';
 import {
+  COMPOSERS,
+  type ComposerDesign,
   STYLES,
   SYSTEM_PAIR,
   THEME_CHOICES,
   type ThemeChoice,
   type UiStyle,
+  composerInForce,
+  getServerComposer,
   getServerStyle,
   getServerTheme,
+  setServerComposer,
   setServerStyle,
   setServerTheme,
   styleInForce,
@@ -148,6 +153,7 @@ export function SettingsMenu() {
                 <section hidden={section !== 'general'} aria-label="General settings">
                   <ThemePicker chosen={themeInForce(settings)} />
                   <StylePicker chosen={styleInForce(settings)} />
+                  <ComposerPicker chosen={composerInForce(settings)} />
                 </section>
                 <section hidden={section !== 'notifications'} aria-label="Notification settings">
                   <PushSection />
@@ -353,6 +359,82 @@ function StyleMock({ look }: { look: UiStyle }) {
         <i className="style-mock-line" />
         <i className="style-mock-line style-mock-line--short" />
         <i className="style-mock-composer" />
+      </span>
+    </span>
+  );
+}
+
+/**
+ * THE PROMPT BOX PICKER — which composer the chat draws, under the style.
+ *
+ * The style picker's contract again: one value for the install, applied on the
+ * press so the composer under the dialog changes while you look at it, stored
+ * server-side and pushed to every window, undone if the write fails. You pick
+ * one by USING it, so the change has to be live.
+ */
+export function ComposerPicker({ chosen }: { chosen: ComposerDesign }) {
+  const [failed, setFailed] = useState(false);
+  const pick = (value: ComposerDesign) => {
+    const before = getServerComposer();
+    setFailed(false);
+    setServerComposer(value);
+    void api.setPref('composer', value).catch((err) => {
+      console.error('could not store the prompt box', err);
+      setServerComposer(before);
+      setFailed(true);
+    });
+  };
+  return (
+    <fieldset className="settings-row settings-themes settings-composers">
+      <legend>Prompt box</legend>
+      <div className="theme-grid style-grid">
+        {COMPOSERS.map((c) => (
+          <label
+            key={c.value}
+            className="theme-tile"
+            data-chosen={c.value === chosen}
+            title={c.hint}
+          >
+            <input
+              type="radio"
+              name="composer"
+              value={c.value}
+              checked={c.value === chosen}
+              onChange={() => pick(c.value)}
+            />
+            <span className="theme-tile-preview">
+              <ComposerMock design={c.value} />
+            </span>
+            <span className="theme-tile-name">{c.label}</span>
+          </label>
+        ))}
+      </div>
+      {failed ? (
+        <p className="settings-note" role="alert">
+          Couldn’t save the prompt box. The server may be running a build from before it existed —
+          restart muxpad and try again.
+        </p>
+      ) : null}
+    </fieldset>
+  );
+}
+
+/** The bottom of a chat in miniature: two lines of log and the prompt box,
+ *  drawn the way each design builds it. */
+function ComposerMock({ design }: { design: ComposerDesign }) {
+  return (
+    <span className="composer-mock" data-design={design} aria-hidden="true">
+      <i className="style-mock-line" />
+      <i className="style-mock-line style-mock-line--short" />
+      <span className="composer-mock-box">
+        <i className="composer-mock-plus" />
+        <i className="composer-mock-field" />
+        <i className="composer-mock-send" />
+        <span className="composer-mock-row">
+          <i />
+          <i />
+          <i />
+        </span>
       </span>
     </span>
   );
