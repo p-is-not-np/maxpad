@@ -1,4 +1,4 @@
-import type { Tab } from '@muxpad/shared';
+import { EFFORT_LEVELS, type Tab } from '@muxpad/shared';
 import {
   AgentModeInputSchema,
   BOOTSTRAP_TAB_NAME,
@@ -14,6 +14,7 @@ import type Database from 'better-sqlite3';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { bootstrapTab, deleteTabCascade } from '../agent-tab.js';
+import { tuningRefusal } from '../agent-tuning.js';
 import type { EventBus } from '../events.js';
 import type { PaneOps } from '../node-link/PaneRouter.js';
 import { hasProjectContext } from '../project-root.js';
@@ -83,6 +84,11 @@ export function tabsRoutes(deps: {
         // Allowlisted enum → safe to bake into the startup_cmd shell string.
         // 'pick' = created pending, harness chosen later in the chat page.
         backend: z.enum(['claude', 'codex', 'cursor', 'pick']).optional(),
+        // Reasoning effort and Codex fast mode for an agent bootstrap. Closed
+        // allowlists (agent-tuning.ts), so both are safe in the shell string;
+        // checked against the backend below.
+        effort: z.enum(EFFORT_LEVELS).optional(),
+        fast: z.boolean().optional(),
         // WHEN THIS WORKER'S RESULT COMES BACK to the chat that spawned it.
         // `instant` is the default. `batch` holds this worker until its
         // siblings from the same dispatch are done, so a fan-out arrives as
@@ -120,6 +126,10 @@ export function tabsRoutes(deps: {
         node_id: z.string().optional(),
       })
       .parse(await c.req.json().catch(() => ({})));
+    if (body.backend !== 'pick') {
+      const refusal = tuningRefusal(body.backend, body);
+      if (refusal) return c.json({ error: { code: 'bad_request', message: refusal } }, 400);
+    }
     // A tab holds one thing, so it cannot be BORN split either — the same
     // refusal the PATCH below gives.
     if (body.layout !== undefined && isSplitLayout(body.layout))
@@ -203,6 +213,8 @@ export function tabsRoutes(deps: {
       ...(body.cwd !== undefined ? { cwd: body.cwd } : {}),
       ...(body.model !== undefined ? { model: body.model } : {}),
       ...(body.backend !== undefined ? { backend: body.backend } : {}),
+      ...(body.effort !== undefined ? { effort: body.effort } : {}),
+      ...(body.fast !== undefined ? { fast: body.fast } : {}),
       ...(body.mode !== undefined ? { mode: body.mode } : {}),
       ...(spawned_by ? { spawned_by } : {}),
       // Deliberately NO icon. Agent tabs used to be created wearing `✳`, which

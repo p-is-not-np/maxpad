@@ -14,6 +14,7 @@ import type Database from 'better-sqlite3';
 import { WebSocket, WebSocketServer } from 'ws';
 import type { AgentBridge } from './agent-bridge.js';
 import { recordModelCatalog } from './agent-model-catalog.js';
+import { tuningFlags, tuningFromStartupCmd } from './agent-tuning.js';
 import {
   PARK_AFTER_MS,
   PARK_RETIRED_AFTER_MS,
@@ -1165,6 +1166,16 @@ export function attachWsServer(deps: {
     // False just means "no runner right now" — the row + startup_cmd already
     // carry the mode, so the next respawn is correct either way.
     deps.agentBridge.setMode = (paneId, mode) => sendToRunner(paneId, { t: 'mode', mode });
+    // The MODEL still travels as `set-model`, the frame every runner already
+    // knows: a runner on an older build ignores `tuning`, and a model switch
+    // that silently stopped working on every stale pane would be a regression
+    // dressed as a feature. Effort / fast are new, so they can only be new.
+    deps.agentBridge.setTuning = (paneId, { model, ...rest }) => {
+      let ok = true;
+      if (typeof model === 'string' && model) ok = sendToRunner(paneId, { t: 'set-model', model });
+      if (Object.keys(rest).length > 0) ok = sendToRunner(paneId, { t: 'tuning', ...rest }) && ok;
+      return ok;
+    };
     // The UNWRAPPED queue answer, for the cron scheduler's run history. Same
     // single injection path as `send` above — it just doesn't flatten
     // 'sent'/'queued' into one boolean, because a run log that can't tell "it
@@ -2382,8 +2393,8 @@ export function attachWsServer(deps: {
               emitPaneUpdated(paneId);
             }
             const prevCmd = prevPane?.startup_cmd ?? '';
-            const modelMatch = prevCmd.match(/--model ('[^']*'|[^\s']+)/);
-            const modelPart = modelMatch ? ` --model ${modelMatch[1]}` : '';
+            // …and its effort / fast pins with it, in canonical order.
+            const tuningPart = tuningFlags(tuningFromStartupCmd(prevCmd));
             // Preserve the backend selector across the rewrite. Claude stays
             // implicit (bare `muxpad agent …`) so existing panes' startup_cmd
             // never churns; codex/cursor get an explicit, allowlist-safe flag.
@@ -2393,7 +2404,7 @@ export function attachWsServer(deps: {
             // changed it. Agent mode stays implicit for the same
             // never-churn-existing-panes reason as claude above.
             const modePart = prevPane?.mode === 'chat' ? ' --mode chat' : '';
-            const selfHealCmd = `muxpad agent${backendPart}${modePart}${modelPart} --resume ${frame.sid}`;
+            const selfHealCmd = `muxpad agent${backendPart}${modePart}${tuningPart} --resume ${frame.sid}`;
             const isReconnect = prevCmd === selfHealCmd;
             // Self-heal: the pane's startup command now resumes THIS session,
             // so the pane survives ptyd restarts and reboots.

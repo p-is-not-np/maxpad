@@ -162,3 +162,26 @@ describe('parseRunnerArgs — the fall-throughs', () => {
     expect(parse('--nonsense', '--help').kind).toBe('help');
   });
 });
+
+describe('parseRunnerArgs — tuning (effort / fast)', () => {
+  it('reads --effort and --fast in both spellings', () => {
+    const a = ok('--backend', 'codex', '--effort', 'xhigh', '--fast=on', '--resume', 'thr');
+    expect(a.requestedEffort).toBe('xhigh');
+    expect(a.requestedFast).toBe(true);
+    expect(ok('--fast', 'off').requestedFast).toBe(false);
+    expect(ok().requestedEffort).toBeNull();
+    expect(ok().requestedFast).toBeNull();
+  });
+
+  it('warns about an unknown word and boots at the default — never bricks the pane', () => {
+    const a = ok('--effort', 'turbo', '--fast', 'maybe', '--resume', 'sid');
+    expect(a.requestedEffort).toBeNull();
+    expect(a.requestedFast).toBeNull();
+    expect(a.requestedSid).toBe('sid');
+    expect(a.warnings).toHaveLength(2);
+  });
+
+  it('still refuses a MISSING value, like every other value flag', () => {
+    expect(err('--effort', '--resume', 'x')).toMatch(/--effort needs a value/);
+  });
+});

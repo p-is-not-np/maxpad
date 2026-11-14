@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { parseCodexModels, readCodexModels } from './codex-models.js';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { parseCodexModels, readCodexDefaults, readCodexModels } from './codex-models.js';
 
 /** Shaped like the real ~/.codex/models_cache.json, trimmed to the fields read. */
 const CACHE = JSON.stringify({
@@ -71,5 +74,43 @@ describe('parseCodexModels', () => {
 
   it('returns [] for a home with no cache file', () => {
     expect(readCodexModels('/nonexistent/codex/home')).toEqual([]);
+  });
+});
+
+describe('codex tuning facts off disk', () => {
+  it("carries each model's effort levels and whether it has the Fast tier", () => {
+    const [m] = parseCodexModels(
+      JSON.stringify({
+        models: [
+          {
+            slug: 'gpt-6.1-sol',
+            visibility: 'list',
+            supported_reasoning_levels: [
+              { effort: 'low' },
+              { effort: 'ultra' },
+              { effort: 'warp' },
+            ],
+            service_tiers: [{ id: 'priority', name: 'Fast' }],
+          },
+        ],
+      }),
+    );
+    // An effort word we do not know is dropped, never offered as a button.
+    expect(m).toMatchObject({ value: 'gpt-6.1-sol', efforts: ['low', 'ultra'], fast: true });
+  });
+
+  it('reads the TOP-LEVEL effort and tier from config.toml, ignoring tables', () => {
+    const home = mkdtempSync(join(tmpdir(), 'codex-home-'));
+    try {
+      writeFileSync(
+        join(home, 'config.toml'),
+        'model = "gpt-6"\nmodel_reasoning_effort = "max"\nservice_tier = "priority"\n\n[profiles.x]\nservice_tier = "flex"\n',
+      );
+      expect(readCodexDefaults(home)).toEqual({ effort: 'max', fast: true });
+      writeFileSync(join(home, 'config.toml'), '[profiles.x]\nmodel_reasoning_effort = "low"\n');
+      expect(readCodexDefaults(home)).toEqual({ effort: null, fast: false });
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
   });
 });
