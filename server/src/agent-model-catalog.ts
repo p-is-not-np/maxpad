@@ -1,4 +1,4 @@
-import { type AgentModelOption, sanitizeModelOption } from '@muxpad/shared';
+import { type AgentModelOption, isRetiredClaudeModel, sanitizeModelOption } from '@muxpad/shared';
 import type Database from 'better-sqlite3';
 import { GlobalsStore } from './store/GlobalsStore.js';
 
@@ -67,6 +67,7 @@ export function readModelCatalog(db: Database.Database): ModelCatalog {
     const models = list
       .map(cleanModel)
       .filter((m): m is CatalogModel => m !== null)
+      .filter((m) => backend !== 'claude' || !isRetiredClaudeModel(m))
       .slice(0, MAX_MODELS);
     if (models.length > 0) out[backend] = models;
   }

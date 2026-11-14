@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { tuningFlags, tuningFromStartupCmd, tuningRefusal, withTuning } from './agent-tuning.js';
+import {
+  isRetiredClaudeModel,
+  tuningFlags,
+  tuningFromStartupCmd,
+  tuningRefusal,
+  withTuning,
+} from './agent-tuning.js';
 
 describe('agent tuning in the startup command', () => {
   it('reads model, effort and fast back out, in either flag spelling', () => {
@@ -59,5 +65,27 @@ describe('agent tuning in the startup command', () => {
     expect(tuningRefusal('cursor', { effort: 'low' })).toMatch(/no reasoning-effort/);
     // Unpinning is always fine.
     expect(tuningRefusal('cursor', { effort: null, fast: null })).toBeNull();
+  });
+});
+
+describe('isRetiredClaudeModel', () => {
+  it('drops Haiku and every Claude model before 5, keeps 5+ and bare aliases', () => {
+    const list = [
+      { value: 'default', displayName: 'Default (recommended)', resolvedModel: 'claude-opus-5-5' },
+      { value: 'opus', displayName: 'Opus 5.5', resolvedModel: 'claude-opus-5-5' },
+      { value: 'claude-fable-5-1', displayName: 'Fable 5.1' },
+      { value: 'claude-sonnet-5', displayName: 'Sonnet 5' },
+      { value: 'haiku', displayName: 'Haiku 4.5', resolvedModel: 'claude-haiku-4-5-20251001' },
+      { value: 'claude-opus-4-8', displayName: 'Opus 4.8' },
+      { value: 'claude-sonnet-4-6', displayName: 'Sonnet 4.6' },
+      { value: 'sonnet' },
+    ];
+    expect(list.filter((m) => !isRetiredClaudeModel(m)).map((m) => m.value)).toEqual([
+      'default',
+      'opus',
+      'claude-fable-5-1',
+      'claude-sonnet-5',
+      'sonnet',
+    ]);
   });
 });

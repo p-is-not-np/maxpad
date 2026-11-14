@@ -19,9 +19,9 @@ describe('agent model catalog', () => {
   it('keeps resolvedModel when the runner sends one', () => {
     const d = db();
     recordModelCatalog(d, 'claude', [
-      { value: 'opus', displayName: 'Opus', resolvedModel: 'claude-opus-4-8' },
+      { value: 'opus', displayName: 'Opus', resolvedModel: 'claude-opus-5-5' },
     ]);
-    expect(readModelCatalog(d).claude?.[0]?.resolvedModel).toBe('claude-opus-4-8');
+    expect(readModelCatalog(d).claude?.[0]?.resolvedModel).toBe('claude-opus-5-5');
   });
 
   it('an EMPTY list does not erase what we knew', () => {
