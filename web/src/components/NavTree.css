@@ -567,10 +567,6 @@
 }
 /* …and the other side of the brand row, so the wordmark stays optically
    centred rather than shifted half a button to the right. */
-.sidenav-brand-spacer {
-  flex: 0 0 auto;
-  width: 34px;
-}
 
 /* Desktop has no section header (dropped as redundant under the brand),
    so the list sits directly below the brand hairline — give it a little
@@ -3239,24 +3235,6 @@ body.sidenav-resizing iframe {
   pointer-events: none;
 }
 
-.sidenav-brand {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: stretch;
-  /* Match the pane tab-strip height (--chrome-h) so the brand's bottom
-     hairline lines up exactly with the tab strip's bottom line at the top
-     of the workspace, in both split and tabbed views. */
-  height: var(--chrome-h);
-  border-bottom: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
-}
-.sidenav-brand .brand {
-  flex: 1;
-  height: var(--chrome-h);
-  border-right: none;
-  /* Center the wordmark+mark so the brand reads as a title plate, set apart
-     from the left-aligned workspace/tab rows below it. */
-  justify-content: center;
-}
 
 .sidenav-footer {
   position: relative;
@@ -3265,29 +3243,6 @@ body.sidenav-resizing iframe {
   align-items: stretch;
   height: var(--chrome-h);
   border-top: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
-}
-.sidenav-build {
-  flex: 1;
-  /* Gives way first in a narrow rail, so the controls beside it never wrap. */
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  display: inline-flex;
-  align-items: center;
-  padding: 0 12px;
-  color: var(--fg-dim);
-  font-family: var(--chrome-font);
-  font-size: 0.6875rem;
-  font-variant-numeric: tabular-nums;
-  text-decoration: none;
-  transition:
-    background 80ms ease,
-    color 80ms ease;
-}
-.sidenav-build:hover {
-  background: var(--bg-hover);
-  color: var(--fg);
-  text-decoration: none;
 }
 /* Settings popover normally drops DOWN from the top bar; anchored to
    the sidebar's foot it must open UP, with the sharp corner meeting
@@ -4375,15 +4330,9 @@ body.sidenav-resizing iframe {
 :where([data-style="combo"]) .sidenav {
   box-shadow: inset -1px 0 0 0 var(--rail-seam);
 }
-:where([data-style="minimal"]) .sidenav-brand,
-:where([data-style="combo"]) .sidenav-brand,
 :where([data-style="minimal"]) .sidenav-footer,
 :where([data-style="combo"]) .sidenav-footer {
   border-color: var(--rail-border);
-}
-:where([data-style="minimal"]) .sidenav-build,
-:where([data-style="combo"]) .sidenav-build {
-  color: var(--fg-faint);
 }
 :where([data-style="minimal"]) .navtree:not([data-variant="sheet"]) .navtree-tab-row .chatchip,
 :where([data-style="combo"]) .navtree:not([data-variant="sheet"]) .navtree-tab-row .chatchip {
@@ -4418,19 +4367,12 @@ body.sidenav-resizing iframe {
 }
 /* No rules across the card: on a card the brand is a title and the footer a
    foot, not plates. */
-:where([data-style="floating"]) .sidenav-brand,
-:where([data-style="combo"]) .sidenav-brand {
-  border-bottom: 0;
-}
 :where([data-style="floating"]) .sidenav-footer,
 :where([data-style="combo"]) .sidenav-footer {
   border-top: 0;
 }
 /* Floating gives the brand a little air so it clears the card's rounded top,
    and insets the footer from the rounded foot. */
-:where([data-style="floating"]) .sidenav-brand {
-  margin-top: 6px;
-}
 :where([data-style="floating"]) .sidenav-footer {
   margin: 0 6px 6px;
 }
@@ -4438,9 +4380,6 @@ body.sidenav-resizing iframe {
   align-self: center;
   width: 32px;
   height: 32px;
-}
-:where([data-style="floating"]) .sidenav-build {
-  border-radius: 10px;
 }
 /* FLOATING: the recently-active band is a rounded tile inside the rail card,
    not an edge-to-edge shelf. On a rounded tile a 3px leading border draws a
@@ -4463,9 +4402,6 @@ body.sidenav-resizing iframe {
 :where([data-style="combo"]) .sidenav-resize-handle::after {
   top: 14px;
   bottom: 14px;
-}
-:where([data-style="combo"]) .sidenav-build {
-  border-radius: 6px;
 }
 /* The footer's icon buttons lose their plate dividers: quiet hit areas. */
 :where([data-style="combo"]) .sidenav-footer .icon-btn {

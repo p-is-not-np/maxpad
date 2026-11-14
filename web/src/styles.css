@@ -964,21 +964,6 @@
   background-size: 4px 4px;
 }
 
-/* ─── DOUBLE RULE ═══════════════════════════════════════════════════════════
-   The rail's seam becomes a box-drawing double line — two hairlines with a gap,
-   which is literally what ═ is. Drawn with a gradient rather than a glyph so it
-   survives at any width and costs no font. */
-[data-theme="demoscene"] .sidenav-brand {
-  border-bottom: 3px solid transparent;
-  border-image: repeating-linear-gradient(
-      to bottom,
-      var(--rail-border) 0 1px,
-      transparent 1px 2px,
-      var(--rail-border) 2px 3px
-    )
-    3;
-}
-
 /* ─── THE COPPER BAR IS A BAR, NOT A WASH ───────────────────────────────────
    The Amiga's copper changed the background colour every scanline, and in an
    intro those bands SLID. Reproducing that as a translucent gradient across
@@ -1265,7 +1250,6 @@
    short, set in caps, and not something you read a column of. That is the
    whole of the drafting hand now; see the token note above for the three
    rounds it took to get here. */
-[data-theme="blueprint"] .sidenav-brand,
 [data-theme="blueprint"] .navtree-ws-name {
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1286,11 +1270,6 @@
 [data-theme="blueprint"] .navtree-ws-name {
   text-transform: uppercase;
   letter-spacing: 0.14em;
-}
-
-/* SECTION RULES ARE DASHED, at the weight a pencil leaves. */
-[data-theme="blueprint"] .sidenav-brand {
-  border-bottom: 1px dashed color-mix(in srgb, var(--accent) 34%, transparent);
 }
 
 /* THE COMPOSER IS A TITLE BLOCK — the boxed panel in the corner of every
