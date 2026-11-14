@@ -3460,26 +3460,41 @@ printable_base() {
   printf '%s' "$base"
 }
 
-# muxpad agent new [--workspace=<id>] [--cwd=<dir>] [--name=<tab name>] [--model=<model>] [--backend=<b>] "first message"
+# muxpad agent new [--workspace=<id>] [--cwd=<dir>] [--name=<tab name>] [--model=<model>] [--effort=<level>] [--fast|--no-fast] [--backend=<b>] "first message"
 # One-shot launcher: creates an agent tab (chat-native Claude session), waits
 # for its runner to register, sends the first message so the session starts
 # processing immediately, and prints the tab's URL. The runner needs a couple
 # of seconds to boot inside the fresh pane, so the send polls until accepted.
 cmd_agent_new() {
-  reset_flags workspace cwd name model mode backend deliver
-  # `--detached` is BARE — parse_flags only knows --k=v and --k v, and would
-  # reject a valueless flag — so strip it here, the same way the mode flags are
-  # pre-stripped further down.
+  reset_flags workspace cwd name model effort mode backend deliver
+  # `--detached` and `--fast`/`--no-fast` are BARE — parse_flags only knows
+  # --k=v and --k v, and would reject a valueless flag — so strip them here,
+  # the same way the mode flags are pre-stripped further down.
   FLAG_detached=''
+  FLAG_fast=''
   local _argv=() _a
   for _a in "$@"; do
-    if [ "$_a" = "--detached" ]; then FLAG_detached=1; else _argv+=("$_a"); fi
+    case "$_a" in
+      --detached) FLAG_detached=1 ;;
+      --fast) FLAG_fast=true ;;
+      --no-fast) FLAG_fast=false ;;
+      *) _argv+=("$_a") ;;
+    esac
   done
-  parse_flags workspace cwd name model mode backend deliver -- ${_argv+"${_argv[@]}"}
+  parse_flags workspace cwd name model effort mode backend deliver -- ${_argv+"${_argv[@]}"}
   local message="${POSITIONAL[0]:-}"
   if [ -z "$message" ]; then
-    echo 'usage: muxpad agent new [--workspace=<id>] [--cwd=<dir>] [--name=<tab name>] [--model=<model>] [--mode=chat|agent] [--backend=claude|codex|cursor|pick] [--deliver=batch|instant] [--detached] "first message"' >&2
+    echo 'usage: muxpad agent new [--workspace=<id>] [--cwd=<dir>] [--name=<tab name>] [--model=<model>] [--effort=<level>] [--fast|--no-fast] [--mode=chat|agent] [--backend=claude|codex|cursor|pick] [--deliver=batch|instant] [--detached] "first message"' >&2
     exit 1
+  fi
+  # Reasoning effort / Codex fast mode. The server checks them against the
+  # backend (claude: low…max; codex: minimal…ultra; fast is Codex-only) and
+  # says which; this only catches a word that is no effort at all.
+  if [ -n "${FLAG_effort:-}" ]; then
+    case "$FLAG_effort" in
+      minimal|low|medium|high|xhigh|max|ultra) ;;
+      *) echo "muxpad: --effort must be minimal|low|medium|high|xhigh|max|ultra (got '$FLAG_effort')" >&2; exit 1 ;;
+    esac
   fi
   # Agent mode (see agent-modes.ts): 'chat' overlays muxpad's terse, decisive
   # contract; 'agent' is the harness exactly as it ships. Omitted = the
@@ -3582,6 +3597,9 @@ cmd_agent_new() {
   # Model rides the pane's startup command (`muxpad agent --model <m>`), so it
   # also survives ptyd restarts / resumes. Server-validated charset.
   [ -n "${FLAG_model:-}" ] && body+=",\"model\":$(json_string "$FLAG_model")"
+  # Effort and fast ride the startup command beside the model, for the same reason.
+  [ -n "${FLAG_effort:-}" ] && body+=",\"effort\":$(json_string "$FLAG_effort")"
+  [ -n "${FLAG_fast:-}" ] && body+=",\"fast\":$FLAG_fast"
   # Mode rides the pane row AND its startup command, so a respawn keeps it.
   [ -n "${FLAG_mode:-}" ] && body+=",\"mode\":$(json_string "$FLAG_mode")"
   # Backend rides the pane's startup command too (`muxpad agent --backend <b>`),
@@ -4019,7 +4037,7 @@ cmd_agent_stop() {
 # to type the BARE `muxpad agent` (see the guard below for what that used to do).
 agent_subcommand_usage() {
   case "$1" in
-    new) echo 'usage: muxpad agent new [--workspace=<id>] [--cwd=<dir>] [--name=<tab name>] [--model=<model>] [--mode=chat|agent] [--backend=claude|codex|cursor|pick] [--detached] "first message"' ;;
+    new) echo 'usage: muxpad agent new [--workspace=<id>] [--cwd=<dir>] [--name=<tab name>] [--model=<model>] [--effort=<level>] [--fast|--no-fast] [--mode=chat|agent] [--backend=claude|codex|cursor|pick] [--detached] "first message"' ;;
     list) echo 'usage: muxpad agent list' ;;
     rebase) echo 'usage: muxpad agent rebase [<paneId>]   — same chat, fresh context, current instructions' ;;
     respawn) echo 'usage: muxpad agent respawn <paneId> | --all [--backend=<id>]' ;;
@@ -5644,14 +5662,18 @@ HTTP CLI (requires the daemon; defaults read from MUXPAD_*_ID env):
                                      on failover. `status` says how full each is.
   agent stop <paneId>                         interrupt an in-flight turn
   agent new [--workspace=<id>] [--cwd=<dir>] [--name=<tab name>] [--backend=<b>]
-            [--model=<model>] [--mode=chat|agent] "message"
+            [--model=<model>] [--effort=<level>] [--fast|--no-fast]
+            [--mode=chat|agent] "message"
                                      create an agent tab, send the first
                                      message so it starts working immediately,
                                      and print the tab's URL. cwd defaults to
                                      $PWD; workspace to MUXPAD_WORKSPACE_ID.
                                      --name labels the tab (skips AI auto-
                                      rename); --model pins the session model
-                                     (e.g. 'claude-opus-4-8[1m]'); --mode
+                                     (e.g. 'claude-opus-4-8[1m]'); --effort
+                                     pins reasoning effort (claude low..max,
+                                     codex minimal..ultra); --fast/--no-fast
+                                     sets Codex fast mode; --mode
                                      picks Chat mode (muxpad's assistant —
                                      decisive, terse, result-first; the
                                      default) or Agent mode (the harness as

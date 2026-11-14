@@ -4,6 +4,7 @@
 // server→runner control frames into method calls; the backend owns the session
 // and emits runner→server frames via the host. Nothing in the harness knows
 // which backend is running.
+import type { EffortLevel } from '@muxpad/shared';
 import type { AgentMode, BackendId, NotifyStatus, RunnerFrame } from '../protocol.js';
 
 /** Services the harness provides to a backend. */
@@ -26,6 +27,11 @@ export interface BackendOptions {
   requestedSid: string | null;
   /** `--model <id>`: pin the session model (null = backend default). */
   requestedModel: string | null;
+  /** `--effort <level>`: reasoning effort pin (null = harness default). The
+   *  harness passes it through; a backend without effort ignores it. */
+  requestedEffort?: EffortLevel | null;
+  /** `--fast on|off`: Codex fast mode pin (null = config default). */
+  requestedFast?: boolean | null;
   /**
    * `--mode chat|agent`: the pane's agent mode at LAUNCH. This is the only
    * point at which a mode can reach the session as real system-prompt
@@ -81,6 +87,8 @@ export interface BackendOptions {
  *  stop mid-turn         yes               yes               yes
  *  streams deltas        yes               yes               yes
  *  model switching       yes               yes               yes
+ *  reasoning effort      yes, live         yes, per turn     no
+ *  fast mode (tier)      — (not offered)   yes, per turn     no
  *
  * ── THE ROW THAT CATCHES PEOPLE OUT ──────────────────────────────────────
  *
@@ -140,6 +148,13 @@ export interface AgentBackend {
   stop(): void;
   /** Switch the session model. */
   setModel(model: string): void;
+  /**
+   * Change reasoning effort and/or fast mode from the NEXT turn. Keys present
+   * = changed, `null` = back to the harness default. Optional: a backend
+   * without either dial has nothing to implement (the server refuses to store
+   * a dial the pane's harness lacks, so this is never sent to one).
+   */
+  setTuning?(t: { effort?: EffortLevel | null; fast?: boolean | null }): void;
   /**
    * The pane's mode changed while this session is live. NO harness can
    * rewrite a running session's system prompt, so the honest contract every

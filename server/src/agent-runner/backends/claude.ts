@@ -14,9 +14,12 @@ import {
   tool,
 } from '@anthropic-ai/claude-agent-sdk';
 import {
+  type AgentModelOption,
   DISALLOWED_DELEGATION_TOOLS,
+  type EffortLevel,
   LAUNCH_ACK_RE,
   REPLY_ACK,
+  backendSupportsEffort,
   blockText,
   isAgentLaunchTool,
   needsReplyFallback,
@@ -529,6 +532,12 @@ export function applyTurnResult(
   else if (subtype !== 'success') roster.retireForeground('turn failed');
 }
 
+/** The effort words the SDK takes — Codex's minimal / ultra are not among them. */
+type ClaudeEffort = Exclude<EffortLevel, 'minimal' | 'ultra'>;
+function asClaudeEffort(v: EffortLevel | null | undefined): ClaudeEffort | null {
+  return v && backendSupportsEffort('claude', v) ? (v as ClaudeEffort) : null;
+}
+
 export function createClaudeBackend(host: RunnerHost, opts: BackendOptions): AgentBackend {
   const { emit, log } = host;
   const { requestedSid, requestedModel } = opts;
@@ -539,6 +548,11 @@ export function createClaudeBackend(host: RunnerHost, opts: BackendOptions): Age
   if (accountPool && !account) account = accountPool.accounts().find((a) => a.enabled) ?? null;
   if (account) log(dim(`Claude account: ${account.label} (${account.id})`));
   let activeModel: string | null = requestedModel;
+  // Reasoning effort pin (null = the model's own default). Claude takes it at
+  // launch (`Options.effort`) and live (`applyFlagSettings({ effortLevel })`),
+  // so a change applies from the next request without a respawn. A word only
+  // Codex knows (minimal / ultra) is dropped rather than sent.
+  let effort: ClaudeEffort | null = asClaudeEffort(opts.requestedEffort);
   const triedAccounts = new Set<string>();
   let quotaFailure: QuotaBlock | null = null;
   let quotaPaused = false;
@@ -1719,6 +1733,7 @@ export function createClaudeBackend(host: RunnerHost, opts: BackendOptions): Age
     // Model: an explicit `--model <m>` pin wins; else a fresh chat gets
     // DEFAULT_AGENT_MODEL (Opus) and a resume keeps its own model.
     ...(startModel ? { model: startModel } : {}),
+    ...(effort ? { effort } : {}),
     // The chat-native question tool (Claude Code's own AskUserQuestion is not
     // offered to SDK sessions). alwaysLoad keeps it in the prompt rather than
     // behind tool search — it must be discoverable at the moment of doubt.
@@ -1792,6 +1807,8 @@ export function createClaudeBackend(host: RunnerHost, opts: BackendOptions): Age
         ...options,
         ...effectiveAnchor,
         ...(activeModel ? { model: activeModel } : {}),
+        // A respawned session (account switch, recovery) keeps a live change.
+        ...(effort ? { effort } : {}),
         ...(account ? { env: accountEnv(account) } : {}),
       },
     });
@@ -1806,8 +1823,7 @@ export function createClaudeBackend(host: RunnerHost, opts: BackendOptions): Age
   // and after a model switch; cached for re-delivery on reconnect.
   // -------------------------------------------------------------------------
   let lastStatus: (RunnerFrame & { t: 'status' }) | null = null;
-  let modelList: Array<{ value: string; displayName: string; resolvedModel?: string }> | null =
-    null;
+  let modelList: AgentModelOption[] | null = null;
   // The CONCRETE model the session is actually running (e.g. 'claude-opus-4-8'),
   // captured from the init frame and every assistant message. getContextUsage()
   // reports only the ALIAS ('opus'), so this is the sole reliable source of the
@@ -1841,6 +1857,13 @@ export function createClaudeBackend(host: RunnerHost, opts: BackendOptions): Age
             value: m.value,
             displayName: m.displayName,
             ...(m.resolvedModel ? { resolvedModel: m.resolvedModel } : {}),
+            // Which effort levels this model takes, so the picker never
+            // offers one the model would silently downgrade.
+            ...(m.supportsEffort === false
+              ? { efforts: [] }
+              : m.supportedEffortLevels
+                ? { efforts: [...m.supportedEffortLevels] }
+                : {}),
           }));
           freshModels = true;
         } catch (e) {
@@ -1856,6 +1879,7 @@ export function createClaudeBackend(host: RunnerHost, opts: BackendOptions): Age
           model: usage.model,
           // The exact concrete model (getContextUsage reports only the alias).
           ...(activeModel ? { activeModel } : {}),
+          ...(effort ? { effort } : {}),
           context: {
             pct: Math.round(usage.percentage),
             tokens: usage.totalTokens,
@@ -1871,6 +1895,7 @@ export function createClaudeBackend(host: RunnerHost, opts: BackendOptions): Age
           !lastStatus ||
           lastStatus.model !== frame.model ||
           lastStatus.activeModel !== frame.activeModel ||
+          lastStatus.effort !== frame.effort ||
           lastStatus.context?.pct !== frame.context?.pct ||
           lastStatus.context?.tokens !== frame.context?.tokens ||
           freshModels;
@@ -2158,6 +2183,23 @@ export function createClaudeBackend(host: RunnerHost, opts: BackendOptions): Age
       })
       .catch((e: unknown) => {
         log(dim(`set-model failed: ${e instanceof Error ? e.message : String(e)}`));
+      });
+  }
+
+  /** Effort from the next request on. `null` returns the model to its
+   *  default — applyFlagSettings treats a null key as "unset". */
+  function setTuning(t: { effort?: EffortLevel | null; fast?: boolean | null }): void {
+    if (t.effort === undefined) return;
+    const next = asClaudeEffort(t.effort);
+    session
+      .applyFlagSettings({ effortLevel: next })
+      .then(() => {
+        effort = next;
+        log(`${bold('effort')} → ${next ?? 'default'}`);
+        return refreshStatus(false);
+      })
+      .catch((e: unknown) => {
+        log(dim(`set-effort failed: ${e instanceof Error ? e.message : String(e)}`));
       });
   }
 
@@ -2937,6 +2979,7 @@ export function createClaudeBackend(host: RunnerHost, opts: BackendOptions): Age
     slash,
     stop,
     setModel,
+    setTuning,
     setMode,
     answer,
     notifyResult,

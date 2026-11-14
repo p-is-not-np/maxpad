@@ -145,4 +145,29 @@ describe('muxpad agent new — the workspace it names', () => {
     );
     expect(posted).toHaveLength(0);
   });
+
+  it('passes --effort and the bare --fast / --no-fast through as tuning', async () => {
+    await run({ MUXPAD_PANE_ID: 'p-parent' }, [
+      'agent',
+      'new',
+      '--backend=codex',
+      '--effort=high',
+      '--fast',
+      'go',
+    ]);
+    expect(posted[0]).toMatchObject({ backend: 'codex', effort: 'high', fast: true });
+    // `--fast` is bare, so it must not have eaten the message as its value.
+    expect(posted).toHaveLength(1);
+    posted = [];
+    await run({ MUXPAD_PANE_ID: 'p-parent' }, ['agent', 'new', '--no-fast', 'go']);
+    expect(posted[0]?.fast).toBe(false);
+    expect('effort' in (posted[0] as object)).toBe(false);
+  });
+
+  it('refuses an effort word that is no effort at all, before asking the server', async () => {
+    await expect(
+      run({ MUXPAD_PANE_ID: 'p-parent' }, ['agent', 'new', '--effort=turbo', 'go']),
+    ).rejects.toThrow(/--effort must be/);
+    expect(posted).toHaveLength(0);
+  });
 });

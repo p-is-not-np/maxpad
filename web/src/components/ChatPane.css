@@ -4018,3 +4018,24 @@ button.chat-filechip {
   border-radius: 2px;
   background: currentColor;
 }
+
+/* ── THE DIALS (model / effort / fast) in the session menu ─────────────────
+   The launch card's pills, a size smaller: a menu is a denser surface than a
+   card, and seven effort levels must wrap rather than widen the menu past a
+   phone. 32px is still a comfortable thumb target in a list this short. */
+.chat-tuning-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 2px 8px 6px;
+}
+.chat-launch-model.-sm {
+  min-height: 32px;
+  padding: 6px 9px;
+  font-size: 0.75rem;
+}
+/* The pinned effort / fast mark after the model name on the line. Dim, so the
+   model still reads first; it truncates with the label, never wraps it. */
+.chat-status-seg-sub {
+  color: var(--fg-faint, #6f7488);
+}
