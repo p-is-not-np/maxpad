@@ -97,6 +97,10 @@ export interface WsServerHandle {
 // backed by a tens-of-MB transcript stays instant.
 const CHAT_HISTORY_TAIL_BYTES = 128 * 1024;
 
+/** /ws/events app-level heartbeat; the client reconnects after ~2.5 missed. */
+const EVENTS_HEARTBEAT_MS = 20_000;
+const EVENTS_HEARTBEAT = JSON.stringify({ _hb: 1 });
+
 // A turn completing within this window of the user's own chat send is an
 // interactive conversation — its turn-done must not push-notify (the user
 // is right there). Longer turns and autonomous wakeup/cron turns do push.
@@ -1997,11 +2001,39 @@ export function attachWsServer(deps: {
         // Mark this socket alive on attach + pong so it doesn't get
         // terminated as a ghost on the next round.
         keepAlive(ws);
-        const unsub = deps.events.subscribe((e) => {
-          if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(e));
+        // CATCH-UP BEFORE LIVE, with no await in between: a client that says
+        // where it left off (?epoch=&seq=) gets what it missed, then the live
+        // stream, and nothing can be emitted in the gap. `_hello` tells it
+        // which happened; `replayed: false` means "refetch your baseline".
+        const bus = deps.events;
+        const epoch = url.searchParams.get('epoch');
+        const seqParam = url.searchParams.get('seq');
+        const missed =
+          epoch !== null && seqParam !== null ? bus.since(epoch, Number(seqParam)) : null;
+        for (const w of missed ?? []) ws.send(w.json);
+        ws.send(
+          JSON.stringify({
+            _hello: { epoch: bus.epoch, seq: bus.lastSeq, replayed: missed !== null },
+          }),
+        );
+        const unsub = bus.subscribeWire((w) => {
+          if (ws.readyState === WebSocket.OPEN) ws.send(w.json);
         });
-        ws.on('close', unsub);
-        ws.on('error', unsub);
+        // An app-level heartbeat the BROWSER can see. Protocol pings are
+        // answered by the browser invisibly, so a client could not tell a
+        // quiet stream from a dead one (a phone that changed networks keeps
+        // an OPEN socket to nowhere). Silence past a few of these is its cue
+        // to reconnect — and with replay, reconnecting costs almost nothing.
+        const hb = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) ws.send(EVENTS_HEARTBEAT);
+        }, EVENTS_HEARTBEAT_MS);
+        hb.unref?.();
+        const teardown = () => {
+          clearInterval(hb);
+          unsub();
+        };
+        ws.on('close', teardown);
+        ws.on('error', teardown);
       });
       return;
     }
