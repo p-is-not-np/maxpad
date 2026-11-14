@@ -241,6 +241,18 @@ export class NodeStore {
   }
 
   /**
+   * The machine a TAB runs on: its first pane's. A chat is one pane, and a
+   * split tab across two machines is not a thing the UI can make — so the
+   * first pane is the answer, and a tab with none (or no such tab) is here.
+   */
+  nodeForTab(tabId: string): string {
+    const r = this.db
+      .prepare('SELECT node_id AS n FROM panes WHERE tab_id = ? ORDER BY created_at, id LIMIT 1')
+      .get(tabId) as { n: string | null } | undefined;
+    return r?.n ?? LOCAL_NODE_ID;
+  }
+
+  /**
    * A pane's cwd as RECORDED, with no local filesystem check.
    *
    * For a remote pane this is the only trustworthy copy: every spec-building

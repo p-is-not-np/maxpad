@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { LOCAL_NODE_ID, type NodeStore } from '../store/NodeStore.js';
-import { HostLink } from './HostLink.js';
+import { HostLink, type MemoryAnswer } from './HostLink.js';
 import { readNodeTokenFor } from './NodeLinks.js';
 import type { HostApi } from './host-api.js';
 
@@ -236,6 +236,15 @@ export class HostLinks {
    * machine that was asleep must not be indistinguishable from a machine with
    * nothing in it.
    */
+  /**
+   * One remote machine's memory. A node with no link — not paired, no token,
+   * removed — is an answer too: "not connected", which the gauge shows as
+   * unknown for that machine.
+   */
+  readMemory(nodeId: string, top = 0): Promise<MemoryAnswer> {
+    return this.links.get(nodeId)?.readMemory(top) ?? Promise.resolve({ error: 'not connected' });
+  }
+
   async searchHosts(
     q: string,
     opts: { limit: number; role?: string },

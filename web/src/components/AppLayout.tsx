@@ -4,11 +4,13 @@ import { useAppTheme } from '../lib/app-theme';
 import { MOBILE_BREAKPOINT } from '../lib/mobile-layout';
 import { trackStatusBarCap } from '../lib/status-bar-cap';
 import { SIDENAV_MIN_WIDTH, updateSettings, useSettings } from '../settings';
+import { useTabs } from '../tabs';
 import { useMediaQuery } from '../use-media-query';
 import { useWindowAttention } from '../use-window-attention';
 import { useWorkspaces, visibleWorkspaces } from '../workspaces';
 import { Brand } from './Brand';
 import { CommandPalette } from './CommandPalette';
+import { MemoryGauge } from './MemoryGauge';
 import { MobileNavSwitcher } from './MobileNavSwitcher';
 import { MoveUndoToast } from './MoveUndoToast';
 import { NavTree, RailSearchButton } from './NavTree';
@@ -56,6 +58,10 @@ export function AppLayout() {
   // in owned the theme.
   useAppTheme();
   const activeWorkspace = wsSlug ? workspaces.find((w) => w.slug === wsSlug) : null;
+  // The chat you are in, by id — the memory gauge shows ITS machine. Shares
+  // the workspace's tab driver with the rail, so this costs no extra poll.
+  const { tabs: activeTabs } = useTabs(activeWorkspace?.id ?? '');
+  const activeTabId = activeTabs.find((t) => t.slug === activeTabSlug)?.id ?? null;
   const isMobile = useMediaQuery(MOBILE_BREAKPOINT);
   const settings = useSettings();
   // Desktop always uses the persistent left sidebar; mobile never can.
@@ -119,6 +125,7 @@ export function AppLayout() {
           >
             muxpad <span className="brand-text-side-version">{__MUXPAD_VERSION__}</span>
           </a>
+          <MemoryGauge placement="down" tabId={activeTabId} />
           <SettingsMenu />
         </header>
       )}
@@ -154,6 +161,7 @@ export function AppLayout() {
                 >
                   {__MUXPAD_VERSION__}
                 </a>
+                <MemoryGauge tabId={activeTabId} />
                 <ThemeSwitch />
                 <SettingsMenu />
               </div>
