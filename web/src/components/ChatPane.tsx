@@ -7,6 +7,7 @@ import {
   type AgentQuestion,
   type AgentSessionStatus,
   type ChatEvent,
+  type EffortLevel,
   type InboundSender,
   LAUNCH_ACK_RE,
   type NoticeEvent,
@@ -2308,6 +2309,8 @@ export function ChatPane({
             ...(msg.activeModel ? { activeModel: msg.activeModel } : {}),
             ...(msg.context ? { context: msg.context } : {}),
             ...(msg.models ? { models: msg.models } : {}),
+            ...(msg.effort ? { effort: msg.effort } : {}),
+            ...(typeof msg.fast === 'boolean' ? { fast: msg.fast } : {}),
           };
           // Identical payload → keep the previous object so React skips the
           // re-render (the runner already suppresses no-op frames; this is
@@ -4174,6 +4177,8 @@ export function ChatPane({
     backend: AgentBackendId;
     cwd: string;
     model: string | null;
+    effort?: EffortLevel | null;
+    fast?: boolean | null;
   } | null>(null);
   /** Recent folders + per-backend model lists for the card. Fetched once, and
    *  only for a chat that is actually showing the offer. */
@@ -4319,7 +4324,7 @@ export function ChatPane({
    */
   const startStaged = useCallback(async () => {
     if (!staged) return;
-    const { backend, cwd, model } = staged;
+    const { backend, cwd, model, effort, fast } = staged;
     const dir = cwd.trim();
     // What the server RESOLVED, which is not always what we asked for: it snaps
     // the folder to the project root. Echoing our own input here put two
@@ -4333,6 +4338,8 @@ export function ChatPane({
       resolved = await api.setAgentBackend(paneId, backend, 'agent', {
         ...(dir ? { cwd: dir } : {}),
         ...(model ? { model } : {}),
+        ...(effort ? { effort } : {}),
+        ...(fast != null ? { fast } : {}),
       });
     });
     if (!ok) return;
@@ -4519,6 +4526,10 @@ export function ChatPane({
                 setCwd={(v) => setStaged((s) => (s ? { ...s, cwd: v } : s))}
                 model={staged.model}
                 setModel={(v) => setStaged((s) => (s ? { ...s, model: v } : s))}
+                effort={staged.effort ?? null}
+                setEffort={(v) => setStaged((s) => (s ? { ...s, effort: v } : s))}
+                fast={staged.fast ?? null}
+                setFast={(v) => setStaged((s) => (s ? { ...s, fast: v } : s))}
                 busy={pickBusy !== null}
                 error={pickError}
                 onCancel={() => {
@@ -5264,6 +5275,10 @@ export function ChatPane({
               setCwd={(v) => setStaged((s) => (s ? { ...s, cwd: v } : s))}
               model={staged.model}
               setModel={(v) => setStaged((s) => (s ? { ...s, model: v } : s))}
+              effort={staged.effort ?? null}
+              setEffort={(v) => setStaged((s) => (s ? { ...s, effort: v } : s))}
+              fast={staged.fast ?? null}
+              setFast={(v) => setStaged((s) => (s ? { ...s, fast: v } : s))}
               busy={pickBusy !== null}
               error={pickError}
               onCancel={() => {

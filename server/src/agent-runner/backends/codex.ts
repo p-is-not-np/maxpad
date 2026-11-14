@@ -15,9 +15,15 @@ import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { isAbsolute, join, resolve } from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
-import type { ChatEvent } from '@muxpad/shared';
+import type { AgentModelOption, ChatEvent, EffortLevel } from '@muxpad/shared';
 import { appendTranscriptEvent, migrateTranscript } from '../../chat/TranscriptReader.js';
-import { codexHome, readCodexDefaultModel, readCodexModels } from '../../codex-models.js';
+import {
+  CODEX_FAST_TIER,
+  codexHome,
+  readCodexDefaultModel,
+  readCodexDefaults,
+  readCodexModels,
+} from '../../codex-models.js';
 import { turnPreamble } from '../preamble.js';
 
 // Provider ids we adopt as the transcript-log filename + hello sid must satisfy
@@ -176,8 +182,12 @@ export function killDescendants(pid: number): void {
 
 /** Model list + the backend's current default, for the chat model picker. */
 export type ModelFetch = () => Promise<{
-  models: Array<{ value: string; displayName: string }>;
+  models: AgentModelOption[];
   defaultModel: string | null;
+  /** What an unpinned turn runs at (Codex config), for the picker's
+   *  highlighted row. Absent = unknown. */
+  defaultEffort?: EffortLevel | null;
+  defaultFast?: boolean;
 }>;
 
 /** Injectable deps — production uses the real spawner / model fetch; tests
@@ -190,12 +200,15 @@ export interface BackendDeps {
 /** Read Codex's cached model catalog (+ config default) — best-effort.
  *  The parsing lives in codex-models.ts so the launch picker can use the same
  *  reader without needing a live session to have reported one. */
-function codexModelFetch(): {
-  models: Array<{ value: string; displayName: string }>;
-  defaultModel: string | null;
-} {
+function codexModelFetch(): Awaited<ReturnType<ModelFetch>> {
   const home = codexHome();
-  return { models: readCodexModels(home), defaultModel: readCodexDefaultModel(home) };
+  const defaults = readCodexDefaults(home);
+  return {
+    models: readCodexModels(home),
+    defaultModel: readCodexDefaultModel(home),
+    defaultEffort: defaults.effort,
+    defaultFast: defaults.fast,
+  };
 }
 
 export function createCodexBackend(
@@ -216,6 +229,13 @@ export function createCodexBackend(
   // stable so history survives even before codex mints its own thread id.
   let liveSid = opts.requestedSid ?? randomUUID();
   let model = opts.requestedModel;
+  // Reasoning effort and fast mode. `null` = not pinned: no `-c` flag, so the
+  // user's own config.toml decides — and the config's values are remembered
+  // separately only so the picker can highlight what is actually in effect.
+  let effort: EffortLevel | null = opts.requestedEffort ?? null;
+  let fast: boolean | null = opts.requestedFast ?? null;
+  let defaultEffort: EffortLevel | null = null;
+  let defaultFast = false;
 
   // Agent mode — and for codex there is only ONE.
   //
@@ -259,7 +279,7 @@ export function createCodexBackend(
   let resolveDone: (() => void) | null = null;
 
   let lastStatus: (RunnerFrame & { t: 'status' }) | null = null;
-  let modelList: Array<{ value: string; displayName: string }> | null = null;
+  let modelList: AgentModelOption[] | null = null;
 
   // Per-turn transcript buffer. A fresh turn's real thread id isn't known until
   // `thread.started` arrives (and a failed resume changes it again mid-turn), so
@@ -297,6 +317,8 @@ export function createCodexBackend(
       t: 'status',
       model: model ?? 'codex',
       ...(modelList && modelList.length > 0 ? { models: modelList } : {}),
+      ...((effort ?? defaultEffort) ? { effort: (effort ?? defaultEffort) as EffortLevel } : {}),
+      fast: fast ?? defaultFast,
     };
     lastStatus = frame;
     emit(frame);
@@ -375,6 +397,12 @@ export function createCodexBackend(
     // the fresh path understands is how this broke in the first place.
     common.push(...writableRootsArgs(extraWritableDirs));
     if (model) common.push('-m', model);
+    // `-c` like the sandbox keys above, because `exec resume` takes `--config`
+    // and nothing else of this kind. Fast OFF is spelled out (the "default"
+    // tier) rather than omitted: a config.toml that already says priority
+    // would otherwise win over the pane's explicit "off".
+    if (effort) common.push('-c', `model_reasoning_effort="${effort}"`);
+    if (fast !== null) common.push('-c', `service_tier="${fast ? CODEX_FAST_TIER : 'default'}"`);
     return [...head, ...common, finalPrompt];
   }
 
@@ -631,9 +659,11 @@ export function createCodexBackend(
       log(dim('codex not logged in — switch this agent to Agent log and run `codex login`'));
     }
     try {
-      const { models, defaultModel } = await listModels();
-      modelList = models;
-      if (!model && defaultModel) model = defaultModel; // highlight the picker's current row
+      const fetched = await listModels();
+      modelList = fetched.models;
+      if (!model && fetched.defaultModel) model = fetched.defaultModel; // highlight the picker's current row
+      defaultEffort = fetched.defaultEffort ?? null;
+      defaultFast = fetched.defaultFast ?? false;
     } catch {
       // best-effort — no picker if the catalog can't be read
     }
@@ -668,6 +698,18 @@ export function createCodexBackend(
     setModel: (m: string) => {
       model = m;
       log(`${bold('model')} → ${m}`);
+      emitStatus();
+    },
+    // Spawn-per-turn, so a change simply rides the next turn's argv.
+    setTuning: (t) => {
+      if (t.effort !== undefined) {
+        effort = t.effort;
+        log(`${bold('effort')} → ${effort ?? 'default'}`);
+      }
+      if (t.fast !== undefined) {
+        fast = t.fast;
+        log(`${bold('fast')} → ${fast === null ? 'default' : fast ? 'on' : 'off'}`);
+      }
       emitStatus();
     },
     setMode,

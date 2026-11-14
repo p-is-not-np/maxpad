@@ -30,11 +30,17 @@
 // runner with a `mode` frame right after hello), so a mode spelling from a
 // newer server can never brick a pane. A missing or flag-shaped `--mode` VALUE
 // is still an error — that is a malformed command, not a newer vocabulary.
-import { BASELINE_AGENT_MODE } from '@muxpad/shared';
+import {
+  BASELINE_AGENT_MODE,
+  type EffortLevel,
+  isEffortLevel,
+  parseFastWord,
+} from '@muxpad/shared';
 import { type AgentMode, type BackendId, isBackendId, parseAgentMode } from './protocol.js';
 
 export const RUNNER_USAGE = `usage: muxpad agent [--backend claude|codex|cursor] [--mode chat|agent]
-                    [--model <id>] [--resume <session-id>] [--pick]
+                    [--model <id>] [--effort <level>] [--fast on|off]
+                    [--resume <session-id>] [--pick]
 
   Runs the in-pane agent runner. Drive it from the pane's Chat face.
   --resume is written into the pane's startup command by the server; you do
@@ -48,6 +54,10 @@ export interface RunnerArgs {
   requestedSid: string | null;
   /** `--model <id>`: a launch-time model pin, opaque to the harness. */
   requestedModel: string | null;
+  /** `--effort <level>`: reasoning effort pin (null = harness default). */
+  requestedEffort: EffortLevel | null;
+  /** `--fast on|off`: Codex fast mode pin (null = config default). */
+  requestedFast: boolean | null;
   /** `--backend <id>`: which agent CLI/SDK drives the pane. */
   requestedBackend: BackendId;
   /** `--mode chat|agent`: the LAUNCH mode (absent = baseline, see index.ts). */
@@ -64,7 +74,7 @@ export type RunnerArgsResult =
   | { kind: 'error'; message: string };
 
 /** Flags that take a value, in either `--flag value` or `--flag=value` form. */
-const VALUE_FLAGS = new Set(['--resume', '--model', '--backend', '--mode']);
+const VALUE_FLAGS = new Set(['--resume', '--model', '--backend', '--mode', '--effort', '--fast']);
 /** Flags that take none. */
 const BOOL_FLAGS = new Set(['--pick']);
 
@@ -77,6 +87,8 @@ export function parseRunnerArgs(argv: readonly string[]): RunnerArgsResult {
   const args: RunnerArgs = {
     requestedSid: null,
     requestedModel: null,
+    requestedEffort: null,
+    requestedFast: null,
     requestedBackend: 'claude',
     requestedMode: BASELINE_AGENT_MODE,
     pick: false,
@@ -149,6 +161,19 @@ export function parseRunnerArgs(argv: readonly string[]): RunnerArgsResult {
           return fail(`unknown --backend '${value}' (claude|codex|cursor)`);
         }
         args.requestedBackend = value;
+        break;
+      }
+      // Lenient like --mode, and for the same reason: an effort word from a
+      // newer server must not brick a pane. Ignored with a warning, the
+      // session runs at the harness default.
+      case '--effort':
+        if (isEffortLevel(value)) args.requestedEffort = value;
+        else args.warnings.push(`ignoring unknown --effort '${value}'`);
+        break;
+      case '--fast': {
+        const fast = parseFastWord(value);
+        if (fast !== undefined) args.requestedFast = fast;
+        else args.warnings.push(`ignoring --fast '${value}' (on|off)`);
         break;
       }
       case '--mode': {

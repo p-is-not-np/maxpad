@@ -17,6 +17,7 @@ import { execFileSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { type EffortLevel, isEffortLevel } from '@muxpad/shared';
 import WebSocket from 'ws';
 import { currentBuildId } from '../runner-build.js';
 import { dim } from './ansi.js';
@@ -71,6 +72,9 @@ if (!paneId || !apiUrl) {
 //                   respawned pane resumes instead of minting a new one.
 //   --model <id>    a launch-time model pin (tabs route; preserved across the
 //                   self-heal rewrite). Opaque here — the backend reads it.
+//   --effort <lvl>  reasoning effort pin; --fast on|off  Codex fast mode pin.
+//                   Both live beside --model (agent-tuning.ts) and change
+//                   later through a `tuning` frame.
 //   --backend <id>  which agent CLI/SDK drives the pane (default claude).
 //   --mode chat|agent  the LAUNCH mode.
 //   --pick          the pane was created "Agent" with no harness chosen yet:
@@ -90,6 +94,8 @@ if (!paneId || !apiUrl) {
 const {
   requestedSid,
   requestedModel,
+  requestedEffort,
+  requestedFast,
   requestedBackend,
   requestedMode,
   pick: pickMode,
@@ -284,7 +290,13 @@ function deliverSend(b: AgentBackend, text: string): void {
 
 const backend: AgentBackend | null = pickMode
   ? null
-  : createBackend(requestedBackend, host, { requestedSid, requestedModel, mode: requestedMode });
+  : createBackend(requestedBackend, host, {
+      requestedSid,
+      requestedModel,
+      requestedEffort,
+      requestedFast,
+      mode: requestedMode,
+    });
 
 function connect(): void {
   if (closed || !backend) return;
@@ -338,6 +350,14 @@ function connect(): void {
       attachments.onMissing(frame.id, frame.reason);
     } else if (frame.t === 'set-model') {
       if (typeof frame.model === 'string' && frame.model) b.setModel(frame.model);
+    } else if (frame.t === 'tuning') {
+      // Model rides the existing setModel path; effort/fast are re-validated
+      // here, never trusted off the wire.
+      if (typeof frame.model === 'string' && frame.model) b.setModel(frame.model);
+      const t: { effort?: EffortLevel | null; fast?: boolean | null } = {};
+      if (frame.effort === null || isEffortLevel(frame.effort)) t.effort = frame.effort;
+      if (frame.fast === null || typeof frame.fast === 'boolean') t.fast = frame.fast;
+      if (Object.keys(t).length > 0) b.setTuning?.(t);
     } else if (frame.t === 'slash') {
       if (frame.cmd === 'compact' || frame.cmd === 'clear')
         b.slash(frame.cmd, typeof frame.args === 'string' ? frame.args : undefined);

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { type EffortLevel, isEffortLevel } from '@muxpad/shared';
 
 /**
  * Codex's own model list, read straight off disk.
@@ -26,7 +27,15 @@ import { join } from 'node:path';
 export interface CodexModel {
   value: string;
   displayName: string;
+  /** `supported_reasoning_levels` — what the effort picker may offer. */
+  efforts?: EffortLevel[];
+  /** The model offers the "Fast" service tier (`service_tiers`). */
+  fast?: boolean;
 }
+
+/** The service tier Codex calls "Fast". Its catalog lists it as
+ *  `{ id: 'priority', name: 'Fast' }`; config takes the id. */
+export const CODEX_FAST_TIER = 'priority';
 
 /**
  * The two flags Codex itself uses to decide what a user may pick:
@@ -53,11 +62,24 @@ export function parseCodexModels(raw: string): CodexModel[] {
         display_name?: string;
         visibility?: string;
         supported_in_api?: boolean;
+        supported_reasoning_levels?: Array<{ effort?: unknown }>;
+        service_tiers?: Array<{ id?: unknown; name?: unknown }>;
       }>;
     };
-    return (cache.models ?? [])
-      .filter(pickable)
-      .map((m) => ({ value: m.slug as string, displayName: m.display_name || (m.slug as string) }));
+    return (cache.models ?? []).filter(pickable).map((m) => {
+      const efforts = Array.isArray(m.supported_reasoning_levels)
+        ? m.supported_reasoning_levels.map((r) => r?.effort).filter(isEffortLevel)
+        : undefined;
+      const fast =
+        Array.isArray(m.service_tiers) &&
+        m.service_tiers.some((t) => t?.id === CODEX_FAST_TIER || t?.name === 'Fast');
+      return {
+        value: m.slug as string,
+        displayName: m.display_name || (m.slug as string),
+        ...(efforts ? { efforts } : {}),
+        ...(fast ? { fast: true } : {}),
+      };
+    });
   } catch {
     return [];
   }
@@ -82,4 +104,33 @@ export function readCodexDefaultModel(home: string = codexHome()): string | null
   } catch {
     return null;
   }
+}
+
+/**
+ * A TOP-LEVEL string key from Codex's config.toml (`key = "value"` before the
+ * first `[table]`), or null. Not a TOML parser — the three keys read here are
+ * flat strings, and a miss degrades to "unknown", never to a throw.
+ */
+export function readCodexConfigString(key: string, home: string = codexHome()): string | null {
+  try {
+    const top = readFileSync(join(home, 'config.toml'), 'utf8').split(/^\s*\[/m)[0] ?? '';
+    const match = top.match(new RegExp(`^\\s*${key}\\s*=\\s*"([^"]+)"`, 'm'));
+    return match?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** What a Codex turn runs at when the pane pins nothing: the config's
+ *  `model_reasoning_effort` and whether its `service_tier` is the fast one. */
+export function readCodexDefaults(home: string = codexHome()): {
+  effort: EffortLevel | null;
+  fast: boolean;
+} {
+  const effort = readCodexConfigString('model_reasoning_effort', home);
+  const tier = readCodexConfigString('service_tier', home);
+  return {
+    effort: isEffortLevel(effort) ? effort : null,
+    fast: tier === CODEX_FAST_TIER || tier === 'fast',
+  };
 }

@@ -1,4 +1,13 @@
-import type { AgentMode, LayoutNode, PaneSpec, Tab, UrlHealth, Workspace } from '@muxpad/shared';
+import type {
+  AgentMode,
+  AgentModelOption,
+  EffortLevel,
+  LayoutNode,
+  PaneSpec,
+  Tab,
+  UrlHealth,
+  Workspace,
+} from '@muxpad/shared';
 import type { WorkspaceTabs } from './lib/nav-search';
 import { primeTabDetail } from './lib/tab-detail-prime';
 
@@ -120,7 +129,7 @@ export interface AgentLaunchOptions {
   folders: RecentFolder[];
   /** Per-backend model lists, absent for a backend that has never run here —
    *  the card then offers only the harness's own default, which is honest. */
-  models: Record<string, Array<{ value: string; displayName: string; resolvedModel?: string }>>;
+  models: Record<string, AgentModelOption[]>;
   home: string;
 }
 
@@ -396,7 +405,12 @@ export const api = {
     mode?: AgentMode,
     /** Chosen at the moment of picking, in the launch card. Omit either to
      *  keep the pane's folder / let the harness pick its own model. */
-    start?: { cwd?: string | undefined; model?: string | undefined },
+    start?: {
+      cwd?: string | undefined;
+      model?: string | undefined;
+      effort?: EffortLevel | undefined;
+      fast?: boolean | undefined;
+    },
   ) =>
     req<{
       backend: 'claude' | 'codex' | 'cursor';
@@ -413,8 +427,19 @@ export const api = {
         ...(mode ? { mode } : {}),
         ...(start?.cwd ? { cwd: start.cwd } : {}),
         ...(start?.model ? { model: start.model } : {}),
+        ...(start?.effort ? { effort: start.effort } : {}),
+        ...(start?.fast !== undefined ? { fast: start.fast } : {}),
       }),
     }),
+
+  /** Change a chat's TUNING — model, reasoning effort, Codex fast mode. Keys
+   *  present = changed, `null` = back to the harness default. Persisted in the
+   *  pane's startup command and applied by the live runner from its next turn
+   *  (no respawn). The runner's next status frame is the confirmation. */
+  setPaneTuning: (
+    paneId: string,
+    tuning: { model?: string | null; effort?: EffortLevel | null; fast?: boolean | null },
+  ) => req<PaneSpec>(`/api/panes/${paneId}`, { method: 'PATCH', body: JSON.stringify(tuning) }),
 
   /** Folder + model choices for the empty chat's launch card, in one read.
    *  See server/src/routes/agent-launch.ts for why they travel together. */

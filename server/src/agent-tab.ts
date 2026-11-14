@@ -14,6 +14,7 @@ import {
   modeForBackend,
 } from '@muxpad/shared';
 import type Database from 'better-sqlite3';
+import { type EffortLevel, tuningFlags } from './agent-tuning.js';
 import type { EventBus } from './events.js';
 import type { PaneOps } from './node-link/PaneRouter.js';
 import { clearProvisionError, provisionPane } from './pane-provision.js';
@@ -44,6 +45,10 @@ export interface BootstrapTabInput {
   /** Validated upstream against /^[A-Za-z0-9._[\]-]{1,64}$/ — it is baked into
    *  a shell command. */
   model?: string | undefined;
+  /** Reasoning effort / Codex fast mode. Checked against the backend upstream
+   *  (routes/tabs.ts) — see agent-tuning.ts. */
+  effort?: EffortLevel | undefined;
+  fast?: boolean | undefined;
   backend?: 'claude' | 'codex' | 'cursor' | 'pick' | undefined;
   mode?: AgentMode | undefined;
   icon?: string | undefined;
@@ -107,6 +112,8 @@ export function agentStartupCmd(opts: {
   backend?: 'claude' | 'codex' | 'cursor' | 'pick' | undefined;
   mode?: AgentMode | undefined;
   model?: string | undefined;
+  effort?: EffortLevel | undefined;
+  fast?: boolean | undefined;
 }): string {
   // A PENDING pane keeps the exact literal `muxpad agent --pick`: several call
   // sites (the harness-choice routes' 409 gate, the dead-runner sweep's skip)
@@ -117,10 +124,13 @@ export function agentStartupCmd(opts: {
   // keeps every pre-rename bare `muxpad agent` command meaning exactly what it
   // always meant.
   const modePart = opts.mode === 'chat' ? ' --mode chat' : '';
-  // Single-quoted model so zsh's nomatch can't glob-error on ids with brackets
-  // ('claude-opus-4-8[1m]'); the charset gate upstream makes the quoting safe.
-  const modelPart = opts.model ? ` --model '${opts.model}'` : '';
-  return `muxpad agent${backendPart}${modePart}${modelPart}`;
+  // Model / effort / fast in their one canonical order (agent-tuning.ts).
+  const tuningPart = tuningFlags({
+    model: opts.model ?? null,
+    effort: opts.effort ?? null,
+    fast: opts.fast ?? null,
+  });
+  return `muxpad agent${backendPart}${modePart}${tuningPart}`;
 }
 
 /**
@@ -236,7 +246,13 @@ export async function bootstrapTab(
       cwd: remote ? (input.cwd ?? null) : agent ? agentCwd(safeCwd(input.cwd)) : safeCwd(input.cwd),
       node_id: nodeId,
       startup_cmd: agent
-        ? agentStartupCmd({ backend: input.backend, mode, model: input.model })
+        ? agentStartupCmd({
+            backend: input.backend,
+            mode,
+            model: input.model,
+            effort: input.effort,
+            fast: input.fast,
+          })
         : null,
       // Agent tabs land directly on the chat face; the (hidden) terminal face
       // spawns the pty underneath, which runs the startup command.

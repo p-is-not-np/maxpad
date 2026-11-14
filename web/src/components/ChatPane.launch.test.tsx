@@ -120,6 +120,49 @@ describe('the launch card', () => {
       />,
     );
 
+  // ── THE DIALS: effort for every harness that has one, fast for Codex ──────
+  it('offers reasoning effort — Claude’s range, Default pre-selected, and no fast toggle', () => {
+    const out = card({ setEffort: () => {}, setFast: () => {} });
+    expect(out).toContain('Reasoning effort');
+    expect(out).toContain('>Max<');
+    // Codex-only words are not Claude's to offer.
+    expect(out).not.toContain('>Minimal<');
+    expect(out).not.toContain('Fast mode');
+  });
+
+  it('narrows effort to the chosen model, and offers Fast only where the model has it', () => {
+    const models = [
+      { value: 'gpt-a', displayName: 'A', efforts: ['low' as const, 'ultra' as const], fast: true },
+      { value: 'gpt-b', displayName: 'B', efforts: [] },
+    ];
+    const a = card({
+      backend: 'codex',
+      models,
+      model: 'gpt-a',
+      setEffort: () => {},
+      setFast: () => {},
+    });
+    expect(a).toContain('>Ultra<');
+    expect(a).not.toContain('>Medium<');
+    expect(a).toContain('Fast mode');
+    // B has no effort dial and no fast tier: neither row is drawn.
+    const b = card({
+      backend: 'codex',
+      models,
+      model: 'gpt-b',
+      setEffort: () => {},
+      setFast: () => {},
+    });
+    expect(b).not.toContain('Reasoning effort');
+    expect(b).not.toContain('Fast mode');
+  });
+
+  it('draws no dials for Cursor, which has neither', () => {
+    const out = card({ backend: 'cursor', setEffort: () => {}, setFast: () => {} });
+    expect(out).not.toContain('Reasoning effort');
+    expect(out).not.toContain('Fast mode');
+  });
+
   it('arrives pre-answered — one tap is a complete choice', () => {
     const out = card();
     // The pane's own folder is the selected chip…
