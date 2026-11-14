@@ -11,7 +11,7 @@ export function SlackPasskeySettings({
    * this component only ever compares it to 'integrations', so a new section
    * is none of its business — but the union has to admit one.
    */
-  section?: 'general' | 'notifications' | 'integrations' | 'machines';
+  section?: 'appearance' | 'notifications' | 'integrations' | 'machines';
   active?: boolean;
 }) {
   const setupEpoch = useRef(0);
@@ -306,7 +306,7 @@ export function SlackPasskeySettings({
         </div>
         <p className="settings-note">Slack requests in any workspace use this passkey.</p>
       </section>
-      {section !== 'general' && error && (
+      {section !== 'appearance' && error && (
         <p className="settings-error" role="alert">
           {error}
         </p>

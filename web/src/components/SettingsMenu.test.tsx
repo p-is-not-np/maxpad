@@ -116,7 +116,7 @@ it('opens a named modal, navigates sections, cancels with Escape and restores fo
   await click('Integrations');
   expect(visible()).toContain('Create passkey');
   expect(visible()).not.toContain('Font size');
-  await click('General');
+  await click('Appearance');
   expect(visible()).toContain('Theme');
   expect(document.querySelector('#font-size')).toBeNull();
   await act(async () => dialog.dispatchEvent(new Event('cancel', { cancelable: true })));
@@ -221,7 +221,7 @@ it('retains a locally verified enrollment receipt across sections until trusted-
   expect(passkeyAPI).toHaveBeenCalledWith('registration-options', { secret: 'one-time-code' });
   expect(visible()).toContain('not active');
   expect(document.querySelector('pre')?.textContent).toContain('fingerprint');
-  await click('General');
+  await click('Appearance');
   await click('Integrations');
   expect(document.querySelector('pre')?.textContent).toContain('fingerprint');
   expect(document.querySelector('input[type=password]')).toBeNull();
@@ -297,7 +297,7 @@ it('shows the current Slack state without a completed setup checklist or empty r
     // Notifications has its own section: as the last row of General, under
     // the theme grid, its lone Enable button read as an action on the tiles
     // above it ("they feel like the action button for picking a theme").
-  ).toEqual(['General', 'Notifications', 'Integrations', 'Machines']);
+  ).toEqual(['Appearance', 'Notifications', 'Integrations', 'Machines']);
   expect(document.querySelector('[aria-label="Slack approvals"]')).toBeNull();
   expect(approvals.textContent).toContain('Ask each time.');
   expect(
@@ -471,7 +471,7 @@ it('keeps notifications in their own section, not under the theme grid', async (
   // what the app LOOKS like, and this is a permission a browser grants to a
   // device.
   await open();
-  const general = document.querySelector('[aria-label="General settings"]');
+  const general = document.querySelector('[aria-label="Appearance settings"]');
   expect(general?.textContent).toContain('Theme');
   expect(general?.textContent).not.toContain('Notifications');
 
@@ -578,9 +578,9 @@ it('writes the install’s theme, never a chat row', async () => {
  * contract: one radio group, the style in force checked, and an optimistic
  * install-wide write that undoes itself on failure.
  */
-it('offers the four styles in General, with the one in force chosen', async () => {
+it('offers the four styles in Appearance, with the one in force chosen', async () => {
   await open();
-  const general = document.querySelector('[aria-label="General settings"]');
+  const general = document.querySelector('[aria-label="Appearance settings"]');
   const group = general?.querySelector('.settings-styles');
   expect(group?.querySelector('legend')?.textContent).toBe('Style');
   const radios = [...(group?.querySelectorAll<HTMLInputElement>('input[name="style"]') ?? [])];
@@ -610,7 +610,7 @@ it('writes the install’s style and reverts when it cannot be stored', () => {
  */
 it('offers the five prompt boxes under the style, with the one in force chosen', async () => {
   await open();
-  const general = document.querySelector('[aria-label="General settings"]');
+  const general = document.querySelector('[aria-label="Appearance settings"]');
   const groups = [...(general?.querySelectorAll('fieldset') ?? [])];
   const at = groups.findIndex((g) => g.classList.contains('settings-composers'));
   expect(at).toBeGreaterThan(groups.findIndex((g) => g.classList.contains('settings-styles')));

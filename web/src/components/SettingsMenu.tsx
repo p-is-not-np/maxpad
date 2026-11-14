@@ -45,9 +45,9 @@ export function SettingsMenu() {
   // and this is a permission the browser grants to a device. Its own section
   // also gives the push state somewhere to explain itself (see PushSection),
   // which a one-line row never had room for.
-  const [section, setSection] = useState<'general' | 'notifications' | 'integrations' | 'machines'>(
-    'general',
-  );
+  const [section, setSection] = useState<
+    'appearance' | 'notifications' | 'integrations' | 'machines'
+  >('appearance');
   useEffect(() => {
     if (!open) return;
     const el = dialog.current;
@@ -128,7 +128,7 @@ export function SettingsMenu() {
             <div className="settings-layout">
               <aside className="settings-sidebar">
                 <nav aria-label="Settings sections">
-                  {(['general', 'notifications', 'integrations', 'machines'] as const).map(
+                  {(['appearance', 'notifications', 'integrations', 'machines'] as const).map(
                     (item) => (
                       <button
                         key={item}
@@ -143,14 +143,14 @@ export function SettingsMenu() {
                 </nav>
               </aside>
               {/* NO SECTION HEADING. It printed the selected nav item back at
-                  you — "General" in the list, "General" again as an h2 three
+                  you — "Appearance" in the list, "Appearance" again as an h2 three
                   centimetres to its right — which is a title for a page that
                   already has one. The nav IS the heading. */}
               <div className="settings-body">
                 <section hidden={section !== 'machines'} aria-label="Machines">
                   <MachinesSettings />
                 </section>
-                <section hidden={section !== 'general'} aria-label="General settings">
+                <section hidden={section !== 'appearance'} aria-label="Appearance settings">
                   <ThemePicker chosen={themeInForce(settings)} />
                   <StylePicker chosen={styleInForce(settings)} />
                   <ComposerPicker chosen={composerInForce(settings)} />
