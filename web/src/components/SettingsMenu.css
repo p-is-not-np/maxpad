@@ -996,7 +996,7 @@
   gap: 12px;
 }
 .settings-card .settings-setup-status strong {
-  font-size: .875rem;
+  font-size: 0.875rem;
   line-height: 1.4;
 }
 .settings-setup-status > div {
@@ -1026,7 +1026,7 @@
 }
 .settings-setup-status > button {
   flex-shrink: 0;
-  font-size: .75rem;
+  font-size: 0.75rem;
   min-height: 32px;
   padding: 5px 9px;
   background: transparent;
@@ -1042,7 +1042,7 @@
 .settings-setup-command > summary {
   cursor: pointer;
   font-weight: 600;
-  font-size: .8125rem;
+  font-size: 0.8125rem;
   color: var(--fg);
 }
 .settings-setup-command > p {
@@ -1063,11 +1063,11 @@
 }
 .settings-setup-command > details > summary {
   cursor: pointer;
-  font-size: .75rem;
+  font-size: 0.75rem;
   color: var(--settings-muted);
 }
 .settings-setup-command > p:last-child {
-  font-size: .75rem;
+  font-size: 0.75rem;
   margin: 10px 0 0;
 }
 .settings-setup .settings-details {

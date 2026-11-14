@@ -35,6 +35,7 @@ import {
   unrubber,
   unsoftScale,
   wheelIntent,
+  wheelPan,
   wheelPx,
   wheelZoomFactor,
   zoomAround,
@@ -42,10 +43,10 @@ import {
 
 /**
  * The lightbox's gesture surface: wires pointer, wheel and Safari gesture
- * events on `box` to a picture `img` laid out at its natural size, and draws
- * every frame as ONE `transform` from requestAnimationFrame. No React state
- * changes during a gesture, nothing that triggers layout, and the arithmetic
- * lives in `lib/zoom-gesture` where it is tested.
+ * events on `box` to a picture `img`, and draws every frame as ONE
+ * `transform` from requestAnimationFrame. No React state changes during a
+ * gesture and no layout until it comes to rest; the arithmetic lives in
+ * `lib/zoom-gesture` where it is tested.
  *
  * Pointer events rather than touch events: one code path for a finger, a pen
  * and a mouse, and iOS Safari has delivered them since 13. `touch-action: none`
@@ -64,12 +65,19 @@ export interface ZoomDeps {
   raf: (cb: (t: number) => void) => number;
   caf: (id: number) => void;
   now: () => number;
+  /** When the input HAPPENED — not when the handler got to run. */
+  eventTime: (e: Event) => number;
 }
 
 const defaultDeps = (): ZoomDeps => ({
   raf: (cb) => requestAnimationFrame(cb),
   caf: (id) => cancelAnimationFrame(id),
   now: () => performance.now(),
+  // Same clock as performance.now(). A busy main thread hands the handlers a
+  // backlog of moves at once; timed by when they RAN, the last two look
+  // simultaneous or far apart, and a flick reads as no velocity (measured on
+  // the live app: moves 16 ms apart handled 70–320 ms apart, and no glide).
+  eventTime: (e) => e.timeStamp,
 });
 
 type Anim =
@@ -130,22 +138,48 @@ export function attachZoom(
     y: cy - rect.top - rect.h / 2,
   });
 
+  /**
+   * The scale the picture is LAID OUT at: its size on screen as of the last
+   * time it came to rest. While it moves, the transform scales relative to
+   * that; at rest the layout catches up and the transform's scale returns to 1.
+   *
+   * Laying it out at natural size and scaling DOWN (the first version) made
+   * the picture a 1179×2556 CSS-px layer for the whole time the lightbox was
+   * open — 3537×7668 device px at 3x, ~108 MB — every pixel of it visible and
+   * so every tile of it needed. Sized to what is on screen, the browser still
+   * draws from the full-resolution file (it is the source bitmap, whatever the
+   * box), so a zoomed picture is just as sharp, and the layer is never bigger
+   * than the picture as you see it.
+   */
+  let layoutK = 0;
+  const layout = (k: number) => {
+    layoutK = k;
+    img.style.width = `${natural.w * k}px`;
+    img.style.height = `${natural.h * k}px`;
+  };
+
   const paint = () => {
     if (!natural.w) return;
     const { tx, ty, k } = imageTransform(view, natural, size());
-    img.style.transform = `translate(${tx}px, ${ty}px) scale(${k})`;
+    if (!layoutK) layout(k);
+    img.style.transform = `translate(${tx}px, ${ty}px) scale(${k / layoutK})`;
     backdrop?.style.setProperty('--chat-img-fade', String(fade));
   };
 
   /**
-   * At rest: drop the compositing hint so the browser re-rasterizes the layer
-   * at its final scale (sharp), and put back what only matters when still.
+   * At rest: re-lay the picture out at the size it is shown, drop the
+   * compositing hint, and put back what only matters when still. Both make
+   * the browser redraw it sharp at its final size.
    */
   const rest = () => {
     img.classList.remove('-moving');
     img.classList.toggle('-zoomed', isZoomed(view.s));
     const k = fitRatio(natural, size()) * view.s;
-    img.style.borderRadius = isZoomed(view.s) || !k ? '0' : `${RADIUS / k}px`;
+    if (k && natural.w && Math.abs(k - layoutK) > 1e-9) {
+      layout(k);
+      paint();
+    }
+    img.style.borderRadius = isZoomed(view.s) || !k ? '0' : `${RADIUS}px`;
   };
   const moving = () => img.classList.add('-moving');
 
@@ -238,7 +272,7 @@ export function attachZoom(
         everMulti: false,
         moved: false,
         caught,
-        t0: deps.now(),
+        t0: deps.eventTime(e),
         start: { x: e.clientX, y: e.clientY },
         v0: { ...view },
         raw0: { ...view },
@@ -269,7 +303,7 @@ export function attachZoom(
     if (!gs.moved && Math.hypot(e.clientX - gs.start.x, e.clientY - gs.start.y) > TAP_SLOP)
       gs.moved = true;
     const c = centroid();
-    gs.samples.push({ t: deps.now(), x: c.x, y: c.y });
+    gs.samples.push({ t: deps.eventTime(e), x: c.x, y: c.y });
     if (gs.samples.length > 12) gs.samples.shift();
     gs.focal = c;
     if (gs.mode === 'none') return;
@@ -328,7 +362,7 @@ export function attachZoom(
   };
 
   const end = (gs: Gesture, e: PointerEvent) => {
-    const now = deps.now();
+    const now = deps.eventTime(e);
     const cancelled = e.type === 'pointercancel';
     if (!gs.moved && !gs.everMulti && !gs.caught && !cancelled && now - gs.t0 < 500) {
       tap(local(e.clientX, e.clientY), now);
@@ -355,7 +389,7 @@ export function attachZoom(
     const target = settle(view, natural, size(), gs.focal);
     const inRange = view.s >= MIN_ZOOM && view.s <= MAX_ZOOM && isZoomed(view.s);
     if (inRange && !cancelled && Math.hypot(vel.x, vel.y) > REST_V) {
-      anim = { kind: 'fling', vx: vel.x, vy: vel.y, last: now };
+      anim = { kind: 'fling', vx: vel.x, vy: vel.y, last: deps.now() };
       schedule();
     } else if (target.s !== view.s || target.x !== view.x || target.y !== view.y) {
       tweenTo(target);
@@ -392,15 +426,8 @@ export function attachZoom(
     stop();
     moving();
     if (wheelIntent(e, isZoomed(view.s)) === 'pan') {
-      view = clampPan(
-        {
-          s: view.s,
-          x: view.x - wheelPx(e.deltaX, e.deltaMode),
-          y: view.y - wheelPx(e.deltaY, e.deltaMode),
-        },
-        natural,
-        size(),
-      );
+      const d = wheelPan(e);
+      view = clampPan({ s: view.s, x: view.x + d.x, y: view.y + d.y }, natural, size());
     } else {
       const s = clamp(
         view.s * wheelZoomFactor(wheelPx(e.deltaY, e.deltaMode), e.ctrlKey),
@@ -452,15 +479,18 @@ export function attachZoom(
   const onLoad = () => {
     natural = { w: img.naturalWidth, h: img.naturalHeight };
     if (!natural.w || !natural.h) return;
-    // Laid out at its REAL size and scaled down by the transform: zooming in
-    // reveals pixels the file has, instead of upscaling a fitted bitmap.
-    img.style.width = `${natural.w}px`;
-    img.style.height = `${natural.h}px`;
     measure();
     view = { ...IDENTITY };
+    layoutK = 0;
     paint();
-    img.classList.remove('-pending');
-    rest();
+    // Shown once DECODED, not merely loaded: a 3 MP screenshot otherwise
+    // paints its first frame blank or half-drawn while iOS decodes it.
+    const show = () => {
+      img.classList.remove('-pending');
+      rest();
+    };
+    if (typeof img.decode === 'function') img.decode().then(show, show);
+    else show();
   };
   const onError = () => img.classList.remove('-pending');
   const ro =
@@ -473,6 +503,7 @@ export function attachZoom(
           // picture drawn for the old box.
           if (!g && anim?.kind !== 'tween') view = clampPan(view, natural, size());
           paint();
+          if (!g && !anim) rest();
         });
   ro?.observe(box);
 

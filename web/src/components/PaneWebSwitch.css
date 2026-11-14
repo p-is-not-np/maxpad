@@ -17,7 +17,9 @@
   font-family: var(--chrome-font);
   font-size: var(--chrome-size-sm);
   cursor: pointer;
-  transition: color 80ms ease, background 80ms ease;
+  transition:
+    color 80ms ease,
+    background 80ms ease;
 }
 .pane-web-switch-main:hover {
   color: var(--fg);

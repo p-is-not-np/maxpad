@@ -31,7 +31,7 @@ export const OP_EXIT = 0x03; // server→client
 export const OP_ERROR = 0x04; // server→client
 export const OP_PONG = 0x05; // server→client
 
-export function encodeInput(data: string): Uint8Array {
+export function encodeInput(data: string): Uint8Array<ArrayBuffer> {
   const body = enc.encode(data);
   const out = new Uint8Array(1 + body.length);
   out[0] = OP_INPUT;
@@ -39,7 +39,7 @@ export function encodeInput(data: string): Uint8Array {
   return out;
 }
 
-export function encodeResize(cols: number, rows: number): Uint8Array {
+export function encodeResize(cols: number, rows: number): Uint8Array<ArrayBuffer> {
   const out = new Uint8Array(5);
   const view = new DataView(out.buffer);
   out[0] = OP_RESIZE;
@@ -48,7 +48,7 @@ export function encodeResize(cols: number, rows: number): Uint8Array {
   return out;
 }
 
-export function encodeOutput(data: string): Uint8Array {
+export function encodeOutput(data: string): Uint8Array<ArrayBuffer> {
   const body = enc.encode(data);
   const out = new Uint8Array(1 + body.length);
   out[0] = OP_OUTPUT;
@@ -56,7 +56,7 @@ export function encodeOutput(data: string): Uint8Array {
   return out;
 }
 
-export function encodeExit(code: number, cause: ExitCause = 'natural'): Uint8Array {
+export function encodeExit(code: number, cause: ExitCause = 'natural'): Uint8Array<ArrayBuffer> {
   // Layout: [op:1][cause:1][code:4]
   const out = new Uint8Array(6);
   const view = new DataView(out.buffer);
@@ -66,7 +66,7 @@ export function encodeExit(code: number, cause: ExitCause = 'natural'): Uint8Arr
   return out;
 }
 
-export function encodeError(message: string): Uint8Array {
+export function encodeError(message: string): Uint8Array<ArrayBuffer> {
   const body = enc.encode(message);
   const out = new Uint8Array(1 + body.length);
   out[0] = OP_ERROR;
@@ -74,11 +74,11 @@ export function encodeError(message: string): Uint8Array {
   return out;
 }
 
-export function encodePing(): Uint8Array {
+export function encodePing(): Uint8Array<ArrayBuffer> {
   return new Uint8Array([OP_PING]);
 }
 
-export function encodePong(): Uint8Array {
+export function encodePong(): Uint8Array<ArrayBuffer> {
   return new Uint8Array([OP_PONG]);
 }
 

@@ -1,7 +1,14 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.6.7/schema.json",
   "files": {
-    "ignore": ["dist", "node_modules", "coverage", "**/*.tsbuildinfo", "**/assets/slack-setup-releases.json"]
+    "includes": [
+      "**",
+      "!**/dist",
+      "!**/node_modules",
+      "!**/coverage",
+      "!**/*.tsbuildinfo",
+      "!**/assets/slack-setup-releases.json"
+    ]
   },
   "formatter": {
     "enabled": true,
@@ -12,12 +19,40 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
+      "preset": "recommended",
       "style": {
-        "noNonNullAssertion": "off"
+        "noNonNullAssertion": "off",
+        "noDescendingSpecificity": "off",
+        "useTemplate": "off"
       },
       "suspicious": {
-        "noExplicitAny": "off"
+        "noExplicitAny": "off",
+        "useIterableCallbackReturn": "off",
+        "noTemplateCurlyInString": "off",
+        "noFocusedTests": "off",
+        "noDuplicateProperties": "warn",
+        "noUselessEscapeInString": "off"
+      },
+      "correctness": {
+        "noUnusedImports": "warn",
+        "noUnusedVariables": "warn",
+        "noUnusedFunctionParameters": "off",
+        "noUnsafeOptionalChaining": "warn",
+        "noComponentHookFactories": "off",
+        "useExhaustiveDependencies": "off",
+        "noUnusedPrivateClassMembers": "warn",
+        "noInnerDeclarations": "off"
+      },
+      "complexity": {
+        "useOptionalChain": "off",
+        "noImportantStyles": "off",
+        "useArrowFunction": "off"
+      },
+      "a11y": {
+        "noStaticElementInteractions": "off",
+        "useAriaPropsSupportedByRole": "off",
+        "useSemanticElements": "off",
+        "noSvgWithoutTitle": "off"
       }
     }
   },
@@ -25,6 +60,13 @@
     "formatter": {
       "quoteStyle": "single",
       "semicolons": "always"
+    }
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "off"
+      }
     }
   }
 }

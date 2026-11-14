@@ -1,5 +1,5 @@
 import type { AgentQuestion, ChatEvent } from '@muxpad/shared';
-import { forwardRef, useCallback, useEffect, useRef, useState } from 'react';
+import { type JSX, forwardRef, useCallback, useEffect, useRef, useState } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { splitMessageAttachments } from '../lib/attachments';

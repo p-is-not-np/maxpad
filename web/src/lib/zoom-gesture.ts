@@ -6,9 +6,9 @@
  * A `View` is three numbers: `s`, the zoom RELATIVE TO THE FITTED SIZE (1 =
  * the whole picture fits the box, 2.5 = double-tap), and `x`/`y`, the offset
  * of the picture's centre from the box's centre in CSS px. Every point here is
- * in the same frame: px from the box centre. The component turns a View into
- * one `transform` on an image laid out at its NATURAL size, so zooming in
- * reveals real pixels rather than upscaling a fitted bitmap.
+ * in the same frame: px from the box centre. `imageTransform` gives the
+ * placement in natural-size terms; the component lays the picture out at its
+ * on-screen size and scales relative to that while it moves.
  *
  * ─── WHY THE RUBBER BAND HAS AN INVERSE ─────────────────────────────────────
  * Past an edge the picture moves less than the finger. When a gesture is
@@ -313,17 +313,30 @@ export function wheelPx(delta: number, mode: number): number {
 
 /**
  * What a wheel event means. ctrl+wheel is a trackpad pinch (the browser
- * synthesizes it) → zoom. A plain wheel zooms too — the mouse case — except
- * when it carries a sideways component while zoomed in, which only a trackpad
- * two-finger scroll produces: that pans, as scrolling a zoomed picture should.
+ * synthesizes it) → always zoom. A plain wheel SCROLLS a zoomed picture, the
+ * way it scrolls anything bigger than its window; on the fitted picture there
+ * is nothing to scroll, so there it zooms in at the cursor.
  */
-export function wheelIntent(
-  e: { ctrlKey: boolean; deltaX: number; deltaY: number },
-  zoomed: boolean,
-): 'zoom' | 'pan' {
+export function wheelIntent(e: { ctrlKey: boolean }, zoomed: boolean): 'zoom' | 'pan' {
   if (e.ctrlKey) return 'zoom';
-  if (zoomed && e.deltaX !== 0) return 'pan';
-  return 'zoom';
+  return zoomed ? 'pan' : 'zoom';
+}
+
+/**
+ * A plain wheel's pan, in px. Shift turns a vertical wheel sideways (Chrome
+ * and Firefox do this themselves on some platforms, not all), and a picture
+ * moves AGAINST the scroll, as page content does.
+ */
+export function wheelPan(e: {
+  deltaX: number;
+  deltaY: number;
+  deltaMode: number;
+  shiftKey: boolean;
+}): Pt {
+  const dx = wheelPx(e.deltaX, e.deltaMode);
+  const dy = wheelPx(e.deltaY, e.deltaMode);
+  if (e.shiftKey && dx === 0) return { x: -dy, y: 0 };
+  return { x: -dx, y: -dy };
 }
 
 /** Multiplicative zoom for one wheel event; exponential so in and out undo. */

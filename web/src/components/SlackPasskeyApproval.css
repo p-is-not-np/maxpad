@@ -212,7 +212,9 @@ dialog.slack-passkey-dialog select {
    whatever order the CSS is bundled in, and hover moves the accent toward --fg,
    which raises contrast against --accent-fg in light and dark themes alike. */
 dialog.slack-passkey-dialog button {
-  transition: background-color 80ms ease, border-color 80ms ease;
+  transition:
+    background-color 80ms ease,
+    border-color 80ms ease;
 }
 dialog.slack-passkey-dialog button:hover:not(:disabled) {
   color: var(--fg);

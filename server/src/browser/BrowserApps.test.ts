@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppStore } from '../store/AppStore.js';
 import {
   browserHostCommand,
@@ -19,7 +19,8 @@ import { BROWSER_PORT_RANGE } from './BrowserProfile.js';
  */
 
 let db: Database.Database;
-let registry: { start: ReturnType<typeof vi.fn>; stop: ReturnType<typeof vi.fn> };
+type RegistryFn = (appId: string) => Promise<unknown>;
+let registry: { start: Mock<RegistryFn>; stop: Mock<RegistryFn> };
 
 function deps(overrides: Partial<Parameters<typeof ensureBrowserApp>[1]> = {}) {
   return {

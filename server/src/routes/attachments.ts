@@ -16,10 +16,7 @@ import { ulid } from 'ulid';
 import { attachmentNameProblem } from '../attachment-files.js';
 import { PaneStore } from '../store/PaneStore.js';
 
-export function attachmentsRoutes(deps: {
-  db: Database.Database;
-  dataDir: string;
-}): Hono {
+export function attachmentsRoutes(deps: { db: Database.Database; dataDir: string }): Hono {
   const app = new Hono();
   const panes = new PaneStore(deps.db);
   const MAX_BYTES = 512 * 1024 * 1024; // 512 MB — a sane ceiling for a recording

@@ -26,6 +26,7 @@ import {
   unrubber,
   unsoftScale,
   wheelIntent,
+  wheelPan,
   wheelPx,
   wheelZoomFactor,
   zoomAround,
@@ -320,12 +321,27 @@ describe('swipe gating', () => {
 
 describe('wheel', () => {
   it('ctrl+wheel (a trackpad pinch) always zooms', () => {
-    expect(wheelIntent({ ctrlKey: true, deltaX: 3, deltaY: 2 }, true)).toBe('zoom');
+    expect(wheelIntent({ ctrlKey: true }, true)).toBe('zoom');
   });
-  it('a two-axis scroll pans a zoomed picture; a plain wheel zooms', () => {
-    expect(wheelIntent({ ctrlKey: false, deltaX: 3, deltaY: 2 }, true)).toBe('pan');
-    expect(wheelIntent({ ctrlKey: false, deltaX: 3, deltaY: 2 }, false)).toBe('zoom');
-    expect(wheelIntent({ ctrlKey: false, deltaX: 0, deltaY: 100 }, true)).toBe('zoom');
+  it('a plain wheel pans a zoomed picture, and zooms the fitted one', () => {
+    // Measured before this: a plain wheel-down on a zoomed picture zoomed it
+    // back OUT to fit instead of scrolling it.
+    expect(wheelIntent({ ctrlKey: false }, true)).toBe('pan');
+    expect(wheelIntent({ ctrlKey: false }, false)).toBe('zoom');
+  });
+  it('the wheel pans against the scroll, and shift turns it sideways', () => {
+    expect(wheelPan({ deltaX: 0, deltaY: 100, deltaMode: 0, shiftKey: false })).toEqual({
+      x: -0,
+      y: -100,
+    });
+    expect(wheelPan({ deltaX: 0, deltaY: 3, deltaMode: 1, shiftKey: true })).toEqual({
+      x: -48,
+      y: 0,
+    });
+    expect(wheelPan({ deltaX: 20, deltaY: 0, deltaMode: 0, shiftKey: true })).toEqual({
+      x: -20,
+      y: -0,
+    });
   });
   it('wheel up zooms in, down zooms out, and the two undo each other', () => {
     expect(wheelZoomFactor(-100, false)).toBeGreaterThan(1);

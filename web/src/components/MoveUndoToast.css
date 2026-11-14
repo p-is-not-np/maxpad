@@ -44,7 +44,9 @@
   font: inherit;
   font-weight: 600;
   cursor: pointer;
-  transition: background 80ms ease, border-color 80ms ease;
+  transition:
+    background 80ms ease,
+    border-color 80ms ease;
 }
 .move-undo-toast-action:hover {
   background: var(--border-strong);

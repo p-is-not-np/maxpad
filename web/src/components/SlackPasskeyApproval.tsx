@@ -98,7 +98,10 @@ const humanError = (e: unknown): string => {
 export function SlackPasskeyApproval({
   paneId,
   diagnosticID,
-}: { paneId: string; diagnosticID?: string }) {
+}: {
+  paneId: string;
+  diagnosticID?: string;
+}) {
   const titleID = useId();
   const [request, setRequest] = useState<RequestView | null>(null);
   const [duration, setDuration] = useState('once');

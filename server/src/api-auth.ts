@@ -163,9 +163,7 @@ export function verifyCredential(presented: string | null | undefined): boolean 
  *                           without shipping the secret into JS, where every
  *                           page on the tailnet could read it.
  */
-export function presentedCredential(headers: {
-  get(name: string): string | null;
-}): string | null {
+export function presentedCredential(headers: { get(name: string): string | null }): string | null {
   const auth = headers.get('authorization');
   if (auth) {
     const m = /^Bearer\s+(.+)$/i.exec(auth.trim());

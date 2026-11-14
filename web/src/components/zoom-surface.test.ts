@@ -22,6 +22,7 @@ const deps = {
   },
   caf: () => {},
   now: () => now,
+  eventTime: () => now,
 };
 /** Run the animation for `ms` of wall time at 60 fps. */
 function flush(ms = 1000) {
@@ -71,10 +72,13 @@ afterEach(() => {
 });
 
 /** The drawn transform: translate(tx, ty) scale(k), origin 0 0. */
+/** The drawn geometry: translate(tx, ty), and `k` = on-screen px per natural
+ *  px — the laid-out size times the transform's scale, origin 0 0. */
 function drawn() {
   const m = /translate\(([-\d.e]+)px, ([-\d.e]+)px\) scale\(([-\d.e]+)\)/.exec(img.style.transform);
   if (!m) throw new Error(`no transform: ${img.style.transform}`);
-  return { tx: Number(m[1]), ty: Number(m[2]), k: Number(m[3]) };
+  const laid = Number.parseFloat(img.style.width) / NAT.w;
+  return { tx: Number(m[1]), ty: Number(m[2]), k: Number(m[3]) * laid, scale: Number(m[3]) };
 }
 /** The picture pixel drawn at client point (cx, cy). */
 function pixelAt(cx: number, cy: number) {
@@ -147,9 +151,12 @@ function pinch(
 }
 
 describe('load', () => {
-  it('lays the picture out at its natural size and fits it with a transform', () => {
-    expect(img.style.width).toBe(`${NAT.w}px`);
-    expect(img.style.height).toBe(`${NAT.h}px`);
+  it('lays the picture out at the size it is SHOWN, not its natural size', () => {
+    // Natural size scaled down made a 1179×2556 CSS-px layer (3537×7668 device
+    // px on a 3x phone) for as long as the lightbox was open.
+    expect(Number.parseFloat(img.style.width)).toBeCloseTo(NAT.w * FIT);
+    expect(Number.parseFloat(img.style.height)).toBeCloseTo(NAT.h * FIT);
+    expect(drawn().scale).toBe(1);
     expect(drawn().k).toBeCloseTo(FIT);
     expect(drawn().ty).toBeCloseTo(0);
   });
@@ -422,21 +429,42 @@ describe('desktop', () => {
     expect(at.y).toBeCloseTo(under.y, 0);
   });
 
-  it('the mouse wheel zooms in and back out to exactly fit, never below', () => {
-    for (let i = 0; i < 5; i++) wheel({ deltaY: -100, clientX: 180, clientY: 350 });
+  const ctrlIn = (n: number) => {
+    for (let i = 0; i < n; i++) wheel({ ctrlKey: true, deltaY: -20, clientX: 180, clientY: 350 });
+  };
+
+  it('ctrl+wheel zooms back out to exactly fit, never below, and stops at 5x', () => {
+    ctrlIn(10);
     expect(zoom()).toBeGreaterThan(1.5);
-    for (let i = 0; i < 20; i++) wheel({ deltaY: 100, clientX: 30, clientY: 30 });
+    for (let i = 0; i < 40; i++) wheel({ ctrlKey: true, deltaY: 20, clientX: 30, clientY: 30 });
     expect(zoom()).toBeCloseTo(1);
     expect(drawn().ty).toBeCloseTo(0);
-  });
-
-  it('the wheel stops at 5x', () => {
-    for (let i = 0; i < 60; i++) wheel({ deltaY: -100, clientX: 180, clientY: 350 });
+    ctrlIn(200);
     expect(zoom()).toBeCloseTo(5);
   });
 
+  it('a plain wheel on the fitted picture zooms in at the cursor', () => {
+    wheel({ deltaY: -100, clientX: 180, clientY: 350 });
+    expect(zoom()).toBeGreaterThan(1.1);
+  });
+
+  it('a plain wheel SCROLLS a zoomed picture and leaves the zoom alone', () => {
+    ctrlIn(10);
+    const z = zoom();
+    const before = drawn();
+    wheel({ deltaY: 100, clientX: 180, clientY: 350 });
+    expect(zoom()).toBeCloseTo(z);
+    expect(drawn().ty).toBeCloseTo(before.ty - 100); // content moves up: scrolled down
+    wheel({ deltaX: 0, deltaY: 60, shiftKey: true, clientX: 180, clientY: 350 });
+    expect(drawn().tx).toBeLessThan(before.tx);
+    // …and stops at the edge rather than scrolling into the backdrop.
+    for (let i = 0; i < 100; i++) wheel({ deltaY: 100, clientX: 180, clientY: 350 });
+    const t = drawn();
+    expect(t.ty + NAT.h * t.k).toBeCloseTo(BOX.h, 0);
+  });
+
   it('drag pans a zoomed picture with the mouse', () => {
-    for (let i = 0; i < 5; i++) wheel({ deltaY: -100, clientX: 180, clientY: 350 });
+    ctrlIn(10);
     const under = pixelAt(180, 350);
     ptr('pointerdown', 1, 180, 350, 'mouse');
     now += 16;
@@ -458,10 +486,49 @@ describe('rendering', () => {
     expect(img.classList.contains('-moving')).toBe(false);
   });
 
-  it('draws nothing but a transform — no width/height change while zooming', () => {
+  it('moves by transform alone; the layout catches up once, at rest', () => {
     const w = img.style.width;
-    pinch([150, 350], [210, 350], [100, 350], [260, 350]);
-    flush();
+    pinch([150, 350], [210, 350], [100, 350], [260, 350], { lift: false });
+    // Mid-gesture: no layout change, the zoom is all in the transform.
     expect(img.style.width).toBe(w);
+    expect(drawn().scale).toBeGreaterThan(2);
+    const k = drawn().k;
+    const t = drawn();
+    now += 200;
+    ptr('pointerup', 1, 100, 350);
+    ptr('pointerup', 2, 260, 350);
+    flush();
+    // At rest: laid out at its on-screen size, scale back to 1, same picture.
+    expect(drawn().scale).toBe(1);
+    expect(Number.parseFloat(img.style.width)).toBeCloseTo(NAT.w * k);
+    expect(drawn().tx).toBeCloseTo(t.tx);
+    expect(drawn().ty).toBeCloseTo(t.ty);
+  });
+
+  it('reads flick speed from when the moves HAPPENED, not when they were handled', () => {
+    // A busy main thread delivers a backlog; handled together, the moves
+    // look simultaneous. The event timestamps still say 16 ms apart.
+    const late: number[] = [];
+    detach();
+    const at = { t: 0 };
+    detach = attachZoom(box, img, cb, { ...deps, eventTime: () => at.t, now: () => now + 500 });
+    tap(180, 350);
+    now += 100;
+    tap(180, 350);
+    flush();
+    for (const [i, y] of [300, 280, 260, 240, 220].entries()) {
+      at.t = 5000 + i * 16;
+      ptr(i === 0 ? 'pointerdown' : 'pointermove', 1, 180, y);
+      late.push(y);
+    }
+    at.t = 5000 + 4 * 16 + 8;
+    ptr('pointerup', 1, 180, 220);
+    const lift = drawn().ty;
+    now += 16;
+    flushOne();
+    now += 16;
+    flushOne();
+    expect(drawn().ty).toBeLessThan(lift); // still gliding up
+    expect(late).toHaveLength(5);
   });
 });
