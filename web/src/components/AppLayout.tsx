@@ -13,23 +13,21 @@ import { CommandPalette } from './CommandPalette';
 import { MemoryGauge } from './MemoryGauge';
 import { MobileNavSwitcher } from './MobileNavSwitcher';
 import { MoveUndoToast } from './MoveUndoToast';
-import { NavTree, RailSearchButton } from './NavTree';
+import { NavTree } from './NavTree';
 import { NoticeToast } from './NoticeToast';
 import { SettingsMenu } from './SettingsMenu';
 import { ThemeSwitch } from './ThemeSwitch';
 import { UpdateBanner } from './UpdateBanner';
 import { WorkspaceShell } from './WorkspaceLayout';
 
-const REPO_URL = 'https://github.com/ohadpr/muxpad';
-
 /**
  * Persistent application chrome. Popout routes are mounted outside this layout.
  *
  * Desktop, inside a workspace: a persistent left NavTree sidebar is the only
- * navigator; it absorbs the top bar entirely (brand at its head, build +
- * settings at its foot). Mobile gets the MobileNavSwitcher breadcrumb +
+ * navigator; it absorbs the top bar entirely (memory, theme and settings at
+ * its foot). Mobile gets the MobileNavSwitcher breadcrumb +
  * drop-down panel in a top bar. The workspace picker ('/') has no workspace to
- * host a sidebar, so it keeps a slim brand + build + settings top bar.
+ * host a sidebar, so it keeps a slim brand + settings top bar.
  */
 export function AppLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -79,7 +77,7 @@ export function AppLayout() {
   }, [wsSlug]);
 
   // Sidebar mode absorbs the whole top bar while inside a workspace:
-  // brand moves to the sidebar's head, build + settings to its foot.
+  // settings move to the sidebar's foot.
   // The bar still renders on the workspace picker ('/'), where there is
   // no sidebar to host them.
   const showTopBar = !(sidebarMode && wsSlug);
@@ -116,15 +114,6 @@ export function AppLayout() {
             <div className="mobile-pane-chrome" id="mobile-pane-chrome" />
           )}
           {!activeWorkspace && <span className="ws-tabbar-spacer" />}
-          <a
-            className="brand-text-side"
-            href={REPO_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            title={`muxpad — build ${__MUXPAD_VERSION__}`}
-          >
-            muxpad <span className="brand-text-side-version">{__MUXPAD_VERSION__}</span>
-          </a>
           <MemoryGauge placement="down" tabId={activeTabId} />
           <SettingsMenu />
         </header>
@@ -137,14 +126,6 @@ export function AppLayout() {
               ref={sidenavRef}
               style={{ flexBasis: `${settings.sidebarWidth}px` }}
             >
-              <div className="sidenav-brand">
-                {/* Search rides the brand row rather than owning one of its
-                    own — see RailSearchButton. The spacer on the other side
-                    keeps the wordmark optically centred. */}
-                <RailSearchButton />
-                <Brand asLink={true} responsive={false} />
-                <span className="sidenav-brand-spacer" aria-hidden="true" />
-              </div>
               <NavTree
                 variant="sidebar"
                 activeWorkspaceSlug={wsSlug}
@@ -152,15 +133,6 @@ export function AppLayout() {
               />
               <SidenavResizeHandle asideRef={sidenavRef} />
               <div className="sidenav-footer">
-                <a
-                  className="sidenav-build"
-                  href={REPO_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={`muxpad — build ${__MUXPAD_VERSION__}`}
-                >
-                  {__MUXPAD_VERSION__}
-                </a>
                 <MemoryGauge tabId={activeTabId} />
                 <ThemeSwitch />
                 <SettingsMenu />
