@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { formatBytes, gaugeText, readMemory } from './host-memory';
+import {
+  formatBytes,
+  gaugeText,
+  gaugeTitle,
+  machineLabel,
+  machineMemoryLine,
+  readMemory,
+} from './host-memory';
 
 const GB = 1024 ** 3;
 
@@ -72,5 +79,56 @@ describe('readMemory', () => {
     });
     expect(r.pressure).toBe('ok');
     expect(r.swapLine).toBe('Swap none');
+  });
+});
+
+describe('which machine the gauge speaks for', () => {
+  const memory = {
+    platform: 'linux',
+    ramTotalBytes: 31 * GB,
+    ramAvailableBytes: 20 * GB,
+    swapTotalBytes: 8 * GB,
+    swapUsedBytes: 1 * GB,
+    top: [],
+  };
+
+  it('names no machine on a one-machine install — or from an older server', () => {
+    expect(
+      machineLabel({ memory, node: { id: 'local', name: 'this machine' }, multiNode: false }),
+    ).toBe(null);
+    expect(machineLabel({ memory })).toBe(null);
+    expect(gaugeTitle({ memory })).toBe(
+      'Memory — RAM 20.0 GB free of 31.0 GB (65%) · Swap 1.0 GB used of 8.0 GB (13%)',
+    );
+  });
+
+  it('prefixes the machine when there are several', () => {
+    const m = { memory, node: { id: 'trayo', name: 'Trayo VM' }, multiNode: true };
+    expect(machineLabel(m)).toBe('Trayo VM');
+    expect(gaugeTitle(m)).toMatch(/^Trayo VM memory — RAM 20\.0 GB free/);
+    expect(
+      machineLabel({ memory, node: { id: 'local', name: 'this machine' }, multiNode: true }),
+    ).toBe('This machine');
+  });
+
+  it('says unknown, with the reason, for a machine that could not say', () => {
+    expect(
+      gaugeTitle({
+        memory: null,
+        reason: 'did not answer — that machine may run an older muxpad',
+        node: { id: 'old', name: 'Old box' },
+        multiNode: true,
+      }),
+    ).toBe('Old box memory — unknown (did not answer — that machine may run an older muxpad)');
+  });
+
+  it('gives Settings → Machines the gauge’s text and colour, or unknown', () => {
+    expect(machineMemoryLine({ id: 'local', name: 'x', memory })).toMatchObject({
+      text: '11/31G RAM',
+      pressure: 'ok',
+    });
+    expect(
+      machineMemoryLine({ id: 'old', name: 'Old', memory: null, reason: 'not connected' }),
+    ).toEqual({ text: 'memory unknown', pressure: 'unknown', title: 'not connected' });
   });
 });

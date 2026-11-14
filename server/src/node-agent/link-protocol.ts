@@ -56,7 +56,18 @@ export type LinkChannel =
    * It rides this socket because this socket is the server's, not an agent's:
    * a process on the server's machine cannot ask for a signature at all.
    */
-  | 'origin';
+  | 'origin'
+  /**
+   * Facts about the machine itself — today its memory, for the gauge that
+   * shows the machine of the chat you are in.
+   *
+   * A channel of its own rather than a ride on `search` or `api`, because it is
+   * neither: the server asks, the host reads `/proc` and answers. An OLDER
+   * host that predates it drops the frame as an unknown channel (see
+   * {@link decodeLink}), so the server's ask simply times out and the gauge
+   * says "unknown" — never a crash, never a wrong number.
+   */
+  | 'host';
 
 /**
  * The same list, as a value, because {@link decodeLink} has to check it at
@@ -76,6 +87,7 @@ const CHANNELS = new Set([
   'files',
   'search',
   'origin',
+  'host',
 ] as const);
 type _ChannelsCoverTheType = LinkChannel extends SetElement<typeof CHANNELS> ? true : never;
 type SetElement<S> = S extends Set<infer T> ? T : never;
@@ -109,6 +121,8 @@ export type LinkDown =
    * `slack.channels` the host is relaying into a `slack.post`.
    */
   | { ch: 'origin'; op: 'sign'; id: string; callId: string; action: string; payload: unknown }
+  /** Read this machine's memory. `top` asks for the N largest processes too. */
+  | { ch: 'host'; op: 'read'; id: string; top?: number }
   /** The answer to one `api` request. `id` is the host's own correlation id. */
   | {
       ch: 'api';
@@ -197,7 +211,12 @@ export type LinkUp =
    * unproven, and the human approves it once. A key rotated on one side only
    * must make the dialog ask every time, not take the connector off the air.
    */
-  | { ch: 'origin'; op: 'unavailable'; id: string; reason: string };
+  | { ch: 'origin'; op: 'unavailable'; id: string; reason: string }
+  /** This machine's memory — the same shape `GET /api/host/memory` serves.
+   *  Typed `unknown` on the wire: the server validates it, see HostLink. */
+  | { ch: 'host'; op: 'memory'; id: string; memory: unknown }
+  /** Could not read it here (no `/proc`, a reader that threw). */
+  | { ch: 'host'; op: 'unavailable'; id: string; reason: string };
 
 export function encodeLink(m: LinkDown | LinkUp): string {
   return JSON.stringify(m);
@@ -253,5 +272,7 @@ export function hostMaySend(m: LinkDown | LinkUp): boolean {
   // wrong direction for a mechanism whose whole purpose is that the HOST is
   // the only side holding the key.
   if (m.ch === 'origin') return m.op === 'signed' || m.op === 'unavailable';
+  // A host ANSWERS a read; `read` is the server asking.
+  if (m.ch === 'host') return m.op === 'memory' || m.op === 'unavailable';
   return m.op === 'frame' || m.op === 'attached' || m.op === 'detached';
 }

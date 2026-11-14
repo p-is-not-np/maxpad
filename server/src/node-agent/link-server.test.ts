@@ -21,7 +21,7 @@ class FakeWs extends EventEmitter {
   }
 }
 
-const build = () => {
+const build = (extra: { hostMemory?: (o: { top?: number }) => Promise<unknown> } = {}) => {
   const ptyd = new FakeWs();
   const tails: Array<{
     start: ReturnType<typeof vi.fn>;
@@ -37,6 +37,7 @@ const build = () => {
       return t as never;
     },
     log: () => {},
+    ...extra,
   });
   const link = new FakeWs();
   srv.attachLink(link as never);
@@ -259,5 +260,55 @@ describe('reconnect replays the hello', () => {
     const link2 = new FakeWs();
     h.srv.attachLink(link2 as never);
     expect(link2.sent.map((s) => decodeLink(s))).toEqual([]);
+  });
+});
+
+describe('the host channel', () => {
+  const read = (h: ReturnType<typeof build>, msg: object) =>
+    h.link.emit('message', JSON.stringify({ ch: 'host', op: 'read', ...msg }));
+  const settle = () => new Promise((r) => setTimeout(r, 0));
+
+  it('answers a read with this machine’s memory, passing top through clamped', async () => {
+    const asked: unknown[] = [];
+    const h = build({
+      hostMemory: async (o) => {
+        asked.push(o);
+        return { ramTotalBytes: 8, ramAvailableBytes: 4 };
+      },
+    });
+    read(h, { id: 'm1', top: 99 });
+    await settle();
+    expect(asked).toEqual([{ top: 20 }]);
+    expect(h.up()).toContainEqual({
+      ch: 'host',
+      op: 'memory',
+      id: 'm1',
+      memory: { ramTotalBytes: 8, ramAvailableBytes: 4 },
+    });
+  });
+
+  it('says unavailable — at once, not after the server’s timeout — when it cannot read', async () => {
+    const h = build({
+      hostMemory: async () => {
+        throw new Error('ENOENT /proc/meminfo');
+      },
+    });
+    read(h, { id: 'm1' });
+    await settle();
+    expect(h.up()).toContainEqual({
+      ch: 'host',
+      op: 'unavailable',
+      id: 'm1',
+      reason: 'ENOENT /proc/meminfo',
+    });
+  });
+
+  it('says unavailable when no reader is wired', async () => {
+    const h = build();
+    read(h, { id: 'm1' });
+    await settle();
+    expect(h.up()).toContainEqual(
+      expect.objectContaining({ ch: 'host', op: 'unavailable', id: 'm1' }),
+    );
   });
 });

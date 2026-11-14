@@ -43,6 +43,8 @@ describe('what a host is allowed to send', () => {
       { ch: 'runner', op: 'frame', paneId: 'p', frame: {} },
       { ch: 'runner', op: 'attached', paneId: 'p' },
       { ch: 'runner', op: 'detached', paneId: 'p' },
+      { ch: 'host', op: 'memory', id: 'm1', memory: { ramTotalBytes: 1 } },
+      { ch: 'host', op: 'unavailable', id: 'm1', reason: 'no /proc' },
       // NOT `as const`: it makes the array literals readonly, which the
       // mutable `unknown[]` in the union rejects.
     ] satisfies LinkUp[]) {
@@ -58,6 +60,8 @@ describe('what a host is allowed to send', () => {
       { ch: 'transcript', op: 'unsubscribe', paneId: 'p' },
       { ch: 'transcript', op: 'loadOlder', paneId: 'p' },
       { ch: 'runner', op: 'adopt', paneId: 'p' },
+      // A host answers a memory read; it never asks this machine for one.
+      { ch: 'host', op: 'read', id: 'm1' },
     ] satisfies LinkDown[]) {
       expect(hostMaySend(m), JSON.stringify(m)).toBe(false);
     }
@@ -76,7 +80,16 @@ describe('what a host is allowed to send', () => {
  */
 describe('every channel decodes', () => {
   it('accepts a frame on each one', () => {
-    for (const ch of ['ptyd', 'transcript', 'runner', 'api', 'files', 'search'] as const) {
+    for (const ch of [
+      'ptyd',
+      'transcript',
+      'runner',
+      'api',
+      'files',
+      'search',
+      'origin',
+      'host',
+    ] as const) {
       expect(decodeLink(JSON.stringify({ ch, op: 'x' })), ch).not.toBe(null);
     }
   });
@@ -85,5 +98,18 @@ describe('every channel decodes', () => {
     expect(decodeLink(JSON.stringify({ ch: 'shell', op: 'exec' }))).toBe(null);
     expect(decodeLink(JSON.stringify({ op: 'x' }))).toBe(null);
     expect(decodeLink('not json')).toBe(null);
+  });
+});
+
+describe('the host channel', () => {
+  it('round-trips a read and both answers', () => {
+    for (const m of [
+      { ch: 'host', op: 'read', id: 'm1', top: 5 },
+      { ch: 'host', op: 'read', id: 'm2' },
+      { ch: 'host', op: 'memory', id: 'm1', memory: { ramTotalBytes: 8, ramAvailableBytes: 4 } },
+      { ch: 'host', op: 'unavailable', id: 'm1', reason: 'not supported on this machine' },
+    ] satisfies Array<LinkDown | LinkUp>) {
+      expect(decodeLink(encodeLink(m))).toEqual(m);
+    }
   });
 });
