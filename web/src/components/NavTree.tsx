@@ -3,7 +3,8 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { Fragment, Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from '../api';
-import { HOUSE_CHAT_CREATE } from '../lib/agent-backend';
+import { houseChatCreate } from '../lib/agent-backend';
+import { useAppToggle } from '../lib/app-prefs';
 import { openCommandPalette, paletteChordLabel } from '../lib/command-palette';
 import { createDragOrigin } from '../lib/drag-origin';
 import { clearFollowTarget, setFollowTarget } from '../lib/follow-tab';
@@ -325,6 +326,8 @@ function WorkingSetStrip({
 }) {
   const rows = useWorkingSet();
   const navigate = useNavigate();
+  // Settings → Chats can turn the band off; absent means on.
+  const shown = useAppToggle('rail_recent', true);
   /**
    * The clock the ages are read against.
    *
@@ -367,7 +370,7 @@ function WorkingSetStrip({
     return () => window.removeEventListener('keydown', onKey);
   }, [rows, navigate, onNavigate, touch]);
 
-  if (rows.length === 0) return null;
+  if (!shown || rows.length === 0) return null;
   return (
     /* ── THE NAME, THIRD TRY AND THEIRS ───────────────────────────────────
        "Working on" read as a status the app was reporting about you. "At
@@ -556,7 +559,7 @@ function SidebarTree({
       // creates, so the two `+` buttons in this same tree can no longer
       // disagree about what a new thing is.
       const w = await api.createWorkspace();
-      const t = await api.createTab(w.id, { ...HOUSE_CHAT_CREATE });
+      const t = await api.createTab(w.id, houseChatCreate());
       // THIS await STAYS, unlike the one createHouseTab dropped. The route we
       // are about to navigate to resolves `wsSlug` out of the workspaces cache,
       // and a workspace created this instant is in no cache anywhere — there is
@@ -728,7 +731,7 @@ async function createHouseTab(
   // full-size pane atomically, already running in Chat mode. No "what do you
   // want to open?" screen — the alternatives live in the empty chat's own
   // "open instead:" strip, where they cost nothing until you want one.
-  const t = await api.createTab(workspace.id, { ...HOUSE_CHAT_CREATE });
+  const t = await api.createTab(workspace.id, houseChatCreate());
   // ─── ONE ROUND TRIP, THEN GO ───────────────────────────────────────────────
   // This used to `await refreshTabs()` and `await refreshWorkspaces()` here,
   // and only then navigate — so the sidebar's button sat in `Creating…` for

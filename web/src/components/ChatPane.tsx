@@ -48,7 +48,7 @@ import { type AgentLaunchOptions, ApiError, type RecentFolder, api } from '../ap
 import {
   AGENT_BACKENDS,
   type AgentBackendId,
-  HOUSE_CHAT_CREATE,
+  houseChatCreate,
   backendLabel,
   conversionFailure,
 } from '../lib/agent-backend';
@@ -1808,7 +1808,7 @@ export function ChatPane({
       if (!group) return;
       const here = group.tabs.find((t) => t.id === tabId);
       const made = await api.createTab(group.id, {
-        ...HOUSE_CHAT_CREATE,
+        ...houseChatCreate(),
         // Same folder, because the point is to work on the same thing. The
         // MODE is deliberately not copied: a branch is a chat you are going to
         // talk to, so it gets the house arrangement like every other new chat.

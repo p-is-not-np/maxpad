@@ -35,6 +35,7 @@ import { nodesRoutes } from './routes/nodes.js';
 import { openRoutes } from './routes/open.js';
 import { paneIoRoutes } from './routes/pane-io.js';
 import { panesScopedRoutes, panesTabScopedRoutes } from './routes/panes.js';
+import { installRoutes } from './routes/install.js';
 import { prefsRoutes } from './routes/prefs.js';
 import { publishRoutes } from './routes/publish.js';
 import { pushRoutes } from './routes/push.js';
@@ -420,6 +421,7 @@ export function createApp(deps: AppDeps): Hono {
     }),
   );
   app.route('/api/prefs', prefsRoutes({ db: resolved.db, events: resolved.events }));
+  app.route('/api/install', installRoutes({ dataDir: resolved.dataDir }));
   app.route('/api/panes', attachmentsRoutes(resolved));
   app.route('/api/panes', summaryRoutes(resolved));
   app.route('/api/open', openRoutes(resolved));

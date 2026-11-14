@@ -1,3 +1,4 @@
+import { PrefStore } from '../store/PrefStore.js';
 import { randomBytes } from 'node:crypto';
 import {
   copyFileSync,
@@ -342,6 +343,14 @@ function listVersionDirs(publicDir: string, slug: string): number[] {
   return out;
 }
 
+/** The install's default link lifetime (Settings → Data), else the shipped
+ *  {@link DEFAULT_LIFESPAN_DAYS}. `0` is a real choice: links never expire. */
+export function defaultLifespanDays(db: Database.Database): number {
+  const raw = new PrefStore(db).get('publish_days');
+  const n = raw === null ? Number.NaN : Number(raw);
+  return Number.isInteger(n) && n >= 0 && n <= 3650 ? n : DEFAULT_LIFESPAN_DAYS;
+}
+
 export function publishRoutes(deps: {
   db: Database.Database;
   dataDir: string;
@@ -667,7 +676,7 @@ export function publishRoutes(deps: {
     const days =
       typeof rawDays === 'number' && Number.isFinite(rawDays) && rawDays >= 0
         ? Math.min(rawDays, 3650)
-        : DEFAULT_LIFESPAN_DAYS;
+        : defaultLifespanDays(deps.db);
     let expires: number | null = null;
     if (days === 0) clearLifespan(deps.dataDir, slug);
     else expires = setLifespan(deps.dataDir, slug, days);
@@ -993,7 +1002,7 @@ export function publishRoutes(deps: {
     const days =
       typeof raw === 'number' && Number.isFinite(raw) && raw >= 0
         ? Math.min(raw, 3650)
-        : DEFAULT_LIFESPAN_DAYS;
+        : defaultLifespanDays(deps.db);
     if (days === 0) {
       clearLifespan(deps.dataDir, resolved);
       return c.json({ slug: resolved, expires: null, expired: false });

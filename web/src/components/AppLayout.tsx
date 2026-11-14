@@ -1,5 +1,6 @@
 import { Outlet, useRouterState } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
+import { useAppToggle } from '../lib/app-prefs';
 import { useAppTheme } from '../lib/app-theme';
 import { MOBILE_BREAKPOINT } from '../lib/mobile-layout';
 import { trackStatusBarCap } from '../lib/status-bar-cap';
@@ -62,6 +63,8 @@ export function AppLayout() {
   const activeTabId = activeTabs.find((t) => t.slug === activeTabSlug)?.id ?? null;
   const isMobile = useMediaQuery(MOBILE_BREAKPOINT);
   const settings = useSettings();
+  // Settings → Chats can hide the memory gauge; absent means shown.
+  const showGauge = useAppToggle('memory_gauge', true);
   // Desktop always uses the persistent left sidebar; mobile never can.
   const sidebarMode = !isMobile;
   const sidenavRef = useRef<HTMLElement>(null);
@@ -114,7 +117,7 @@ export function AppLayout() {
             <div className="mobile-pane-chrome" id="mobile-pane-chrome" />
           )}
           {!activeWorkspace && <span className="ws-tabbar-spacer" />}
-          <MemoryGauge placement="down" tabId={activeTabId} />
+          {showGauge && <MemoryGauge placement="down" tabId={activeTabId} />}
           <SettingsMenu />
         </header>
       )}
@@ -133,7 +136,7 @@ export function AppLayout() {
               />
               <SidenavResizeHandle asideRef={sidenavRef} />
               <div className="sidenav-footer">
-                <MemoryGauge tabId={activeTabId} />
+                {showGauge && <MemoryGauge tabId={activeTabId} />}
                 <ThemeSwitch />
                 <SettingsMenu />
               </div>

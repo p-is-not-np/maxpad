@@ -2,12 +2,14 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { ApiError } from '../api';
+import { setAppPrefs } from './app-prefs';
 import {
   AGENT_BACKENDS,
   HOUSE_CHAT_CREATE,
   HOUSE_CHAT_PANE_CREATE,
   backendLabel,
   conversionFailure,
+  houseChatCreate,
   isPendingHarnessPick,
 } from './agent-backend';
 
@@ -17,6 +19,28 @@ describe('what a new tab opens as', () => {
     // A pinned model here would silently override the account default and go
     // stale as models ship.
     expect(JSON.stringify(HOUSE_CHAT_CREATE)).not.toContain('model');
+  });
+
+  it('is the house chat until Settings says otherwise, then what it says', () => {
+    setAppPrefs({});
+    expect(houseChatCreate()).toEqual(HOUSE_CHAT_CREATE);
+    setAppPrefs({
+      new_chat_backend: 'codex',
+      new_chat_mode: 'agent',
+      new_chat_model: 'gpt-5',
+      new_chat_effort: 'high',
+    });
+    expect(houseChatCreate()).toEqual({
+      bootstrap: 'agent',
+      backend: 'codex',
+      mode: 'agent',
+      model: 'gpt-5',
+      effort: 'high',
+    });
+    // An effort the backend does not take is dropped, never sent to a 400.
+    setAppPrefs({ new_chat_backend: 'cursor', new_chat_effort: 'high' });
+    expect(houseChatCreate()).toEqual({ bootstrap: 'agent', backend: 'cursor', mode: 'chat' });
+    setAppPrefs({});
   });
 
   it('the pane form runs the same command a new-Chat TAB runs', () => {
@@ -91,7 +115,7 @@ describe('every creation path', () => {
   it('opens the house chat — no call site quietly makes a bare shell', () => {
     const offenders = sites
       .filter((s) => !ALLOWED.some((a) => a.file === s.rel))
-      .filter((s) => !/HOUSE_CHAT_(CREATE|PANE_CREATE)/.test(s.call))
+      .filter((s) => !/HOUSE_CHAT_(CREATE|PANE_CREATE)|houseChatCreate\(\)/.test(s.call))
       .map((s) => s.rel);
     expect(offenders).toEqual([]);
   });

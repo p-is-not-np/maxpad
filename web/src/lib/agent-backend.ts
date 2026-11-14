@@ -1,4 +1,6 @@
+import { type AgentMode, type EffortLevel, backendSupportsEffort } from '@muxpad/shared';
 import { ApiError } from '../api';
+import { getAppPref } from './app-prefs';
 
 // Agent backends a pane can run. Mirrors the server's BackendId allowlist.
 export type AgentBackendId = 'claude' | 'codex' | 'cursor';
@@ -103,6 +105,41 @@ export const HOUSE_CHAT_CREATE = {
   backend: 'claude',
   mode: 'chat',
 } as const;
+
+type NewChatBackend = 'claude' | 'codex' | 'cursor';
+
+/**
+ * What a NEW chat is, once Settings → Agents has had its say.
+ *
+ * {@link HOUSE_CHAT_CREATE} with the install's new-chat prefs laid over it:
+ * backend, mode, model and effort. Each is optional and an unset one keeps the
+ * house value, so an install that never opened the section creates exactly
+ * what it always did. Settings clears the model and effort when the backend
+ * changes, so a Claude model id is never handed to Codex.
+ */
+export function houseChatCreate(): {
+  bootstrap: 'agent';
+  backend: NewChatBackend;
+  mode: AgentMode;
+  model?: string;
+  effort?: EffortLevel;
+} {
+  const backend = readNewChatBackend(getAppPref('new_chat_backend'));
+  const mode = getAppPref('new_chat_mode') === 'agent' ? 'agent' : 'chat';
+  const model = getAppPref('new_chat_model');
+  const effort = getAppPref('new_chat_effort');
+  return {
+    bootstrap: 'agent',
+    backend,
+    mode,
+    ...(model ? { model } : {}),
+    ...(effort && backendSupportsEffort(backend, effort) ? { effort: effort as EffortLevel } : {}),
+  };
+}
+
+export function readNewChatBackend(raw: string | null): NewChatBackend {
+  return raw === 'codex' || raw === 'cursor' ? raw : 'claude';
+}
 
 /** Same, as a pane-create body (a pane inside an existing tab). */
 export const HOUSE_CHAT_PANE_CREATE = {

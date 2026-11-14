@@ -24,6 +24,13 @@ import {
   useSettings,
 } from '../settings';
 import { MachinesSettings } from './MachinesSettings';
+import {
+  AgentsSection,
+  ChatsSection,
+  DataSection,
+  SETTINGS_SECTIONS,
+  type SettingsSection,
+} from './SettingsSections';
 import { SlackPasskeySettings } from './SlackPasskeySettings';
 import './SettingsMenu.css';
 
@@ -45,9 +52,7 @@ export function SettingsMenu() {
   // and this is a permission the browser grants to a device. Its own section
   // also gives the push state somewhere to explain itself (see PushSection),
   // which a one-line row never had room for.
-  const [section, setSection] = useState<
-    'appearance' | 'notifications' | 'integrations' | 'machines'
-  >('appearance');
+  const [section, setSection] = useState<SettingsSection>('appearance');
   useEffect(() => {
     if (!open) return;
     const el = dialog.current;
@@ -128,18 +133,16 @@ export function SettingsMenu() {
             <div className="settings-layout">
               <aside className="settings-sidebar">
                 <nav aria-label="Settings sections">
-                  {(['appearance', 'notifications', 'integrations', 'machines'] as const).map(
-                    (item) => (
-                      <button
-                        key={item}
-                        type="button"
-                        aria-current={section === item ? 'page' : undefined}
-                        onClick={() => setSection(item)}
-                      >
-                        {item.charAt(0).toUpperCase() + item.slice(1)}
-                      </button>
-                    ),
-                  )}
+                  {SETTINGS_SECTIONS.map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      aria-current={section === item ? 'page' : undefined}
+                      onClick={() => setSection(item)}
+                    >
+                      {item.charAt(0).toUpperCase() + item.slice(1)}
+                    </button>
+                  ))}
                 </nav>
               </aside>
               {/* NO SECTION HEADING. It printed the selected nav item back at
@@ -154,6 +157,15 @@ export function SettingsMenu() {
                   <ThemePicker chosen={themeInForce(settings)} />
                   <StylePicker chosen={styleInForce(settings)} />
                   <ComposerPicker chosen={composerInForce(settings)} />
+                </section>
+                <section hidden={section !== 'agents'} aria-label="Agent settings">
+                  <AgentsSection active={open && section === 'agents'} />
+                </section>
+                <section hidden={section !== 'chats'} aria-label="Chat settings">
+                  <ChatsSection />
+                </section>
+                <section hidden={section !== 'data'} aria-label="Data settings">
+                  <DataSection active={open && section === 'data'} />
                 </section>
                 <section hidden={section !== 'notifications'} aria-label="Notification settings">
                   <PushSection />

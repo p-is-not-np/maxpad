@@ -1,7 +1,7 @@
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef } from 'react';
 import { api } from '../api';
-import { HOUSE_CHAT_CREATE } from '../lib/agent-backend';
+import { houseChatCreate } from '../lib/agent-backend';
 import { isMobileLayout } from '../lib/mobile-layout';
 import { useDocumentTitle } from '../use-document-title';
 import { refreshWorkspaces, visibleWorkspaces } from '../workspaces';
@@ -76,7 +76,7 @@ export function RootRedirect() {
       // rather than being the silent default.
       try {
         const w = await api.createWorkspace();
-        const t = await api.createTab(w.id, { ...HOUSE_CHAT_CREATE });
+        const t = await api.createTab(w.id, houseChatCreate());
         await refreshWorkspaces();
         if (cancelled) return;
         void navigate({

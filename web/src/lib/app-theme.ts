@@ -1,3 +1,4 @@
+import { setAppPrefs } from './app-prefs';
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { subscribe } from '../events';
@@ -81,6 +82,7 @@ function applyPrefs(prefs: Prefs, asOf: number): void {
   setServerTheme(readTheme(prefs?.theme));
   setServerStyle(readStyle(prefs?.style));
   setServerComposer(readComposer(prefs?.composer));
+  setAppPrefs(prefs);
 }
 
 /**

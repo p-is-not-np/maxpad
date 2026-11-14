@@ -830,6 +830,164 @@
   font-size: 0.8125rem;
   line-height: 1.55;
 }
+/* ── CONTROL ROWS (Agents, Chats, Data) ─────────────────────────────────
+   Label and a line of explanation on the left, the control on the right —
+   the row shape every settings page uses, so nothing here needs learning. */
+.settings-control-text {
+  min-width: 0;
+}
+.settings-control-text > label,
+.settings-control-text > span {
+  font-weight: 500;
+}
+.settings-control-input {
+  flex: 0 0 auto;
+}
+.settings-control select {
+  min-width: 180px;
+}
+.settings-heading--spaced {
+  margin-top: 26px;
+}
+.settings-heading + .settings-control {
+  padding-top: 10px;
+}
+.settings-dialog .settings-switch {
+  position: relative;
+  width: 38px;
+  min-height: 0;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--fg) 20%, var(--bg-elev));
+  transition: background var(--dur-fast, 120ms) ease;
+}
+.settings-dialog .settings-switch:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--fg) 28%, var(--bg-elev));
+}
+.settings-dialog .settings-switch[aria-checked="true"],
+.settings-dialog .settings-switch[aria-checked="true"]:hover:not(:disabled) {
+  background: var(--accent);
+}
+.settings-switch > span {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
+  transition: transform var(--dur-fast, 120ms) ease;
+}
+.settings-switch[aria-checked="true"] > span {
+  transform: translateX(16px);
+}
+.settings-segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--fg) 7%, var(--bg-elev));
+}
+.settings-dialog .settings-segmented button {
+  min-height: 30px;
+  padding: 4px 14px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--settings-muted);
+  background: transparent;
+}
+.settings-dialog .settings-segmented button:hover:not(:disabled) {
+  color: var(--fg);
+  background: transparent;
+}
+.settings-dialog .settings-segmented button[aria-checked="true"] {
+  color: var(--fg);
+  font-weight: 600;
+  background: var(--bg-elev);
+  box-shadow:
+    var(--shadow-sm),
+    0 0 0 1px color-mix(in srgb, var(--fg) 8%, transparent);
+}
+.settings-notes {
+  margin-top: 26px;
+}
+.settings-dialog .settings-textarea {
+  display: block;
+  width: 100%;
+  min-height: 180px;
+  padding: 10px 12px;
+  resize: vertical;
+  color: var(--fg);
+  background: var(--settings-soft);
+  border: 1px solid var(--settings-line);
+  border-radius: 8px;
+  font: 0.8125rem / 1.5 var(--mono-font, ui-monospace, Menlo, monospace);
+}
+.settings-notes-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  color: var(--settings-muted);
+  font-size: 0.8125rem;
+}
+.settings-notes-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+}
+.settings-notes-error {
+  color: var(--fg);
+}
+.settings-usage {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.settings-usage li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 30% 64px;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  font-size: 0.8125rem;
+  border-bottom: 1px solid var(--settings-line);
+}
+.settings-usage li:last-child {
+  border-bottom: 0;
+}
+.settings-usage li > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.settings-usage li > span:last-child {
+  text-align: right;
+  color: var(--settings-muted);
+  font-variant-numeric: tabular-nums;
+}
+.settings-usage-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+  overflow: hidden;
+}
+.settings-usage-bar > i {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: 3px;
+  background: var(--accent);
+}
+.settings-blurb code {
+  font-size: 0.75rem;
+}
 .settings-push-actions {
   display: inline-flex;
   align-items: center;
