@@ -19,3 +19,4 @@ export * from './spawn-delivery.js';
 export * from './review.js';
 export * from './compaction.js';
 export * from './working-set.js';
+export * from './host-memory.js';
