@@ -1,6 +1,7 @@
 import type { Workspace } from '@muxpad/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { api, req } from '../api';
+import { type NodeMemory, machineMemoryLine } from '../lib/host-memory';
 
 /**
  * SETTINGS → MACHINES.
@@ -93,6 +94,9 @@ export function MachinesSettings() {
   const [busy, setBusy] = useState(false);
   const [workspaces, setWorkspaces] = useState<Workspace[] | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
+  /** Each machine's memory, by node id. Its own request so a slow remote
+   *  never holds up the machine list itself. */
+  const [mems, setMems] = useState<Map<string, NodeMemory>>(() => new Map());
 
   /** Re-read the machine list. Shared by the poll and by every write. */
   const refresh = useCallback(async () => {
@@ -113,7 +117,17 @@ export function MachinesSettings() {
 
   useEffect(() => {
     let alive = true;
+    const loadMemory = async () => {
+      try {
+        const r = await req<{ nodes?: NodeMemory[] }>('/api/host/memory/nodes');
+        if (alive) setMems(new Map((r?.nodes ?? []).map((n) => [n.id, n])));
+      } catch {
+        // Memory is a footnote on this panel; failing it draws nothing.
+      }
+    };
     const load = async () => {
+      // Alongside, not awaited: a slow remote must not hold up the list.
+      void loadMemory();
       try {
         const r = await req<{ nodes?: NodeRow[] }>('/api/nodes');
         if (alive) {
@@ -265,6 +279,10 @@ export function MachinesSettings() {
               </span>
             ) : null}
             {n.endpoint ? <span>seen {ago(n.last_seen)}</span> : null}
+            {/* Used of total, in the gauge's own colours — so a machine that
+                is short of memory is visible here before you open a chat on
+                it. */}
+            {mems.has(n.id) ? <MemoryLine m={mems.get(n.id) as NodeMemory} /> : null}
           </div>
           {n.state === 'unauthorized' ? (
             <p className="machine-note">
@@ -375,5 +393,14 @@ export function MachinesSettings() {
         for however long it takes you to finish.
       </p>
     </div>
+  );
+}
+
+function MemoryLine({ m }: { m: NodeMemory }) {
+  const line = machineMemoryLine(m);
+  return (
+    <span className="machine-mem" data-pressure={line.pressure} title={line.title}>
+      {line.text}
+    </span>
   );
 }

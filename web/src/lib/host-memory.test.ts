@@ -1,0 +1,134 @@
+import { describe, expect, it } from 'vitest';
+import {
+  formatBytes,
+  gaugeText,
+  gaugeTitle,
+  machineLabel,
+  machineMemoryLine,
+  readMemory,
+} from './host-memory';
+
+const GB = 1024 ** 3;
+
+describe('formatBytes', () => {
+  it('speaks binary units the way free -h does', () => {
+    expect(formatBytes(0)).toBe('0 B');
+    expect(formatBytes(812 * 1024 ** 2)).toBe('812 MB');
+    expect(formatBytes(31.2 * GB)).toBe('31.2 GB');
+    expect(formatBytes(1.5 * 1024 ** 4)).toBe('1.5 TB');
+  });
+});
+
+describe('gaugeText', () => {
+  const at = (totalGb: number, availGb: number) =>
+    gaugeText({
+      platform: 'linux',
+      ramTotalBytes: totalGb * GB,
+      ramAvailableBytes: availGb * GB,
+      swapTotalBytes: 0,
+      swapUsedBytes: 0,
+      top: [],
+    });
+
+  it('says used/total in whole GB, used being total minus MemAvailable', () => {
+    expect(at(31.34, 20.6)).toBe('11/31G');
+  });
+
+  it('rounds each figure on its own, and never goes negative', () => {
+    expect(at(15.6, 0.4)).toBe('15/16G');
+    expect(at(8, 8.2)).toBe('0/8G');
+  });
+});
+
+describe('readMemory', () => {
+  it('turns the swap-96%-full morning into a red gauge with readable lines', () => {
+    const r = readMemory({
+      platform: 'linux',
+      ramTotalBytes: 31 * GB,
+      ramAvailableBytes: 3 * GB,
+      swapTotalBytes: 8 * GB,
+      swapUsedBytes: 7.68 * GB,
+      top: [],
+    });
+    expect(r.pressure).toBe('critical');
+    expect(r.ramLine).toBe('RAM 3.0 GB free of 31.0 GB (10%)');
+    expect(r.swapLine).toBe('Swap 7.7 GB used of 8.0 GB (96%)');
+    expect(r.text).toBe('28/31G');
+  });
+
+  it('stays neutral on a full swap when most of RAM is free', () => {
+    const r = readMemory({
+      platform: 'linux',
+      ramTotalBytes: 31 * GB,
+      ramAvailableBytes: 20 * GB,
+      swapTotalBytes: 8 * GB,
+      swapUsedBytes: 7.68 * GB,
+      top: [],
+    });
+    expect(r.pressure).toBe('ok');
+  });
+
+  it('says "none" rather than 0 of 0 on a host without swap', () => {
+    const r = readMemory({
+      platform: 'darwin',
+      ramTotalBytes: 16 * GB,
+      ramAvailableBytes: 8 * GB,
+      swapTotalBytes: 0,
+      swapUsedBytes: 0,
+      top: [],
+    });
+    expect(r.pressure).toBe('ok');
+    expect(r.swapLine).toBe('Swap none');
+  });
+});
+
+describe('which machine the gauge speaks for', () => {
+  const memory = {
+    platform: 'linux',
+    ramTotalBytes: 31 * GB,
+    ramAvailableBytes: 20 * GB,
+    swapTotalBytes: 8 * GB,
+    swapUsedBytes: 1 * GB,
+    top: [],
+  };
+
+  it('names no machine on a one-machine install — or from an older server', () => {
+    expect(
+      machineLabel({ memory, node: { id: 'local', name: 'this machine' }, multiNode: false }),
+    ).toBe(null);
+    expect(machineLabel({ memory })).toBe(null);
+    expect(gaugeTitle({ memory })).toBe(
+      'Memory — RAM 20.0 GB free of 31.0 GB (65%) · Swap 1.0 GB used of 8.0 GB (13%)',
+    );
+  });
+
+  it('prefixes the machine when there are several', () => {
+    const m = { memory, node: { id: 'trayo', name: 'Trayo VM' }, multiNode: true };
+    expect(machineLabel(m)).toBe('Trayo VM');
+    expect(gaugeTitle(m)).toMatch(/^Trayo VM memory — RAM 20\.0 GB free/);
+    expect(
+      machineLabel({ memory, node: { id: 'local', name: 'this machine' }, multiNode: true }),
+    ).toBe('This machine');
+  });
+
+  it('says unknown, with the reason, for a machine that could not say', () => {
+    expect(
+      gaugeTitle({
+        memory: null,
+        reason: 'did not answer — that machine may run an older muxpad',
+        node: { id: 'old', name: 'Old box' },
+        multiNode: true,
+      }),
+    ).toBe('Old box memory — unknown (did not answer — that machine may run an older muxpad)');
+  });
+
+  it('gives Settings → Machines the gauge’s text and colour, or unknown', () => {
+    expect(machineMemoryLine({ id: 'local', name: 'x', memory })).toMatchObject({
+      text: '11/31G RAM',
+      pressure: 'ok',
+    });
+    expect(
+      machineMemoryLine({ id: 'old', name: 'Old', memory: null, reason: 'not connected' }),
+    ).toEqual({ text: 'memory unknown', pressure: 'unknown', title: 'not connected' });
+  });
+});

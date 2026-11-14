@@ -1,0 +1,122 @@
+/* The host memory gauge — see MemoryGauge.tsx. Neutral chrome colour until
+   memory is tight; the warning hues are the rail's status colours, so they
+   hold the same meaning on every theme. */
+.memgauge {
+  position: relative;
+  display: inline-flex;
+  height: 100%;
+  --memgauge-fill: var(--fg-dim);
+  --memgauge-on: var(--bg);
+}
+.sidenav .memgauge {
+  --memgauge-on: var(--rail-surface);
+}
+.memgauge[data-pressure="warn"] {
+  --memgauge-fill: var(--status-working);
+}
+.memgauge[data-pressure="critical"] {
+  --memgauge-fill: var(--status-blocked);
+}
+/* Text, not an icon: the icon-btn's fixed 36px square would clip it. */
+.memgauge-btn.icon-btn {
+  width: auto;
+  padding: 0 9px;
+  color: var(--memgauge-fill);
+}
+.memgauge-text {
+  font-family: var(--chrome-font);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.memgauge[data-pressure="ok"] .memgauge-btn:hover,
+.memgauge[data-pressure="ok"] .memgauge-btn:focus-visible {
+  color: var(--fg);
+}
+/* WARN AND CRITICAL ARE A FILLED PILL, not just coloured text. Several themes
+   tone the rail's "working" colour down to a sand that sits a few degrees of
+   hue from the grey ink — as text it read as neutral. A fill does not depend
+   on the hue being loud, and the surface colour on it keeps contrast on deep
+   and light rails alike. */
+.memgauge:not([data-pressure="ok"]) .memgauge-text {
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-weight: 600;
+  color: var(--memgauge-on);
+  background: var(--memgauge-fill);
+}
+.memgauge:not([data-pressure="ok"]) .memgauge-btn.icon-btn {
+  padding: 0 6px;
+}
+
+.memgauge-pop {
+  position: absolute;
+  z-index: 60;
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  padding: 10px 12px;
+  color: var(--fg);
+  background: var(--bg-elev);
+  border: 1px solid color-mix(in srgb, var(--fg) 14%, var(--bg-elev));
+  border-radius: 12px;
+  box-shadow: 0 18px 46px #0005;
+  font: 0.8125rem / 1.5 var(--ui-font);
+}
+.memgauge-pop[data-placement="up"] {
+  bottom: calc(100% + 6px);
+  left: 0;
+}
+.memgauge-pop[data-placement="down"] {
+  top: calc(100% + 6px);
+  right: 0;
+}
+.memgauge-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+.memgauge-chip {
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--memgauge-on);
+  background: var(--memgauge-fill);
+}
+.memgauge-line {
+  font-variant-numeric: tabular-nums;
+}
+.memgauge-dim {
+  color: var(--fg-dim);
+}
+.memgauge-top {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--border);
+}
+.memgauge-top li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  padding: 2px 0;
+}
+.memgauge-proc,
+.memgauge-cwd {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.memgauge-cwd {
+  display: block;
+  color: var(--fg-dim);
+  font-size: 0.75rem;
+}
+.memgauge-num {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+}

@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
+import type { HostMemory } from '@muxpad/shared';
 import { WebSocket } from 'ws';
+import { parseHostMemory } from '../host-memory.js';
 import { type LinkDown, type LinkUp, decodeLink, encodeLink } from '../node-agent/link-protocol.js';
 import { FileReceiver } from './receive-files.js';
 
@@ -112,6 +114,9 @@ export interface HostLinkDeps {
  */
 const PANE_ID = /^[A-Za-z0-9_-]{1,64}$/;
 
+/** What {@link HostLink.readMemory} resolves to. */
+export type MemoryAnswer = { memory: HostMemory } | { error: string };
+
 export function wellFormed(m: LinkDown | LinkUp): boolean {
   const str = (v: unknown): boolean => typeof v === 'string';
   const paneId = (v: unknown): boolean => typeof v === 'string' && PANE_ID.test(v);
@@ -173,6 +178,16 @@ export function wellFormed(m: LinkDown | LinkUp): boolean {
       if (o.op === 'unavailable') return str((o as { reason?: unknown }).reason);
       return false;
     }
+    case 'host': {
+      // The reading itself is checked where it is used (parseHostMemory): a
+      // malformed one is an answer of "unknown", not a dropped frame that
+      // leaves the caller waiting out its timeout.
+      const h = m as { op?: unknown; id?: unknown };
+      if (!str(h.id)) return false;
+      if (h.op === 'memory') return 'memory' in (m as object);
+      if (h.op === 'unavailable') return str((m as { reason?: unknown }).reason);
+      return false;
+    }
     default:
       return false;
   }
@@ -228,6 +243,8 @@ export class HostLink {
     string,
     (r: { hits: unknown[]; fallback: boolean } | { error: string }) => void
   >();
+  /** In-flight memory reads, by correlation id. See {@link readMemory}. */
+  private readonly memoryReads = new Map<string, (r: MemoryAnswer) => void>();
   /** In-flight `files` pulls, by correlation id. See {@link fetchPath}. */
   private readonly fetches = new Map<
     string,
@@ -297,6 +314,8 @@ export class HostLink {
     this.fetches.clear();
     for (const [, settle] of this.searches) settle({ error: 'the link dropped' });
     this.searches.clear();
+    for (const [, settle] of this.memoryReads) settle({ error: 'the link dropped' });
+    this.memoryReads.clear();
     // A dropped link is "no proof", which is approve-once — never a hang on
     // a request a human is waiting to be asked about.
     for (const [, settle] of this.signings) settle(null);
@@ -364,6 +383,18 @@ export class HostLink {
       if (!settle) return; // already timed out
       this.searches.delete(m.id);
       settle(m.op === 'hits' ? { hits: m.hits, fallback: m.fallback } : { error: m.reason });
+      return;
+    }
+    if (m.ch === 'host') {
+      if (m.op === 'read') return; // our own frame coming back; not an answer
+      const settle = this.memoryReads.get(m.id);
+      if (!settle) return; // already timed out
+      this.memoryReads.delete(m.id);
+      if (m.op === 'unavailable') settle({ error: m.reason.slice(0, 200) });
+      else {
+        const memory = parseHostMemory(m.memory);
+        settle(memory ? { memory } : { error: 'sent a reading that does not parse' });
+      }
       return;
     }
     if (m.ch === 'files') {
@@ -487,6 +518,32 @@ export class HostLink {
         resolve(r);
       });
       this.send({ ch: 'origin', op: 'sign', id, callId, action, payload });
+    });
+  }
+
+  /**
+   * This host's memory, or why not.
+   *
+   * ALWAYS resolves. An older host that predates the `host` channel drops the
+   * ask as an unknown channel and never answers, so the timeout IS the degrade
+   * path: the gauge reads "unknown" for that machine and nothing else
+   * changes. Short, because a gauge polls and a silent host must not pile up
+   * reads behind it.
+   */
+  readMemory(top = 0, timeoutMs = 2_500): Promise<MemoryAnswer> {
+    if (this.ws?.readyState !== WebSocket.OPEN) return Promise.resolve({ error: 'not connected' });
+    const id = randomUUID();
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        if (!this.memoryReads.delete(id)) return;
+        resolve({ error: 'did not answer — that machine may run an older muxpad' });
+      }, timeoutMs);
+      timer.unref?.();
+      this.memoryReads.set(id, (r) => {
+        clearTimeout(timer);
+        resolve(r);
+      });
+      this.send({ ch: 'host', op: 'read', id, ...(top > 0 ? { top } : {}) });
     });
   }
 

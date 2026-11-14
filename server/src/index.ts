@@ -573,6 +573,8 @@ const app = createApp({
   // action with a key this machine does not have. See routes/slack.ts.
   signOrigin: (nodeId, callId, action, payload) =>
     hostLinks.signOrigin(nodeId, callId, action, payload),
+  // The gauge for a chat on another machine shows THAT machine's memory.
+  hostMemory: (nodeId, top) => hostLinks.readMemory(nodeId, top),
   // Pairing a machine takes effect at once: both link sets re-read the table
   // and dial (or drop) accordingly. Without this, `muxpad node add` would end
   // in "restart muxpad", which drops every runner's socket.
