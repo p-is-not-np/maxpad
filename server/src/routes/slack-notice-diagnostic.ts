@@ -57,9 +57,9 @@ const sample = z
   .strict();
 const report = z
   .object({
-    nonce: z.string().uuid(),
+    nonce: z.guid(),
     pane: z.string().min(1).max(64),
-    client: z.string().uuid(),
+    client: z.guid(),
     sample,
   })
   .strict();

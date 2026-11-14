@@ -319,7 +319,7 @@ export const PaneSpecSchema = z.object({
   shell: z.string().nullable().default(null),
   startup_cmd: z.string().nullable().default(null),
   cwd: z.string().nullable().default(null),
-  env: z.record(z.string()).nullable().default(null),
+  env: z.record(z.string(), z.string()).nullable().default(null),
   created_at: z.number(),
   // User-set pane name. Persistent (stored on the row), overriding the
   // live-derived label (terminal title → foreground_cmd → "Pane N") so a
