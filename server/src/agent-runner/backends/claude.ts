@@ -22,6 +22,7 @@ import {
   backendSupportsEffort,
   blockText,
   isAgentLaunchTool,
+  isRetiredClaudeModel,
   needsReplyFallback,
   parseCronMarker,
   subagentLabel,
@@ -1853,18 +1854,20 @@ export function createClaudeBackend(host: RunnerHost, opts: BackendOptions): Age
       if (refetchModels || modelList === null) {
         try {
           const models = await session.supportedModels();
-          modelList = models.map((m) => ({
-            value: m.value,
-            displayName: m.displayName,
-            ...(m.resolvedModel ? { resolvedModel: m.resolvedModel } : {}),
-            // Which effort levels this model takes, so the picker never
-            // offers one the model would silently downgrade.
-            ...(m.supportsEffort === false
-              ? { efforts: [] }
-              : m.supportedEffortLevels
-                ? { efforts: [...m.supportedEffortLevels] }
-                : {}),
-          }));
+          modelList = models
+            .filter((m) => !isRetiredClaudeModel(m))
+            .map((m) => ({
+              value: m.value,
+              displayName: m.displayName,
+              ...(m.resolvedModel ? { resolvedModel: m.resolvedModel } : {}),
+              // Which effort levels this model takes, so the picker never
+              // offers one the model would silently downgrade.
+              ...(m.supportsEffort === false
+                ? { efforts: [] }
+                : m.supportedEffortLevels
+                  ? { efforts: [...m.supportedEffortLevels] }
+                  : {}),
+            }));
           freshModels = true;
         } catch (e) {
           log(dim(`model list fetch failed: ${e instanceof Error ? e.message : String(e)}`));
