@@ -3,12 +3,13 @@ import { type MuxpadEvent, MuxpadEventSchema } from '@muxpad/shared';
 /**
  * Singleton client for the server-pushed event stream at /ws/events.
  *
- * Auto-reconnects with exponential backoff (250ms → 5s). On every
- * successful (re)connect, fires every reconnect subscriber so each
- * consumer can refetch its own baseline and recover from any events
- * missed while the socket was down. Events that fire during a
- * disconnect window are NOT replayed — subscribers are expected to
- * idempotently re-sync on reconnect.
+ * Auto-reconnects with exponential backoff (250ms → 5s). Every event carries
+ * the server's `_epoch`/`_seq`, and a reconnect asks to resume from the last
+ * one seen: the server replays what was missed and says so in its `_hello`.
+ * Only when it can't (it restarted, or the gap outran its 2000-event buffer)
+ * — or when a sequence hole shows an event was lost — do the reconnect
+ * subscribers run, so each consumer refetches its own baseline. A socket
+ * silent past two missed `_hb` heartbeats is treated as dead.
  *
  * Two subscription channels:
  *   - subscribe(handler)            — every validated MuxpadEvent
@@ -44,6 +45,22 @@ let reconnectTimer: number | undefined;
  */
 let everConnected = false;
 let sawDisconnect = false;
+/**
+ * Where this client is in the server's stream (see server/src/events.ts).
+ * Sent back on reconnect so the server can replay what was missed instead of
+ * every consumer refetching its baseline. Null until the first hello.
+ */
+let streamEpoch: string | null = null;
+let streamSeq = 0;
+/** Set by onopen: the next `_hello` decides whether this open was a gap. */
+let awaitingHello = false;
+let openWasReconnect = false;
+/**
+ * The server sends `_hb` every 20s. A socket silent for this long is dead
+ * even if it still says OPEN — a phone that changed networks keeps one.
+ */
+const SILENCE_MS = 50_000;
+let lastMessageAt = 0;
 /** Wall-clock of the last hide, for the iOS zombie force-close. */
 let hiddenAt = 0;
 /** Same gate XtermPane uses: a quick flip is not a background kill. */
@@ -51,7 +68,9 @@ const HIDDEN_RESUME_MS = 2000;
 
 function endpoint(): string {
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${proto}//${window.location.host}/ws/events`;
+  const resume =
+    streamEpoch !== null ? `?epoch=${encodeURIComponent(streamEpoch)}&seq=${streamSeq}` : '';
+  return `${proto}//${window.location.host}/ws/events${resume}`;
 }
 
 function dropSocket(): void {
@@ -74,21 +93,58 @@ function connect(): void {
   ws = new WebSocket(endpoint());
   ws.onopen = () => {
     reconnectDelayMs = 250;
-    const isReconnect = everConnected || sawDisconnect;
+    openWasReconnect = everConnected || sawDisconnect;
     everConnected = true;
-    if (!isReconnect) return;
-    for (const h of reconnectHandlers) {
-      try {
-        h();
-      } catch (err) {
-        console.warn('reconnect handler threw', err);
-      }
-    }
+    awaitingHello = true;
+    lastMessageAt = Date.now();
   };
   ws.onmessage = (m) => {
+    lastMessageAt = Date.now();
+    let raw: unknown;
+    try {
+      raw = JSON.parse(m.data);
+    } catch (err) {
+      console.warn('bad event payload', err);
+      return;
+    }
+    const frame = raw as {
+      _hb?: unknown;
+      _hello?: { epoch: string; seq: number; replayed: boolean };
+      _epoch?: unknown;
+      _seq?: unknown;
+    };
+    if (frame._hb !== undefined) return;
+    if (frame._hello) {
+      const { epoch, seq, replayed } = frame._hello;
+      streamEpoch = epoch;
+      streamSeq = seq;
+      const gap = awaitingHello && openWasReconnect && !replayed;
+      awaitingHello = false;
+      // replayed: everything missed has already arrived, in order, above
+      // this frame — nothing to refetch. Otherwise (first contact with this
+      // server process, or too far behind) consumers resync their baseline.
+      if (gap) runReconnectHandlers();
+      return;
+    }
+    if (typeof frame._seq === 'number' && typeof frame._epoch === 'string') {
+      if (frame._epoch === streamEpoch) {
+        // A replay can overlap what already arrived: drop the repeat.
+        if (frame._seq <= streamSeq) return;
+        // A hole in the sequence is a lost event. Rare, but it is exactly
+        // the silent staleness the sequence exists to catch.
+        const lost = frame._seq !== streamSeq + 1;
+        streamSeq = frame._seq;
+        if (lost) runReconnectHandlers();
+      }
+    } else if (awaitingHello) {
+      // A server without sequencing (mid-deploy) never says hello: keep the
+      // old contract and resync on the first event instead.
+      awaitingHello = false;
+      if (openWasReconnect) runReconnectHandlers();
+    }
     let e: MuxpadEvent;
     try {
-      e = MuxpadEventSchema.parse(JSON.parse(m.data));
+      e = MuxpadEventSchema.parse(raw);
     } catch (err) {
       console.warn('bad event payload', err);
       return;
@@ -112,6 +168,21 @@ function connect(): void {
     reconnectDelayMs = Math.min(reconnectDelayMs * 2, 5000);
   };
   ws.onerror = () => ws?.close();
+}
+
+function runReconnectHandlers(): void {
+  for (const h of reconnectHandlers) {
+    try {
+      h();
+    } catch (err) {
+      console.warn('reconnect handler threw', err);
+    }
+  }
+}
+
+function checkSilence(): void {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  if (Date.now() - lastMessageAt > SILENCE_MS) reconnectNow();
 }
 
 function reconnectNow(): void {
@@ -149,6 +220,7 @@ export function startEvents(): void {
   if (started) return;
   started = true;
   document.addEventListener('visibilitychange', onVisibility);
+  window.setInterval(checkSilence, 10_000);
   connect();
 }
 

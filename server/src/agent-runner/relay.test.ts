@@ -362,6 +362,48 @@ describe('agent-runner relay', () => {
     chat2.close();
   });
 
+  it('replays what a /ws/events client missed when it resumes, then says so', async () => {
+    const { port, paneId } = await boot();
+    const first = await openSock(`ws://127.0.0.1:${port}/ws/events`);
+    const hello = (await first.rx.next((f) => '_hello' in f))._hello as {
+      epoch: string;
+      seq: number;
+      replayed: boolean;
+    };
+    expect(hello.replayed).toBe(false);
+    const { sock: runner } = await openSock(`ws://127.0.0.1:${port}/ws/agent-runner/${paneId}`);
+    runner.send(JSON.stringify({ t: 'hello', sid: SID, cwd: '/tmp', pid: 1, turnActive: false }));
+    runner.send(JSON.stringify({ t: 'turn-start' }));
+    const start = await first.rx.next((f) => f.type === 'agent_turn' && f.phase === 'start');
+    first.sock.close();
+
+    // While it is away, the turn finishes.
+    runner.send(JSON.stringify({ t: 'turn-done', ok: true }));
+    await new Promise((r) => setTimeout(r, 100));
+
+    const again = await openSock(
+      `ws://127.0.0.1:${port}/ws/events?epoch=${hello.epoch}&seq=${start._seq}`,
+    );
+    const resumed = (await again.rx.next((f) => '_hello' in f))._hello as { replayed: boolean };
+    expect(resumed.replayed).toBe(true);
+    // The missed `done` arrived BEFORE the hello, and nothing it already had
+    // came again.
+    const before = again.rx.frames.slice(
+      0,
+      again.rx.frames.findIndex((f) => '_hello' in f),
+    );
+    expect(before.some((f) => f.type === 'agent_turn' && f.phase === 'done')).toBe(true);
+    expect(before.every((f) => (f._seq as number) > (start._seq as number))).toBe(true);
+
+    // A stale epoch (a restarted server) gets no replay — the client refetches.
+    const stale = await openSock(`ws://127.0.0.1:${port}/ws/events?epoch=nope&seq=1`);
+    const fresh = (await stale.rx.next((f) => '_hello' in f))._hello as { replayed: boolean };
+    expect(fresh.replayed).toBe(false);
+    again.sock.close();
+    stale.sock.close();
+    runner.close();
+  });
+
   it('emits agent_turn lifecycle on the global bus and fans it out to /ws/events', async () => {
     const { port, paneId } = await boot();
     // A supervisor holds ONE /ws/events socket, not a chat socket per pane —

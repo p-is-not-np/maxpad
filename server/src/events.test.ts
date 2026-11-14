@@ -30,4 +30,28 @@ describe('EventBus', () => {
     bus.emit({ type: 'workspace.removed', workspace_id: 'w' });
     expect(okCalls).toBe(1);
   });
+
+  it('numbers events and replays the ones after a given seq', () => {
+    const bus = new EventBus();
+    const wire: number[] = [];
+    bus.subscribeWire((w) => wire.push(w.seq));
+    for (let i = 0; i < 5; i++) bus.emit({ type: 'working_set.changed' });
+    expect(wire).toEqual([1, 2, 3, 4, 5]);
+    expect(bus.since(bus.epoch, 3)?.map((w) => w.seq)).toEqual([4, 5]);
+    expect(bus.since(bus.epoch, 5)).toEqual([]);
+    const sent = JSON.parse(bus.since(bus.epoch, 4)?.[0]?.json ?? '{}');
+    expect(sent).toMatchObject({ type: 'working_set.changed', _epoch: bus.epoch, _seq: 5 });
+  });
+
+  it('refuses to replay across epochs, from the future, or past the ring', () => {
+    const bus = new EventBus();
+    bus.emit({ type: 'working_set.changed' });
+    expect(bus.since('another-epoch', 0)).toBeNull();
+    expect(bus.since(bus.epoch, 9)).toBeNull();
+    expect(bus.since(bus.epoch, -1)).toBeNull();
+    for (let i = 0; i < 3000; i++) bus.emit({ type: 'working_set.changed' });
+    expect(bus.since(bus.epoch, 1)).toBeNull();
+    const recent = bus.since(bus.epoch, bus.lastSeq - 10);
+    expect(recent).toHaveLength(10);
+  });
 });

@@ -25,12 +25,22 @@ class FakeWS {
     this.readyState = FakeWS.CLOSED;
     this.onclose?.();
   });
-  constructor() {
+  url: string;
+  constructor(url: string) {
+    this.url = url;
     FakeWS.instances.push(this);
   }
-  open() {
+  /** Opens, then says hello the way the server does: by default, no replay. */
+  open(hello: { epoch?: string; seq?: number; replayed?: boolean } = {}) {
     this.readyState = FakeWS.OPEN;
     this.onopen?.();
+    this.hello(hello);
+  }
+  hello({ epoch = 'e1', seq = 0, replayed = false } = {}) {
+    this.send({ _hello: { epoch, seq, replayed } });
+  }
+  send(frame: unknown) {
+    this.onmessage?.({ data: JSON.stringify(frame) });
   }
 }
 
@@ -177,5 +187,75 @@ describe('TabView mosaic recovery', () => {
     const src = readFileSync(join(process.cwd(), 'src/pages/TabView.tsx'), 'utf8');
     expect(src).toMatch(/subscribeResync\(\(\) => \{/);
     expect(src).not.toMatch(/return subscribeReconnect\(/);
+  });
+});
+
+describe('event stream: resume instead of refetch', () => {
+  const ev = (seq: number, epoch = 'e1') => ({
+    type: 'working_set.changed',
+    _epoch: epoch,
+    _seq: seq,
+  });
+
+  async function connected() {
+    const mod = await loadEvents();
+    const reconnect = vi.fn();
+    const events = vi.fn();
+    mod.subscribeReconnect(reconnect);
+    mod.subscribe(events);
+    mod.startEvents();
+    FakeWS.instances[0]?.open({ epoch: 'e1', seq: 4 });
+    return { reconnect, events };
+  }
+
+  it('asks to resume from the last event it saw', async () => {
+    await connected();
+    FakeWS.instances[0]?.send(ev(5));
+    FakeWS.instances[0]?.send(ev(6));
+    FakeWS.instances[0]?.close();
+    vi.advanceTimersByTime(300);
+    expect(FakeWS.instances[1]?.url).toContain('?epoch=e1&seq=6');
+  });
+
+  it('does not refetch when the server replayed the gap', async () => {
+    const { reconnect, events } = await connected();
+    FakeWS.instances[0]?.close();
+    vi.advanceTimersByTime(300);
+    const next = FakeWS.instances[1];
+    next?.send(ev(5));
+    next?.open({ epoch: 'e1', seq: 5, replayed: true });
+    expect(events).toHaveBeenCalledTimes(1);
+    expect(reconnect).not.toHaveBeenCalled();
+  });
+
+  it('refetches when the server could not replay (it restarted)', async () => {
+    const { reconnect } = await connected();
+    FakeWS.instances[0]?.close();
+    vi.advanceTimersByTime(300);
+    FakeWS.instances[1]?.open({ epoch: 'e2', seq: 0, replayed: false });
+    expect(reconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it('drops a repeated event and resyncs on a hole in the sequence', async () => {
+    const { reconnect, events } = await connected();
+    const sock = FakeWS.instances[0];
+    sock?.send(ev(5));
+    sock?.send(ev(5));
+    expect(events).toHaveBeenCalledTimes(1);
+    expect(reconnect).not.toHaveBeenCalled();
+    sock?.send(ev(7));
+    expect(reconnect).toHaveBeenCalledTimes(1);
+    expect(events).toHaveBeenCalledTimes(2);
+  });
+
+  it('reconnects a socket that has gone silent while still OPEN', async () => {
+    await connected();
+    expect(FakeWS.instances).toHaveLength(1);
+    vi.advanceTimersByTime(30_000);
+    FakeWS.instances[0]?.send({ _hb: 1 });
+    vi.advanceTimersByTime(40_000);
+    expect(FakeWS.instances).toHaveLength(1);
+    vi.advanceTimersByTime(30_000);
+    expect(FakeWS.instances.length).toBeGreaterThan(1);
   });
 });

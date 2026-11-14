@@ -233,7 +233,7 @@ describe('event stream reconnect handlers', () => {
     class FakeWS {
       static last: FakeWS | null = null;
       onopen: (() => void) | null = null;
-      onmessage: (() => void) | null = null;
+      onmessage: ((m: { data: string }) => void) | null = null;
       onclose: (() => void) | null = null;
       onerror: (() => void) | null = null;
       close = vi.fn();
@@ -247,10 +247,17 @@ describe('event stream reconnect handlers', () => {
       const handler = vi.fn();
       subscribeReconnect(handler);
       startEvents();
+      // The server greets every open; `replayed: false` is a gap to refetch.
+      const hello = () =>
+        FakeWS.last?.onmessage?.({
+          data: JSON.stringify({ _hello: { epoch: 'e', seq: 0, replayed: false } }),
+        });
       FakeWS.last?.onopen?.();
+      hello();
       expect(handler).not.toHaveBeenCalled();
       // A genuine reconnect (socket dropped, a new one opened) still fires.
       FakeWS.last?.onopen?.();
+      hello();
       expect(handler).toHaveBeenCalledTimes(1);
     } finally {
       vi.unstubAllGlobals();
