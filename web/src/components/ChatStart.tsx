@@ -1222,24 +1222,13 @@ export function SessionBar({
           {panel === 'mode' ? (
             // biome-ignore lint/a11y/useSemanticElements: an anchored popover, not a modal that owns the screen.
             <div className="chat-status-menu chat-session-menu" role="dialog">
-              <div className="chat-session-head">{AGENT_MODE_LABELS[mode]} mode</div>
-              <div className="chat-session-item -static">
-                <span className="chat-session-item-desc">
-                  {MODE_CHOICES.find((m) => m.id === mode)?.desc ?? ''}
-                </span>
-              </div>
-              <div className="chat-session-item -static">
-                <span className="chat-session-item-desc">
-                  {/* The one thing a reader asks next, answered before they
-                      have to find out the hard way. */}
-                  A chat keeps the mode it was created in — no harness can rewrite a running
-                  session’s instructions. To work the other way, open a new chat in{' '}
-                  {AGENT_MODE_LABELS[mode === 'chat' ? 'agent' : 'chat']} mode.
-                </span>
-              </div>
-              {/* The mode is fixed; the MODEL and EFFORT are not. A Chat-mode
-                  chat is still a Claude session with every dial an Agent-mode
-                  one has, so they live here — the one panel this mode opens. */}
+              {status ? null : (
+                <div className="chat-session-item -static">
+                  <span className="chat-session-item-desc">
+                    {MODE_CHOICES.find((m) => m.id === mode)?.desc ?? ''}
+                  </span>
+                </div>
+              )}
               {status ? (
                 <TuningSection
                   paneId={paneId}
