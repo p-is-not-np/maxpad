@@ -99,11 +99,7 @@ export function quantiseFill(fill: number): number {
  * being meaningful, and because a stored timestamp that silently tracks `now`
  * is a lie the moment anyone reads the column directly.
  */
-export function chatClock(opts: {
-  started_at: number;
-  now: number;
-  pinned: boolean;
-}): ChatClock {
+export function chatClock(opts: { started_at: number; now: number; pinned: boolean }): ChatClock {
   const { started_at, now, pinned } = opts;
   if (pinned) {
     return { started_at, expires_at: null, fill: 0, last_day: false, stopped: true };

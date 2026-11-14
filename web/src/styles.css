@@ -160,12 +160,15 @@
   --radius-lg: 12px;
   --shadow-ink: rgb(0 0 0);
   --shadow-sm: 0 1px 2px color-mix(in srgb, var(--shadow-ink) 18%, transparent);
-  --shadow-md: 0 1px 2px color-mix(in srgb, var(--shadow-ink) 12%, transparent), 0 6px 16px -4px
-    color-mix(in srgb, var(--shadow-ink) 30%, transparent);
-  --shadow-lg: 0 2px 6px color-mix(in srgb, var(--shadow-ink) 14%, transparent), 0 14px 36px -8px
-    color-mix(in srgb, var(--shadow-ink) 42%, transparent);
-  --shadow-xl: 0 4px 12px color-mix(in srgb, var(--shadow-ink) 16%, transparent), 0 28px 70px -16px
-    color-mix(in srgb, var(--shadow-ink) 55%, transparent);
+  --shadow-md:
+    0 1px 2px color-mix(in srgb, var(--shadow-ink) 12%, transparent),
+    0 6px 16px -4px color-mix(in srgb, var(--shadow-ink) 30%, transparent);
+  --shadow-lg:
+    0 2px 6px color-mix(in srgb, var(--shadow-ink) 14%, transparent),
+    0 14px 36px -8px color-mix(in srgb, var(--shadow-ink) 42%, transparent);
+  --shadow-xl:
+    0 4px 12px color-mix(in srgb, var(--shadow-ink) 16%, transparent),
+    0 28px 70px -16px color-mix(in srgb, var(--shadow-ink) 55%, transparent);
   --focus-ring: 0 0 0 3px color-mix(in srgb, var(--accent) 24%, transparent);
   --ease: cubic-bezier(0.2, 0, 0, 1);
   --dur-fast: 120ms;
@@ -699,10 +702,12 @@
   /* THE WHOLE UI GOES MONOSPACE — the single biggest part of the look. The
      rail's proportional sans is what makes muxpad read as an app rather than
      as a machine, and taking it away does most of the work. */
-  --ui-font: "Px437 IBM VGA 8x16", "PxPlus IBM VGA8", "Topaz-8", Terminus, "MesloLGS NF",
-    ui-monospace, SFMono-Regular, Menlo, monospace;
-  --chrome-font: "Px437 IBM VGA 8x16", "PxPlus IBM VGA8", "Topaz-8", Terminus, "MesloLGS NF",
-    ui-monospace, SFMono-Regular, Menlo, monospace;
+  --ui-font:
+    "Px437 IBM VGA 8x16", "PxPlus IBM VGA8", "Topaz-8", Terminus, "MesloLGS NF", ui-monospace,
+    SFMono-Regular, Menlo, monospace;
+  --chrome-font:
+    "Px437 IBM VGA 8x16", "PxPlus IBM VGA8", "Topaz-8", Terminus, "MesloLGS NF", ui-monospace,
+    SFMono-Regular, Menlo, monospace;
   --term-font: "Px437 IBM VGA 8x16", "PxPlus IBM VGA8", Menlo, Monaco, monospace;
 
   /* ─── A TERMINAL GROUND, NOT A PURPLE ONE ──────────────────────────────
@@ -972,8 +977,9 @@
    pixel out, on the wordmark only — enough to read as a tube, nowhere near
    enough to blur anything you have to read. */
 [data-theme="demoscene"] .brand-text {
-  text-shadow: -0.5px 0 color-mix(in srgb, #ff2fd0 65%, transparent), 0.5px 0
-    color-mix(in srgb, #22e8ff 65%, transparent);
+  text-shadow:
+    -0.5px 0 color-mix(in srgb, #ff2fd0 65%, transparent),
+    0.5px 0 color-mix(in srgb, #22e8ff 65%, transparent);
 }
 
 /* ─── A BLOCK SCROLLBAR ─────────────────────────────────────────────────────
@@ -1013,13 +1019,9 @@
   inset: 0;
   z-index: 9999;
   pointer-events: none;
-  background: repeating-linear-gradient(
-      to bottom,
-      #0000 0px,
-      #0000 2px,
-      #0000002e 3px,
-      #0000002e 3px
-    ), radial-gradient(120% 120% at 50% 50%, #0000 58%, #00000059 100%);
+  background:
+    repeating-linear-gradient(to bottom, #0000 0px, #0000 2px, #0000002e 3px, #0000002e 3px),
+    radial-gradient(120% 120% at 50% 50%, #0000 58%, #00000059 100%);
 }
 @media (prefers-reduced-motion: reduce), (prefers-contrast: more) {
   [data-theme="demoscene"] body::after {
@@ -1152,9 +1154,12 @@
 [data-theme="blueprint"] .chat-pane,
 [data-theme="blueprint"] .pane-web,
 [data-theme="blueprint"] .workspace-body {
-  background-image: linear-gradient(to right, #9fe3ff1f 0 1px, transparent 1px 100%),
+  background-image:
+    linear-gradient(to right, #9fe3ff1f 0 1px, transparent 1px 100%),
     linear-gradient(to bottom, #9fe3ff1f 0 1px, transparent 1px 100%);
-  background-size: 96px 96px, 96px 96px;
+  background-size:
+    96px 96px,
+    96px 96px;
   /* FIXED, so every panel's grid is one continuous sheet rather than four
      that restart at their own top-left — which is what a sheet IS, and what
      an overlay got right for free and a per-element background does not. */
@@ -1240,11 +1245,19 @@
    drawing, with its corner ticks. Four tiny gradients, one element. */
 [data-theme="blueprint"] .chat-composer {
   border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
-  background-image: linear-gradient(var(--accent), var(--accent)),
+  background-image:
     linear-gradient(var(--accent), var(--accent)), linear-gradient(var(--accent), var(--accent)),
-    linear-gradient(var(--accent), var(--accent));
-  background-size: 7px 1px, 1px 7px, 7px 1px, 1px 7px;
-  background-position: left top, left top, right bottom, right bottom;
+    linear-gradient(var(--accent), var(--accent)), linear-gradient(var(--accent), var(--accent));
+  background-size:
+    7px 1px,
+    1px 7px,
+    7px 1px,
+    1px 7px;
+  background-position:
+    left top,
+    left top,
+    right bottom,
+    right bottom;
   background-repeat: no-repeat;
 }
 
@@ -1355,13 +1368,19 @@
 }
 @keyframes riso-register {
   0% {
-    text-shadow: 1px -1px 0 #e0005f59, -1px 1px 0 #1333c452;
+    text-shadow:
+      1px -1px 0 #e0005f59,
+      -1px 1px 0 #1333c452;
   }
   33% {
-    text-shadow: -1px -1px 0 #e0005f59, 1px 1px 0 #1333c452;
+    text-shadow:
+      -1px -1px 0 #e0005f59,
+      1px 1px 0 #1333c452;
   }
   66% {
-    text-shadow: 1px 1px 0 #e0005f59, -1px -1px 0 #1333c452;
+    text-shadow:
+      1px 1px 0 #e0005f59,
+      -1px -1px 0 #1333c452;
   }
 }
 
@@ -1458,8 +1477,8 @@
      for screen reading at small sizes, with open counters and wide spacing,
      and it is on every machine. The display face carries the era. */
   --ui-font: Verdana, "DejaVu Sans", Geneva, Tahoma, sans-serif;
-  --chrome-font: "Gill Sans", "Gill Sans MT", "Trebuchet MS", "Century Gothic", system-ui,
-    sans-serif;
+  --chrome-font:
+    "Gill Sans", "Gill Sans MT", "Trebuchet MS", "Century Gothic", system-ui, sans-serif;
   --term-font: "SF Mono", Menlo, Monaco, monospace;
 
   --bg: #fbf8f1;
@@ -1573,13 +1592,20 @@
    texture you notice and one you feel. */
 [data-theme="memphis"] .chat-pane,
 [data-theme="memphis"] .workspace-body {
-  background-image: radial-gradient(5px 5px at 12% 18%, #ffd40037 98%, #0000),
+  background-image:
+    radial-gradient(5px 5px at 12% 18%, #ffd40037 98%, #0000),
     radial-gradient(4px 4px at 78% 9%, #00c2e03a 98%, #0000),
     radial-gradient(6px 6px at 43% 62%, #d6006e32 98%, #0000),
     radial-gradient(4px 4px at 91% 71%, #7b4dff35 98%, #0000),
     radial-gradient(5px 5px at 27% 88%, #00d49a3a 98%, #0000),
     repeating-linear-gradient(45deg, #12101607 0 3px, #0000 3px 17px);
-  background-size: 225px 225px, 180px 180px, 270px 270px, 205px 205px, 250px 250px, 58px 58px;
+  background-size:
+    225px 225px,
+    180px 180px,
+    270px 270px,
+    205px 205px,
+    250px 250px,
+    58px 58px;
   background-attachment: fixed;
 }
 [data-theme="memphis"] .chat-msg {
@@ -1897,7 +1923,9 @@ select {
   border-radius: var(--radius-sm);
   color: var(--fg);
   outline: none;
-  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
 }
 input:focus,
 select:focus {
@@ -1928,8 +1956,11 @@ button:focus-visible {
   font-weight: 500;
   cursor: pointer;
   box-shadow: var(--shadow-sm);
-  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease),
-    box-shadow var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+  transition:
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
 }
 .btn:hover {
   background: var(--bg-hover);
@@ -2158,7 +2189,9 @@ button:focus-visible {
      hover (see below). */
   filter: grayscale(0.7);
   opacity: 0.92;
-  transition: filter 120ms ease, opacity 120ms ease;
+  transition:
+    filter 120ms ease,
+    opacity 120ms ease;
 }
 
 /* Hover brings the brand to full vibrancy: the mark's real colors and a crisp
@@ -2191,7 +2224,9 @@ button:focus-visible {
   font-weight: 500;
   user-select: none;
   text-decoration: none;
-  transition: background 80ms ease, color 80ms ease;
+  transition:
+    background 80ms ease,
+    color 80ms ease;
 }
 .brand-text-side:hover {
   background: var(--bg-hover);

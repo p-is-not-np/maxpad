@@ -48,10 +48,9 @@
   border-radius: 10px;
   /* The same two-stop wash the spawn card uses, so they read as siblings — a
      flat fill next to it looked unfinished. */
-  background: linear-gradient(
-      color-mix(in srgb, var(--chat-fg, #1c1c22) 5%, transparent),
-      transparent 70%
-    ), var(--chat-panel, #fff);
+  background:
+    linear-gradient(color-mix(in srgb, var(--chat-fg, #1c1c22) 5%, transparent), transparent 70%),
+    var(--chat-panel, #fff);
   border: 1px solid var(--chat-border, #dcdce6);
   color: var(--chat-fg, #1c1c22);
   font-family: var(--chrome-font, inherit);
@@ -304,10 +303,12 @@
 /* You hold the wheel. A wash, not a border — you already know. */
 .browser-card--yours {
   border-color: color-mix(in srgb, var(--chat-accent, #5b5bd6) 35%, var(--chat-border, #dcdce6));
-  background: linear-gradient(
+  background:
+    linear-gradient(
       color-mix(in srgb, var(--chat-accent, #5b5bd6) 10%, transparent),
       transparent 70%
-    ), var(--chat-panel, #fff);
+    ),
+    var(--chat-panel, #fff);
 }
 .browser-card--yours .browser-card__glyph {
   color: var(--chat-accent, #5b5bd6);

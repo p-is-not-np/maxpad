@@ -180,7 +180,9 @@
   font-size: 0.9375rem;
   line-height: 1.5;
   padding: 9px 40px 9px 12px;
-  transition: border-color 0.12s ease, background 0.12s ease;
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease;
 }
 .doc-chat-composer::placeholder {
   color: var(--fg-faint);

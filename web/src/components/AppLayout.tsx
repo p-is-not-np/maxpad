@@ -214,7 +214,7 @@ export function AppLayout() {
  * status/close icon. Dragging left narrows down to SIDENAV_MIN_WIDTH. The
  * final width persists via settings.
  */
-function SidenavResizeHandle({ asideRef }: { asideRef: React.RefObject<HTMLElement> }) {
+function SidenavResizeHandle({ asideRef }: { asideRef: React.RefObject<HTMLElement | null> }) {
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     // Only a primary-button drag; let other buttons through.
     if (e.button !== 0) return;
@@ -282,6 +282,7 @@ function SidenavResizeHandle({ asideRef }: { asideRef: React.RefObject<HTMLEleme
       onPointerDown={onPointerDown}
       onDoubleClick={snapToFit}
       onKeyDown={onKeyDown}
+      // biome-ignore lint/a11y/useAriaPropsForRole: the handle has no meaningful value to report; arrow keys resize relative to the current width.
       role="separator"
       aria-orientation="vertical"
       aria-label="Resize sidebar"

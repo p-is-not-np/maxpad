@@ -788,7 +788,9 @@
   text-align: left;
   cursor: pointer;
   border-radius: var(--radius);
-  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+  transition:
+    color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease);
 }
 .chat-toolrow:hover {
   color: var(--chat-dim);
@@ -1374,7 +1376,9 @@
   /* Floats over the conversation (the wrap behind it is transparent) — a real
      drop shadow so the pill reads as lifted above the content directly behind it. */
   box-shadow: var(--shadow-lg);
-  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+  transition:
+    border-color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease);
 }
 /* The input line (attach · textarea · send). The composer itself is a column
    so the attachment row can sit beneath it inside the pill. */
@@ -1388,7 +1392,9 @@
   /* Keep the float shadow AND add the accent focus ring (don't replace it). */
   /* A wide, faint halo rather than a tight bright ring: 4px at 12% reads as
      a glow around the pill, not as a second border drawn outside it. */
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--chat-accent) 12%, transparent), var(--shadow-lg);
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--chat-accent) 12%, transparent),
+    var(--shadow-lg);
 }
 
 /* A file is being dragged over the composer: say it will be taken. */
@@ -1474,7 +1480,9 @@
   letter-spacing: 0;
   cursor: pointer;
   white-space: nowrap;
-  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
 }
 .chat-tool-btn:hover:not(:disabled),
 .chat-tool-btn:focus-visible {
@@ -1588,7 +1596,10 @@
   background: transparent;
   color: var(--chat-dim);
   cursor: pointer;
-  transition: background 120ms ease, color 120ms ease, transform 120ms ease;
+  transition:
+    background 120ms ease,
+    color 120ms ease,
+    transform 120ms ease;
 }
 .chat-attach:focus:not(:focus-visible),
 .chat-send:focus:not(:focus-visible) {
@@ -1669,7 +1680,11 @@
   color: var(--chat-accent-fg);
   cursor: pointer;
   box-shadow: 0 2px 10px -4px color-mix(in srgb, var(--chat-accent) 70%, transparent);
-  transition: transform 120ms ease, background 120ms ease, box-shadow 120ms ease, color 120ms ease;
+  transition:
+    transform 120ms ease,
+    background 120ms ease,
+    box-shadow 120ms ease,
+    color 120ms ease;
 }
 .chat-send:hover:not(:disabled) {
   transform: scale(1.06);
@@ -1777,7 +1792,9 @@
   background: transparent;
   color: var(--chat-dim);
   cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
 }
 .chat-mic:hover,
 .chat-mic:focus-visible {
@@ -1876,7 +1893,9 @@
   cursor: pointer;
   font-size: 0.8125rem;
   line-height: 1;
-  transition: background 100ms ease, color 100ms ease;
+  transition:
+    background 100ms ease,
+    color 100ms ease;
 }
 .chat-queued-edit:hover {
   background: color-mix(in srgb, var(--chat-fg) 8%, transparent);
@@ -2027,7 +2046,9 @@
   color: var(--chat-fg);
   text-align: left;
   cursor: pointer;
-  transition: border-color 120ms ease, background 120ms ease;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease;
 }
 .chat-question-option:hover {
   border-color: var(--chat-border-strong);
@@ -2716,8 +2737,10 @@ button.chat-filechip {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition:
-    color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease),
-    border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease),
     transform var(--dur-fast) var(--ease);
 }
 .chat-open-instead-btn svg {
@@ -2916,7 +2939,9 @@ button.chat-filechip {
   white-space: nowrap;
   overflow: hidden;
   -webkit-tap-highlight-color: transparent;
-  transition: color 120ms ease, background 120ms ease;
+  transition:
+    color 120ms ease,
+    background 120ms ease;
 }
 .chat-status-seg:hover,
 .chat-status-seg.is-open {
@@ -3308,7 +3333,7 @@ button.chat-filechip {
 /* The mode chip too: it is one short word, and half a clipped word beside an
    icon reads as a rendering fault rather than as a chip running out of room.
    With the count absorbing all the shrink there is room for both. */
-  .chat-status-seg-wrap:has(> .chat-status-seg.-mode) {
+.chat-status-seg-wrap:has(> .chat-status-seg.-mode) {
   flex: 0 0 auto;
 }
 .chat-status-seg.-bg svg {
@@ -3469,7 +3494,9 @@ button.chat-filechip {
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
-  transition: border-color 120ms ease, background 120ms ease;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease;
 }
 .chat-harness-btn:hover:not(:disabled) {
   border-color: var(--accent);
@@ -3506,7 +3533,10 @@ button.chat-filechip {
   font-size: 0.8125rem;
   font-weight: 550;
   cursor: pointer;
-  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease,
+    color 120ms ease;
 }
 .chat-harness-quiet svg {
   flex: 0 0 auto;
@@ -3637,11 +3667,13 @@ button.chat-filechip {
   /* A soft raised tile: the elevated surface with a faint wash of the accent
      from the top, a hairline and the small shadow — so the mark reads as an
      object rather than as an outline drawn on the page. */
-  background: linear-gradient(
+  background:
+    linear-gradient(
       180deg,
       color-mix(in srgb, var(--chat-accent, var(--accent)) 10%, transparent),
       transparent 70%
-    ), var(--chat-elev, var(--bg-elev));
+    ),
+    var(--chat-elev, var(--bg-elev));
   border: 1px solid color-mix(in srgb, var(--chat-fg, var(--fg)) 10%, transparent);
   box-shadow: var(--shadow-md);
   color: var(--chat-accent, var(--accent));
@@ -3831,7 +3863,10 @@ button.chat-filechip {
   white-space: nowrap;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
+  transition:
+    color 120ms ease,
+    background 120ms ease,
+    border-color 120ms ease;
 }
 .chat-launch-model:hover:not(:disabled) {
   color: var(--fg, #d7dae0);
@@ -3897,7 +3932,10 @@ button.chat-filechip {
   background: transparent;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
+  transition:
+    color 120ms ease,
+    background 120ms ease,
+    border-color 120ms ease;
 }
 .chat-folder-chip-name {
   font-family: var(--chrome-font, inherit);

@@ -6425,6 +6425,7 @@ export function ChatPane({
                             <span
                               className="chat-chip-progress"
                               role="progressbar"
+                              // biome-ignore lint/a11y/noNoninteractiveTabindex: focusable so a keyboard user can reach the upload's progress on the chip.
                               tabIndex={0}
                               aria-label={`Uploading ${ch.name}`}
                               aria-valuemin={0}
